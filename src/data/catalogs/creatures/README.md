@@ -25,6 +25,7 @@ public/assets/creatures/<kind>/ model + CREDITS.txt
 3. Řádek do `index.js` (import + položka v `CREATURE_TYPES`).
 4. Zvuky: soubory do `public/assets/audio/creatures/<druh>/`, záznam do seznamu klipů a do `CREDITS.txt`.
 5. Zapsat tvora do mapy (mapa určuje, kdo ve hře existuje; hra tvory nedoplňuje).
+6. Portrét do bestiáře: `node tools/capture.cjs <kind> idle --portrait 1` (běžící dev server).
 
 Spawn, ikony, obrysy, tooltip, stopy i ukládání pak fungují samy.
 
@@ -66,6 +67,8 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `idleCallSeconds` | rozsah `[min, max]`, jak často v klidu zavolá (zvuk `idle`) | v klidu mlčí |
 | `defaultTier` | který tier platí, když mapa nic neřekne | povinné |
 | `loot` | co z něj vypadne (`{ id_předmětu: počet }`) | nic |
+| `resistances` | odolnosti v procentech (`{ blunt: 25, piercing: -25 }`); záporné = slabina | všude 0 |
+| `bestiary` | texty do bestiáře: `summary` (popis), `habitat` (kde žije), `notes` (poznámky lovce) | v bestiáři prázdno |
 | `tiers` | úrovně (viz níž) | povinné |
 | `buried` | `true` = začíná zahrabaný a vylézá na hráče | `false` |
 | `emergeRange` | z jaké dálky vyleze ze země | `aggroRange` |

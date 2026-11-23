@@ -12,6 +12,8 @@ import { formatMeters } from '../data/maps/layoutStore.js';
 import { PLAYER_BASE } from '../data/catalogs/player.js';
 import { CREATURE_TYPES, CREATURE_KEYS, creatureStat, creatureResistances } from '../data/catalogs/creatures/index.js';
 import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
+import { ITEM_TYPES } from '../data/catalogs/items.js';
+import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
 import { strikeChances, damageText } from '../utils/combatRoll.js';
 import { angleGap } from '../utils/angles.js';
 import AttackArc, { DANGER_COLOR } from '../effects/attackArc.js';
@@ -236,8 +238,8 @@ export default {
     const sight = Number.isFinite(tier.aggroRange) ? tier.aggroRange : type.aggroRange;
     const speed = (Number(type.walkSpeed) || 0) * (Number.isFinite(tier.speed) ? tier.speed : 1);
     const row = (stat, label, value) => (this.bestiary.unlocked(kind, stat)
-      ? { label, value }
-      : { label, value: '???', locked: true });
+      ? { stat, label, value, stage: this.bestiary.needed(stat) }
+      : { stat, label, value: '???', locked: true, stage: this.bestiary.needed(stat) });
     const damageType = DAMAGE_TYPES[type.damageType];
     const bite = tier.bite ?? type.bite;
     const biteText = bite === undefined ? '—' : `${damageText(bite)}${damageType ? ` ${damageType.short.toLocaleLowerCase('cs')}` : ''}`;
@@ -281,13 +283,43 @@ export default {
     return CREATURE_KEYS.map((kind) => {
       const type = CREATURE_TYPES[kind];
       const kills = this.bestiary.killsOf(kind);
-      if (!kills) return { key: kind, known: false };
-      const tiers = Object.values(type.tiers || {}).map((tier) => ({
-        label: tier.label || '',
-        rows: this.creatureStatRows(kind, type, tier, String(tier.health ?? '—')),
-      }));
-      return { key: kind, known: true, title: type.label, kills, tiers };
+      if (!this.bestiary.known(kind)) return { key: kind, known: false };
+      const lore = type.bestiary || {};
+      const part = (stat, value) => ({
+        value: this.bestiary.unlocked(kind, stat) ? value : null,
+        stage: this.bestiary.needed(stat),
+      });
+      const loot = Object.entries(type.loot || {})
+        .map(([key, count]) => `${(ITEM_TYPES[key] && ITEM_TYPES[key].displayName) || key}${count > 1 ? ` ×${count}` : ''}`)
+        .join(', ');
+      const tiers = Object.values(type.tiers || {}).map((tier) => {
+        const resistances = creatureResistances(type, tier);
+        return {
+          label: tier.label || '',
+          rows: this.creatureStatRows(kind, type, tier, String(tier.health ?? '—')).filter((row) => row.stat !== 'resistances'),
+          resistances: part('resistances', DAMAGE_TYPE_KEYS
+            .filter((key) => Math.round(resistances[key]) !== 0)
+            .map((key) => ({ label: DAMAGE_TYPES[key].short, icon: DAMAGE_TYPES[key].icon, value: Math.round(resistances[key]) }))),
+        };
+      });
+      return {
+        key: kind,
+        known: true,
+        title: type.label,
+        kills,
+        portrait: part('portrait', `${ASSET_DIRS.bestiary}${kind}.png`),
+        summary: part('summary', lore.summary || ''),
+        habitat: part('habitat', lore.habitat || ''),
+        loot: part('loot', loot || 'nic'),
+        notes: part('notes', lore.notes || ''),
+        tiers,
+      };
     });
+  },
+
+  setBestiaryRevealAll(on) {
+    this.bestiary.setRevealAll(on);
+    this.refreshBestiaryWindow();
   },
 
   refreshBestiaryWindow() {
@@ -487,24 +519,51 @@ export default {
     this.attackToward(alive ? creature : null, queued.kind);
   },
 
-  damageCreature(creature, amount, crit, graze = false, absorbed = 0) {
+  damageCreature(creature, amount, crit, graze = false, absorbed = 0, detail = null) {
     if (!creature) return false;
     const killed = this.creatureSystem.damage(creature, amount, this.simSystem.time);
     this.audioSystem.play(this.playerAttackSystem.hitSound);
     const label = creature.type ? creature.type.label : 'Tvor';
     this.showFloatingDamage(creature, amount, crit, graze, absorbed);
     if (killed) {
+      this.log.add(`Porazil jsi: ${label} (poslední rána ${Math.round(amount)})`, 'warn', this.damageDetailText(detail));
       this.recordKill(creature);
-      this.log.add(`Porazil jsi: ${label}`, 'warn');
       return true;
     }
     const left = Math.max(0, Math.round(creature.health));
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const suffix = total === null ? '' : ` (${left} / ${total})`;
     const critText = crit ? ' kriticky' : graze ? ' (škrábnutí)' : '';
-    const absorbedText = absorbed >= 1 ? ` (odoláno ${Math.round(absorbed)})` : '';
-    this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${absorbedText}${suffix}`, 'action');
+    this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${this.absorbedText(absorbed)}${suffix}`, 'action', this.damageDetailText(detail));
     return false;
+  },
+
+  absorbedText(absorbed) {
+    if (absorbed >= 1) return ` (odoláno ${Math.round(absorbed)})`;
+    if (absorbed <= -1) return ` (slabina +${Math.round(-absorbed)})`;
+    return '';
+  },
+
+  damageDetailText(detail) {
+    if (!this.options.combatDetails || !detail) return null;
+    const number = (value) => String(Math.round(value * 10) / 10).replace('.', ',');
+    const steps = [];
+    if (Number.isFinite(detail.roll)) {
+      steps.push(`rána ${number(detail.roll)}`);
+      if (detail.scale > 1) steps.push(`kritický ×${number(detail.scale)} = ${number(detail.roll * detail.scale)}`);
+      if (detail.scale < 1) steps.push(`škrábnutí ×${number(detail.scale)} = ${number(detail.roll * detail.scale)}`);
+      if (detail.share < 1) steps.push(`rozděleno mezi ${Math.round(1 / detail.share)} = ${number(detail.damage)}`);
+    } else {
+      steps.push(`rána tvora ${number(detail.damage)}`);
+    }
+    const type = DAMAGE_TYPES[detail.damageType];
+    const typeName = type ? type.short.toLocaleLowerCase('cs') : 'bez typu';
+    if (detail.resistance > 0) steps.push(`odolnost na ${typeName} −${detail.resistance} % = ${number(detail.afterResist)}`);
+    else if (detail.resistance < 0) steps.push(`slabina na ${typeName} +${-detail.resistance} % = ${number(detail.afterResist)}`);
+    else steps.push(`${typeName}, bez odolnosti`);
+    if (detail.armor > 0) steps.push(`zbroj −${number(detail.armor)} = ${number(detail.afterResist - detail.armor)}`);
+    steps.push(`zaokrouhleno ${detail.dealt}`);
+    return steps.join(' · ');
   },
 
   missCreature(creature) {
@@ -533,7 +592,9 @@ export default {
 
   spawnFloatingNumber(amount, x, y, z, kind, absorbed = 0) {
     if (!Number.isFinite(amount)) return;
-    const note = Number.isFinite(absorbed) && absorbed >= 1 ? `(−${Math.round(absorbed)})` : null;
+    const note = !Number.isFinite(absorbed) ? null
+      : absorbed >= 1 ? `(−${Math.round(absorbed)})`
+        : absorbed <= -1 ? `(+${Math.round(-absorbed)})` : null;
     this.spawnFloatingText(Math.round(amount), x, y, z, kind, note);
   },
 
@@ -679,9 +740,8 @@ export default {
     const behind = this.isBehindPlayer(creature);
     const dealt = this.hurtPlayer(damage, crit, behind, damageType);
     if (!dealt) return;
-    const blocked = Math.max(0, Math.round(damage - dealt));
-    const blockedText = blocked > 0 ? ` (odoláno ${blocked})` : '';
-    this.log.add(`${who} — ${Math.round(dealt)} poškození${critText}${blockedText}`, 'warn');
+    const blocked = Math.round(damage) - dealt;
+    this.log.add(`${who} — ${Math.round(dealt)} poškození${critText}${this.absorbedText(blocked)}`, 'hurt',this.damageDetailText(this.playerStats.lastHit));
     this.showFloatingOverPlayer(dealt, crit, blocked, graze);
   },
 

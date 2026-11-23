@@ -1,5 +1,6 @@
 // Typy poškození a odolností — jediné místo, které zná jejich klíče, názvy a skupiny.
 // Výchozí odolnost je nula; strop 75 % a odečtení zbroje platí stejně pro hráče i tvory.
+// Záporná odolnost je slabina: rána se zvětší, nejvýš na dvojnásobek (−100 %).
 export const DAMAGE_TYPES = {
   blunt: {
     label: 'Tupé poškození',
@@ -56,17 +57,23 @@ export const DAMAGE_GROUPS = [
 }));
 
 export const MAX_RESISTANCE = 75;
+export const MIN_RESISTANCE = -100;
 
 export function zeroResistances() {
   return Object.fromEntries(DAMAGE_TYPE_KEYS.map((key) => [key, 0]));
 }
 
-export function mitigateDamage(points, damageType, resistances, armor) {
+export function clampResistance(value) {
+  return Number.isFinite(value) ? Math.max(MIN_RESISTANCE, Math.min(MAX_RESISTANCE, value)) : 0;
+}
+
+export function damageBreakdown(points, damageType, resistances, armor) {
   const damage = Number(points);
-  if (!Number.isFinite(damage) || damage <= 0) return 0;
+  if (!Number.isFinite(damage) || damage <= 0) return { damage: 0, resistance: 0, afterResist: 0, armor: 0, dealt: 0, damageType };
   const type = DAMAGE_TYPES[damageType] || null;
-  const raw = type && resistances && Number.isFinite(resistances[damageType]) ? resistances[damageType] : 0;
-  const share = Math.max(0, Math.min(MAX_RESISTANCE, raw));
+  const resistance = type && resistances ? clampResistance(resistances[damageType]) : 0;
+  const afterResist = damage * (1 - resistance / 100);
   const flat = type && type.group === 'physical' && Number.isFinite(armor) && armor > 0 ? armor : 0;
-  return Math.max(1, Math.round(damage * (1 - share / 100) - flat));
+  const dealt = Math.max(1, Math.round(afterResist - flat));
+  return { damage, resistance, afterResist, armor: flat, dealt, damageType };
 }

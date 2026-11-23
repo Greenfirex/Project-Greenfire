@@ -2,6 +2,7 @@
 // Spouští se nad běžícím dev serverem: node tools/capture.cjs koa_tiki peck --view side
 // Scény: idle, walk, attack (--attack peck|jump), hit, death, peck. Pohledy: side, side2 (z druhé strany), front, diag, top.
 // Postava: node tools/capture.cjs player idle --sheath saber --wear pirate_coat,pirate_pants --focus hip --zoom 1.3
+// Portrét do bestiáře: node tools/capture.cjs gnaw_rat idle --portrait 1
 const fs = require('node:fs');
 const path = require('node:path');
 const puppeteer = require('puppeteer-core');
@@ -14,6 +15,9 @@ const BROWSERS = [
 ];
 const STAGE_URL = process.env.GREENFIRE_URL || 'http://localhost:5174/tools/capture/stage.html';
 const OUT_DIR = path.join(__dirname, '_temp');
+const PORTRAIT_DIR = path.join(__dirname, '..', 'public', 'assets', 'ui', 'bestiary');
+const PORTRAIT_SIZE = 384;
+const PORTRAIT_PAD = 0.06;
 
 function readOptions(argv) {
   const options = { kind: argv[0] || 'koa_tiki', scene: argv[1] || 'idle', view: 'side' };
@@ -71,6 +75,44 @@ async function makeSheet(page, result) {
   }, { frames: result.frames, groundLine: result.groundLine });
 }
 
+async function makePortrait(page, image) {
+  return page.evaluate(async ({ source, size, pad }) => {
+    const picture = new Image();
+    picture.src = source;
+    await picture.decode();
+    const scratch = document.createElement('canvas');
+    scratch.width = picture.width;
+    scratch.height = picture.height;
+    const scratchCtx = scratch.getContext('2d');
+    scratchCtx.drawImage(picture, 0, 0);
+    const pixels = scratchCtx.getImageData(0, 0, picture.width, picture.height).data;
+    let left = picture.width;
+    let right = 0;
+    let top = picture.height;
+    let bottom = 0;
+    for (let y = 0; y < picture.height; y += 1) {
+      for (let x = 0; x < picture.width; x += 1) {
+        if (pixels[(y * picture.width + x) * 4 + 3] < 8) continue;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    if (right < left) return null;
+    const width = right - left + 1;
+    const height = bottom - top + 1;
+    const fit = (size * (1 - pad * 2)) / Math.max(width, height);
+    const sheet = document.createElement('canvas');
+    sheet.width = size;
+    sheet.height = size;
+    const ctx = sheet.getContext('2d');
+    ctx.drawImage(scratch, left, top, width, height,
+      (size - width * fit) / 2, (size - height * fit) / 2, width * fit, height * fit);
+    return sheet.toDataURL('image/png');
+  }, { source: image, size: PORTRAIT_SIZE, pad: PORTRAIT_PAD });
+}
+
 function printCreature(result) {
   console.log(`Tvor ${result.creature}: délka ${result.length} m, výška ${result.height} m`);
   console.log('Výška nad zemí v m (záporné = pod zemí). Celé tělo: nejnižší bod a kde leží (vpředu +, vzadu −).');
@@ -116,6 +158,15 @@ async function run() {
     await page.waitForFunction(() => window.stage && window.stage.ready, { timeout: 60000 });
     const result = await page.evaluate((wanted) => window.stage.run(wanted), options);
     if (result.error) throw new Error(result.error);
+    if (options.portrait) {
+      const portrait = await makePortrait(page, result.frames[0].image);
+      if (!portrait) throw new Error('Na snímku není žádný tvor.');
+      fs.mkdirSync(PORTRAIT_DIR, { recursive: true });
+      const file = path.join(PORTRAIT_DIR, `${options.kind}.png`);
+      fs.writeFileSync(file, Buffer.from(portrait.split(',')[1], 'base64'));
+      console.log(`Portrét uložen: ${path.relative(process.cwd(), file)}`);
+      return;
+    }
     const png = await makeSheet(page, result);
     fs.mkdirSync(OUT_DIR, { recursive: true });
     const file = path.join(OUT_DIR, `snimky-${result.creature}-${options.scene}-${options.view}${options.focus ? `-${options.focus}` : ''}.png`);

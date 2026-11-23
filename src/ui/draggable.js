@@ -2,6 +2,12 @@
 // Tlačítka a pole zůstávají klikací; pozici drží v inline stylu, z viewportu panel neuteče.
 const SKIP = 'button, input, select, textarea, label, a, output';
 
+function layerScale(target) {
+  if (!target.closest('#hud-layer')) return 1;
+  const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-scale'));
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 export function makeDraggable(root, handle = null) {
   if (!root || root.dataset.dragReady === '1') return root;
   root.dataset.dragReady = '1';
@@ -12,13 +18,14 @@ export function makeDraggable(root, handle = null) {
     if (event.button !== 0) return;
     if (event.target.closest(SKIP)) return;
     const rect = target.getBoundingClientRect();
+    const scale = layerScale(target);
     const offsetX = event.clientX - rect.left;
     const offsetY = event.clientY - rect.top;
     target.style.transform = 'none';
     target.style.right = 'auto';
     target.style.bottom = 'auto';
-    target.style.left = `${rect.left}px`;
-    target.style.top = `${rect.top}px`;
+    target.style.left = `${rect.left / scale}px`;
+    target.style.top = `${rect.top / scale}px`;
     target.setPointerCapture(event.pointerId);
     target.classList.add('is-dragging');
 
@@ -27,8 +34,8 @@ export function makeDraggable(root, handle = null) {
       const maxY = window.innerHeight - rect.height;
       const left = Math.max(0, Math.min(maxX, evt.clientX - offsetX));
       const top = Math.max(0, Math.min(maxY, evt.clientY - offsetY));
-      target.style.left = `${left}px`;
-      target.style.top = `${top}px`;
+      target.style.left = `${left / scale}px`;
+      target.style.top = `${top / scale}px`;
     };
 
     const stop = (evt) => {

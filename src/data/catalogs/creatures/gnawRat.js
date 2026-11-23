@@ -504,7 +504,12 @@ export const GNAW_RAT = {
   chargeRange: 2,
   damageType: 'piercing',
   armor: 0,
-  resistances: {},
+  resistances: { piercing: 25, blunt: -25 },
+  bestiary: {
+    summary: 'Vychrtlá krysa velká jako pes, s řezáky, které prokousnou i kokosový ořech.',
+    habitat: 'Jeskyně a stinné okraje lesa. Ráda se drží ve skupinách.',
+    notes: 'Mrštné tělo se hrotem špatně trefuje, ale tupá rána jí snadno přerazí kosti. Když jedna varuje, ostatní bývají blízko.',
+  },
   regenPerSecond: 0.2,
   biteRange: 0.81,
   biteArc: 80,

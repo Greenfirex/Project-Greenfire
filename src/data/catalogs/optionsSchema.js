@@ -14,6 +14,8 @@ export const OPTION_DEFAULTS = {
   cameraShake: true,
   damageFlash: true,
   floatingNumbers: true,
+  combatDetails: false,
+  uiScale: 100,
   playerBars: 'dock',
   sfxVolume: 70,
   ambientVolume: 25,
@@ -23,6 +25,8 @@ export const OPTION_DEFAULTS = {
 export const QUALITY_SCALES = { high: 1, medium: 0.8, low: 0.65 };
 
 export const FPS_CAPS = [30, 60, 0];
+
+export const UI_SCALES = [80, 90, 100, 110, 125, 140];
 
 export const PRESET_OPTIONS = {
   eco: { quality: 'low', shadows: 'off', sight: 'simple', fpsCap: 30, grass: 'off', reflections: false },
@@ -37,5 +41,6 @@ export function mergeSavedOptions(saved) {
   }
   if (typeof values.shadows === 'boolean') values.shadows = values.shadows ? 'full' : 'off';
   if (values.sight !== 'simple' && values.sight !== 'full') values.sight = 'simple';
+  if (!UI_SCALES.includes(Number(values.uiScale))) values.uiScale = OPTION_DEFAULTS.uiScale;
   return values;
 }

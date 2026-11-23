@@ -247,7 +247,12 @@ export const SNAPPING_TURTLE = {
   aggroRange: 6,
   chargeRange: 2,
   damageType: 'piercing',
-  resistances: {},
+  resistances: { slashing: 40, blunt: -25 },
+  bestiary: {
+    summary: 'Želva s ostnatým krunýřem a čelistmi, které sklapnou jako past.',
+    habitat: 'Mělčiny a břehy jezer a řek.',
+    notes: 'Čepel po krunýři sklouzne a krunýř navíc tlumí každou ránu. Klacek nebo jiná tupá zbraň ho ale dokáže prasknout.',
+  },
   regenPerSecond: 0.2,
   biteRange: 1.15,
   biteArc: 60,

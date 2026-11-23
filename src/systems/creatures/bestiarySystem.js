@@ -1,12 +1,19 @@
 // Bestiář — kolik tvorů kterého druhu hráč zabil a co se o nich díky tomu ví.
-// Drží jen počty zabití a prahy odemčení; panel tvora se ho ptá, co smí ukázat.
-const UNLOCKS = { health: 1, speed: 1, attack: 3, defense: 3, damage: 3, sight: 5, armor: 5, resistances: 8 };
-const SHOW_ALL_STATS = true;
+// Drží jen počty zabití a prahy odemčení; okno bestiáře a panel tvora se ho ptají, co smí ukázat.
+const UNLOCKS = {
+  portrait: 1, summary: 1, health: 1, speed: 1,
+  habitat: 3, loot: 3, attack: 3, defense: 3, damage: 3,
+  notes: 5, sight: 5, armor: 5,
+  resistances: 8,
+};
+
+export const UNLOCK_STAGES = [...new Set(Object.values(UNLOCKS))].sort((a, b) => a - b);
 
 export default class BestiarySystem {
 
   constructor() {
     this.kills = {};
+    this.revealAll = false;
   }
 
   record(kind) {
@@ -26,8 +33,16 @@ export default class BestiarySystem {
     return Number.isFinite(UNLOCKS[stat]) ? UNLOCKS[stat] : 0;
   }
 
+  known(kind) {
+    return this.revealAll || this.killsOf(kind) > 0;
+  }
+
   unlocked(kind, stat) {
-    return SHOW_ALL_STATS || this.killsOf(kind) >= this.needed(stat);
+    return this.revealAll || this.killsOf(kind) >= this.needed(stat);
+  }
+
+  setRevealAll(on) {
+    this.revealAll = Boolean(on);
   }
 
   defaultState() {

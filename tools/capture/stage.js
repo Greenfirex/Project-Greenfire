@@ -29,7 +29,9 @@ const VIEWS = {
   front: { alpha: Math.PI / 2, beta: Math.PI / 2 },
   diag: { alpha: Math.PI / 4, beta: Math.PI / 3 },
   top: { alpha: 0, beta: 0.01 },
+  portrait: { alpha: Math.PI / 3, beta: 1.2 },
 };
+const PORTRAIT_CLEAR = new Color4(0, 0, 0, 0);
 
 const canvas = document.getElementById('stage');
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
@@ -185,6 +187,12 @@ async function run(options) {
   const tier = getCreatureTier(type, options.tier);
   const container = await loadContainer(scene, type.model);
   if (!container) return { error: `model se nenačetl: ${type.model}` };
+  if (options.portrait) {
+    ground.setEnabled(false);
+    scene.clearColor = PORTRAIT_CLEAR;
+    options.view = 'portrait';
+    options.scene = 'idle';
+  }
   const model = placeModel(type, tier, container);
   const { rig } = model;
   if (!rig) return { error: 'tvor nemá rig' };
@@ -196,7 +204,7 @@ async function run(options) {
     if (problem) return { error: problem };
   }
   const plan = timeline(type, rig, options);
-  const shots = shotTimes(rig, options, plan.seconds);
+  const shots = options.portrait ? [{ time: 1, label: '' }] : shotTimes(rig, options, plan.seconds);
   const frames = [];
   let clock = 0;
   const stepTo = (time) => {

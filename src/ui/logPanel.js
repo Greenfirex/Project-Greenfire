@@ -1,7 +1,7 @@
-// Log dole vlevo — poslední události ve hře, nejnovější nahoře.
-// Jen vypisuje, co mu scéna předá; do hry nijak nezasahuje.
-const VISIBLE = 8;
+// Log dole vlevo — poslední události ve hře jako chat: nejnovější dole, starší kolečkem myši.
+// Záznam může mít pod sebou šedý řádek s podrobnostmi (výpočet zásahu). Do hry nijak nezasahuje.
 const MEMORY = 100;
+const BOTTOM_SLACK = 4;
 
 export default class LogPanel {
 
@@ -16,7 +16,7 @@ export default class LogPanel {
     const root = document.createElement('div');
     root.className = 'hud-panel hud-log';
     root.id = 'hud-log';
-    root.innerHTML = '<h2>Děje se</h2><div class="log-list"></div>';
+    root.innerHTML = '<h2>Log</h2><div class="log-list"></div>';
     this.listEl = root.querySelector('.log-list');
     document.getElementById('hud-layer').appendChild(root);
     this.root = root;
@@ -24,11 +24,11 @@ export default class LogPanel {
     return root;
   }
 
-  add(text, tone = 'info') {
+  add(text, tone = 'info', detail = null) {
     if (!text) return;
     this.mount();
-    this.entries.unshift({ text, tone });
-    if (this.entries.length > MEMORY) this.entries.length = MEMORY;
+    this.entries.push({ text, tone, detail });
+    if (this.entries.length > MEMORY) this.entries.splice(0, this.entries.length - MEMORY);
     this.render();
   }
 
@@ -39,19 +39,27 @@ export default class LogPanel {
 
   render() {
     if (!this.listEl) return;
-    this.listEl.innerHTML = '';
+    const list = this.listEl;
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight <= BOTTOM_SLACK;
+    list.innerHTML = '';
     if (!this.entries.length) {
       const empty = document.createElement('div');
       empty.className = 'log-empty';
       empty.textContent = 'Zatím se nic neděje.';
-      this.listEl.appendChild(empty);
+      list.appendChild(empty);
       return;
     }
-    for (const entry of this.entries.slice(0, VISIBLE)) {
+    for (const entry of this.entries) {
       const row = document.createElement('div');
       row.className = `log-row log-row--${entry.tone}`;
       row.textContent = entry.text;
-      this.listEl.appendChild(row);
+      list.appendChild(row);
+      if (!entry.detail) continue;
+      const detail = document.createElement('div');
+      detail.className = 'log-row log-row--detail';
+      detail.textContent = entry.detail;
+      list.appendChild(detail);
     }
+    if (atBottom) list.scrollTop = list.scrollHeight;
   }
 }

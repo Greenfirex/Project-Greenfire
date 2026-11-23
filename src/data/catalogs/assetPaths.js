@@ -14,6 +14,7 @@ export const ASSET_DIRS = {
   audio: 'assets/audio/',
   itemIcons: 'assets/ui/items/',
   equipIcons: 'assets/ui/equip/',
+  bestiary: 'assets/ui/bestiary/',
 };
 
 export const PLANKS_TEXTURE = `${ASSET_DIRS.textures}Planks004_1K-JPG_Color.jpg`;

@@ -3,7 +3,7 @@
 // Každá zbraň (i pěst) má primární a sekundární ránu; kostka u každého tvora rozhodne, jestli sedla, škrábla, nebo minula.
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
 import { creatureStat, creatureLength, creatureResistances } from '../../data/catalogs/creatures/index.js';
-import { mitigateDamage } from '../../data/catalogs/damage.js';
+import { damageBreakdown } from '../../data/catalogs/damage.js';
 import { rollQuality, rollDamage, normalizeRange, CRIT_MULTIPLIER, GRAZE_MULTIPLIER } from '../../utils/combatRoll.js';
 import { weaponBlows } from '../../utils/weaponBlows.js';
 import { angleGap } from '../../utils/angles.js';
@@ -137,11 +137,13 @@ export default class PlayerAttackSystem {
         continue;
       }
       const scale = quality === 'crit' ? CRIT_MULTIPLIER : quality === 'graze' ? GRAZE_MULTIPLIER : 1;
-      const raw = rollDamage(pending.blow.damage) * scale * share;
+      const roll = rollDamage(pending.blow.damage);
+      const raw = roll * scale * share;
       const armor = creatureStat(creature.type, creature.tier, 'armor');
-      const dealt = mitigateDamage(raw, this.damageType, creatureResistances(creature.type, creature.tier), armor);
-      const absorbed = Math.max(0, Math.round(raw) - dealt);
-      if (this.onHit) this.onHit(creature, dealt, quality === 'crit', quality === 'graze', absorbed);
+      const result = damageBreakdown(raw, this.damageType, creatureResistances(creature.type, creature.tier), armor);
+      const absorbed = Math.round(raw) - result.dealt;
+      const detail = { ...result, roll, scale, share };
+      if (this.onHit) this.onHit(creature, result.dealt, quality === 'crit', quality === 'graze', absorbed, detail);
     }
   }
 

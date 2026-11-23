@@ -3,9 +3,8 @@
 Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie patří do gitu.
 
 ### Bestiář
-- [ ] Bestiář: doplnit obsah okna (popis tvora, kde žije, obrázek); kostra se seznamem a statistikami je hotová.
-- [ ] Doplnit tvorům skutečnou zbroj a odolnosti (dnes všude nula; pozor, zbroj se odečítá od každé rány a hráč dnes dává 1–5).
-- [ ] Až bude bestiář hotový, vypnout ladicí odemčení všech statistik (`SHOW_ALL_STATS` v `bestiarySystem.js`).
+- [ ] Bestiář: projít ve hře nové okno (kniha), texty tvorů a prahy odemčení (1, 3, 5, 8 zabití).
+- [ ] Odolnosti tvorů (jedna silná, jedna slabá) vyzkoušet v boji a doladit. Zbroj má zatím jen kajmanka; pozor, odečítá se od každé rány a hráč dnes dává 1–7.
 
 ### Editor
 - [ ] Při kontrole editoru pater (`tools/checkConsole.cjs`) hlásí grafická karta občas „Two textures of different types use the same sampler location“ (4–9×). Bylo i před 23. 11. 2026; nejspíš značky editoru v podzemí (překryvy v rentgenu). Zjistit, který materiál to je.

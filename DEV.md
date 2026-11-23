@@ -110,15 +110,21 @@ hráč přijde moc blízko, zasáhne je nebo vůdce zemře). Vůdce s útokem po
 vzdálenosti (`provokedUntil`, stejně jako u vykradeného hnízda). Panel tvora (vpravo
 uprostřed, hodiny jsou vpravo nahoře) ukazuje statistiky odemčené počtem zabití
 (`bestiarySystem.js`, prahy `UNLOCKS`): životy, útok, obranu, poškození, zbroj, odolnosti,
-dohled a rychlost. Pro ladění je zatím odemčené všechno (`SHOW_ALL_STATS`). Okno bestiáře
-je na B. Panel se připíná prostředním klikem (bez tažení; tažení otáčí kamerou). Bez
+dohled a rychlost. Okno bestiáře (klávesa B, `bestiaryWindow.js`) je kniha: vlevo seznam tvorů,
+vpravo stránka s portrétem, popisem, výskytem, kořistí, poznámkami lovce, statistikami po stářích
+a odolnostmi. Texty jsou u druhu tvora (`bestiary: { summary, habitat, notes }`), portréty
+v `public/assets/ui/bestiary/<druh>.png` (fotí je `node tools/capture.cjs <druh> idle --portrait 1`).
+Co se kdy odemkne, drží jen `UNLOCKS` v `bestiarySystem.js`. Ve vývojové verzi má okno
+přepínač „odemknout vše“ (`revealAll`, neukládá se), který každou fázi odemčení obarví. Panel se připíná prostředním klikem (bez tažení; tažení otáčí kamerou). Bez
 připnutí ho v boji ukazuje `refreshCombatFocus`: tvor naposledy zasažený (`onStruck`,
 nejbližší z rány), jinak nejbližší útočící; 3 s po boji (`FOCUS_LINGER`) nebo po smrti zmizí.
 Zavřený panel se k témuž tvorovi nevrátí, dokud se boj nezmění (`mutedFocus`). Tvorové i hráč se léčí pořád, i v boji a bez ohledu
 na zásahy (`regenerate` a `regenPerSecond` u druhu tvora; hráč 0,2 života za sekundu
 v `PLAYER_BASE`). Tvorové mají zbroj a odolnosti jako hráč (`armor`, `resistances` u druhu nebo
-stáří, zatím všude nula); hráčova rána je odečítá stejným výpočtem (`mitigateDamage`
-v `damage.js`). Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
+stáří); hráčova rána je odečítá stejným výpočtem (`damageBreakdown` v `damage.js`).
+Záporná odolnost je slabina a ránu zvětší (nejvýš −100 % = dvojnásobek, strop kladné 75 %).
+Volba „Výpočet zásahů v logu“ (`combatDetails`) vypíše pod každý zásah jednotlivé kroky
+výpočtu (`damageDetailText`); log ho drží jako podrobnost záznamu, takže stojí vždy přímo pod svým zásahem. Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
 a na škrábnutí (`strikeChances` v `combatRoll.js`, zbytek do sta je minutí).
 
 Výroba: recept (`RECIPES` v seznamu předmětů) drží jen cenu; jeho klíč je klíč vyráběného
@@ -133,6 +139,11 @@ Dolní lišta (`src/ui/dock.js`, `dockArea`) má tři části: vlevo nápověda 
 `refreshMouseHint` ve scéně podle toho, na co se míří, `pointerAction`), uprostřed
 ukazatele zdraví a výdrže nad lištou nástrojů a vpravo malá tlačítka oken
 (`DockButton` s písmenem klávesy; skládají se do dvou řad a další přibývají doprava).
+
+Velikost rozhraní (volba `uiScale`, 80–140 %) zvětšuje celou vrstvu `#hud-layer` přes CSS `zoom`
+(proměnná `--ui-scale`). Věci umístěné podle bodu na obrazovce (plovoucí čísla, ukazatele nad
+tvory a postavou, nápověda u kurzoru) mají zoom vrácený zpět (`global.css`), aby seděly na místě;
+tažení oken (`draggable.js`) souřadnice přepočítává. Vlastní kurzor leží mimo vrstvu.
 
 ## Klíčová rozhodnutí (nevrátit omylem)
 

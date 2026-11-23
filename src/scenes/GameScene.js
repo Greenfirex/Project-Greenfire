@@ -215,7 +215,7 @@ export default class GameScene {
     this.playerAttackSystem = new PlayerAttackSystem();
     this.playerAttackSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, Number.isFinite(level) ? level : this.playerSystem.level);
     this.playerAttackSystem.candidates = () => this.attackCandidates();
-    this.playerAttackSystem.onHit = (creature, amount, crit, graze, absorbed) => this.damageCreature(creature, amount, crit, graze, absorbed);
+    this.playerAttackSystem.onHit = (creature, amount, crit, graze, absorbed, detail) => this.damageCreature(creature, amount, crit, graze, absorbed, detail);
     this.playerAttackSystem.onWhiff = () => this.audioSystem.play('miss');
     this.playerAttackSystem.onMiss = (creature) => this.missCreature(creature);
     this.interaction = new InteractionSystem(scene);
@@ -1139,6 +1139,7 @@ export default class GameScene {
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
     this.crabSystem.setOutlineVisible(this.options.highlights);
+    document.documentElement.style.setProperty('--ui-scale', String((Number(this.options.uiScale) || 100) / 100));
     this.vitalsBar.setVisible(this.options.playerBars !== 'head');
     this.gameCursor.setEnabled(this.options.customCursor);
     const densityChanged = this.floraSystem.density !== this.options.grass;
@@ -1401,6 +1402,7 @@ export default class GameScene {
       this.journalButton.setActive(false);
       this.audioSystem.play('windowClose');
     };
+    this.bestiaryWindow.onRevealAll = (on) => this.setBestiaryRevealAll(on);
     this.bestiaryWindow.onClose = () => {
       this.bestiaryButton.setActive(false);
       this.audioSystem.play('windowClose');

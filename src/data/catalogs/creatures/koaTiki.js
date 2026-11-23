@@ -653,7 +653,12 @@ export const KOA_TIKI = {
   chargeRange: 2,
   damageType: 'slashing',
   armor: 0,
-  resistances: {},
+  resistances: { blunt: 25, piercing: -25 },
+  bestiary: {
+    summary: 'Velký nelétavý pták s ostrým zobákem. Zuřivě brání svá hnízda.',
+    habitat: 'Travnaté mýtiny poblíž hnízd s vejci.',
+    notes: 'Husté peří tlumí údery klackem, kopí ale projde snadno. Kdo mu vezme vejce, toho pronásleduje i daleko.',
+  },
   regenPerSecond: 0.33,
   biteRange: 1.3,
   biteArc: 100,

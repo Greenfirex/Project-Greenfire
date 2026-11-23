@@ -1,13 +1,14 @@
 // Stavy postavy — zdraví, obrana, zbroj, resistity a výdrž hráče, doplňování a chvilka klidu po probuzení.
 // Čísla bere z katalogu postavy; scéně jen hlásí změnu zdraví a výdrže.
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
-import { DAMAGE_TYPE_KEYS, MAX_RESISTANCE, mitigateDamage } from '../../data/catalogs/damage.js';
+import { DAMAGE_TYPE_KEYS, clampResistance, damageBreakdown } from '../../data/catalogs/damage.js';
 
 export default class PlayerStatsSystem {
 
   constructor() {
     this.maxHealth = this.amount(PLAYER_BASE.maxHealth, 100, 1);
     this.health = this.maxHealth;
+    this.lastHit = null;
     this.baseDefense = this.amount(PLAYER_BASE.defense, 0, 0);
     this.baseArmor = this.amount(PLAYER_BASE.armor, 0, 0);
     this.defense = this.baseDefense;
@@ -55,13 +56,9 @@ export default class PlayerStatsSystem {
     const out = {};
     for (const key of DAMAGE_TYPE_KEYS) {
       const value = source && Number.isFinite(source[key]) ? source[key] : 0;
-      out[key] = Math.max(0, Math.min(MAX_RESISTANCE, value));
+      out[key] = clampResistance(value);
     }
     return out;
-  }
-
-  mitigate(points, damageType) {
-    return mitigateDamage(points, damageType, this.resistances, this.armor);
   }
 
   notifyStamina() {
@@ -135,7 +132,8 @@ export default class PlayerStatsSystem {
   hurt(points, damageType) {
     if (!Number.isFinite(points) || points <= 0) return 0;
     if (this.immunity > 0 || this.health <= 0) return 0;
-    const dealt = this.mitigate(points, damageType);
+    this.lastHit = damageBreakdown(points, damageType, this.resistances, this.armor);
+    const dealt = this.lastHit.dealt;
     this.health = Math.max(0, this.health - dealt);
     this.sinceEffort = 0;
     if (this.onChange) this.onChange(this.health, this.maxHealth);

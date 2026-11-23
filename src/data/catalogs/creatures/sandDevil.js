@@ -367,7 +367,12 @@ export const SAND_DEVIL = {
   noWarning: true,
   damageType: 'piercing',
   armor: 0,
-  resistances: {},
+  resistances: { blunt: 25, slashing: -25 },
+  bestiary: {
+    summary: 'Osminohý lovec zahrabaný v písku. Vidět je, až když útočí.',
+    habitat: 'Písečné pláže a duny.',
+    notes: 'Vyleze bez varování. Pružný krunýř pohltí tupé rány, ostří ale projde mezi jeho články.',
+  },
   regenPerSecond: 0.27,
   biteRange: 1.1,
   biteArc: 80,

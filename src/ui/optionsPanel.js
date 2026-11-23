@@ -1,6 +1,6 @@
 // DOM panel Možnosti — tři záložky (obraz a výkon, zvuk, hra); volby posílá scéně přes jediný callback.
 import { makeDraggable } from './draggable.js';
-import { OPTION_DEFAULTS, PRESET_OPTIONS } from '../data/catalogs/optionsSchema.js';
+import { OPTION_DEFAULTS, PRESET_OPTIONS, UI_SCALES } from '../data/catalogs/optionsSchema.js';
 
 const TABS = [
   { key: 'view', label: 'Obraz a výkon' },
@@ -50,6 +50,8 @@ const PLAYER_BAR_PLACES = [
   { value: 'both', label: 'Obojí', title: 'Dole i nad postavou' },
 ];
 
+const UI_SCALE_OPTIONS = UI_SCALES.map((value) => ({ value: String(value), label: `${value} %` }));
+
 const ITEMS = [
   { kind: 'choice', key: 'quality', tab: 'view', label: 'Kvalita obrazu', note: 'Nižší kvalita zmenší rozlišení a zjednoduší vodu a odrazy, obraz bude měkčí.', options: QUALITIES },
   { kind: 'choice', key: 'grass', tab: 'view', label: 'Hustota trávy', note: 'Jak hustě se kreslí tráva, kterou namaluješ štětcem. Na mapě zůstane pořád.', options: GRASS_LEVELS },
@@ -61,12 +63,14 @@ const ITEMS = [
   { kind: 'volume', key: 'sfxVolume', tab: 'sound', label: 'Zvuky hry', note: 'Sekání, kroky, těžba a padající stromy.' },
   { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
   { kind: 'volume', key: 'musicVolume', tab: 'sound', label: 'Hudba', note: 'Ostrovní hudba na pozadí. Skladby se střídají náhodně.' },
+  { kind: 'choice', key: 'uiScale', tab: 'game', label: 'Velikost rozhraní', note: 'Zvětší nebo zmenší okna, lištu, log a nápisy. Na malé obrazovce se při velkém rozhraní nemusí vejít okna.', options: UI_SCALE_OPTIONS, numeric: true },
   { kind: 'choice', key: 'playerBars', tab: 'game', label: 'Zdraví a výdrž', note: 'Kde se ukazují proužky zdraví a výdrže tvé postavy.', options: PLAYER_BAR_PLACES },
   { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Obrys pod myší', note: 'Světlý obrys věci, na kterou míříš myší (strom, houba, truhla…).' },
   { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
   { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když tě tvor zasáhne kriticky.' },
   { kind: 'toggle', key: 'damageFlash', tab: 'game', label: 'Červené bliknutí', note: 'Záblesk po okrajích obrazovky při zásahu.' },
   { kind: 'toggle', key: 'floatingNumbers', tab: 'game', label: 'Plovoucí čísla', note: 'Poškození vypluje nad postavou a zmizí.' },
+  { kind: 'toggle', key: 'combatDetails', tab: 'game', label: 'Výpočet zásahů v logu', note: 'Pod každý zásah napíše, jak se rána spočítala: hod, kritický zásah, odolnost a zbroj.' },
 ];
 
 function clampPercent(value) {

@@ -89,6 +89,14 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 10;
+  zoom: var(--ui-scale, 1);
+}
+
+#hud-layer > .hud-float,
+#hud-layer > .hud-creature-health,
+#hud-layer > .hud-player-bars,
+#hud-layer > .hud-hint {
+  zoom: calc(1 / var(--ui-scale, 1));
 }
 
 #hud-layer > * {

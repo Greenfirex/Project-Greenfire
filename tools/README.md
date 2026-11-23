@@ -26,6 +26,10 @@ ke každému snímku výška nejnižšího bodu těla a přední čtvrtiny (hlav
 záporné číslo znamená, že ta část zajíždí pod zem. Měří se ze skutečného tvaru
 pokrčeného modelu, ne odhadem.
 
+Portrét do bestiáře: `node tools/capture.cjs gnaw_rat idle --portrait 1` vyfotí tvora
+ze tří čtvrtin na průhledném pozadí bez země, ořízne ho na čtverec 384 px a uloží rovnou
+do `public/assets/ui/bestiary/<tvor>.png`.
+
 Umístění modelu (měřítko podle `length` a tieru, posun na zem) opakuje
 `creatureSystem.spawn`; když se tam změní, je potřeba ho změnit i v `capture/stage.js`.
 
