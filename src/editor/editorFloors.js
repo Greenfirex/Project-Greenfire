@@ -236,6 +236,7 @@ export default {
       count += 1;
     }
     if (erasing) this.dropConnectorsAt(selection.cells, level);
+    else this.lowerDugOutside(selection.cells, selection.cells.map(() => this.floorHeight));
     if (!count) {
       this.history.pop();
       this.clearAreaSelection();
@@ -302,9 +303,35 @@ export default {
       if (lift) entry.liftY = lift;
       this.layout.floor.push(entry);
     });
+    this.lowerDugOutside(cells, lifts);
     this.clearAreaSelection();
     this.repaint(PAINT_ALL);
     return cells.length;
+  },
+
+  lowerDugOutside(cells, lifts) {
+    const level = this.floorLevel;
+    const planned = new Set(cells.map(([cx, cz]) => `${cx},${cz}`));
+    const columns = columnsByCell(this.layout);
+    const lowered = new Map();
+    cells.forEach(([cx, cz], index) => {
+      const floor = lifts[index];
+      const ceil = floor + this.floorClearance;
+      for (const [dx, dz] of SIDES) {
+        const key = `${cx + dx},${cz + dz}`;
+        if (planned.has(key)) continue;
+        const planes = columns.get(key);
+        if (edgeKind(planes, level, floor, ceil) !== 'thin') continue;
+        const surface = planes.find((plane) => plane.level === 0);
+        if (!surface || surface.lift <= floor + CAVE_OPEN_STEP || surface.lift >= ceil) continue;
+        if (planes.some((plane) => plane.level < 0 && Number.isFinite(plane.ceil) && plane.ceil > floor)) continue;
+        const known = lowered.get(key);
+        if (!known || floor < known.floor) lowered.set(key, { cx: cx + dx, cz: cz + dz, floor });
+      }
+    });
+    for (const { cx, cz, floor } of lowered.values()) this.setCellHeight(cx, cz, floor);
+    if (lowered.size) this.cleanFlatCliffs([...lowered.values()].map(({ cx, cz }) => [cx, cz]));
+    return lowered.size;
   },
 
   dropConnectorsAt(cells, level) {

@@ -70,6 +70,8 @@ místo aby se tiše počítalo s nulou (nula je platná výška a chyba by se sc
 - `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
 - `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely;
   `heightPanel.js`, `areaPanel.js`, `brushPanel.js` — okna Výška, Plocha a štětce.
+  Části `editor*.js` patří k `editorMode.js` (zápis do mapy), části `map*.js` k `mapEditor.js`
+  (panely, myš, značky); rozpis je v `src/editor/README.md`.
 - `src/systems/core/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
 - `src/systems/core/navigationSystem.js` — kudy se dá chodit, přechody mezi patry, strop nad hlavou.
 - `src/utils/terrainField.js` — výškový model (spojitá výška mezi buňkami).
@@ -235,7 +237,9 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
 - Světlá výška aspoň 2,6 m (postava měří 2,0 m, `MODEL_HEIGHT` v `playerSystem.js`), výchozí 3,0 m.
 - „Jsem pod střechou" se odvozuje ze stropu nade mnou, neukládá se.
 - Kde jeskynní buňka sousedí s venkovní ve stejné výšce (do 0,6 m), vznikne sama
-  průchozí díra. Zem venku se nemění; podlaha jeskyně se k ní na prahu přimkne
+  průchozí díra. Když editor kope jeskyni a venkovní soused je výš než podlaha, ale pod
+  stropem (prokopnutí ven), sníží ten soused na výšku podlahy (`lowerDugOutside`
+  v `editorFloors.js`), takže vznikne vchod. Hotová díra už zem venku nemění; podlaha jeskyně se k ní na prahu přimkne
   v každém bodě a rozdíl se rozlije do půl buňky dovnitř a do boků až o půl buňky
   za ostění (`setDoorBlends` v `terrainField.js`). Úprava závisí jen na poloze, ne na
   buňce, takže mezi buňkou vchodu a sousedy nevznikne škvíra. Každá plocha se jinak
@@ -757,8 +761,8 @@ cesty, pláž, útes, most, tvorové), výšky, razítko Herní plochy a vodu; u
 do `src/data/maps/<mapa>/map.json`. Podrobnosti v
 [dokumentaci editoru](src/editor/README.md).
 
-**Tvarování terénu:** se štětcem ze skupiny Terén nebo na záložkách Výška, Plocha
-a Patra (kopání a zasypávání; `mapEditor.shapesTerrain`, `SHAPING_MODES`) se schovají všechny předměty, cesty, stíny pod keři i tráva
+**Tvarování terénu:** se štětcem, který mění terén (`brushShapesTerrain`), v nástrojích Výška
+a Herní plocha a v záložce Jeskyně (kopání a zasypávání; `mapEditor.shapesTerrain`, `SHAPING_MODES`) se schovají všechny předměty, cesty, stíny pod keři i tráva
 (`decoSystem.setHidden`, `floraSystem.setHidden`) a hra stojí jako v pauze. Terén a voda
 se přepočítávají hned; přestavba předmětů se odloží (`sceneWorld.setDecorShaping`,
 `decorStale`: celá přestavba, nebo jen přesazení na novou výšku) a proběhne jednou,

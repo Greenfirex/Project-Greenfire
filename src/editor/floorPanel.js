@@ -147,7 +147,7 @@ export default class FloorPanel {
       ? 'Táhni od začátku ke konci chodby, pak Aplikovat. Chodba naváže na podlahu, u které začíná, a plynule klesne k nastavené výšce podlahy. Průchod do jiného patra vznikne sám, když se podlahy potkají do 0,6 m.'
       : underground
       ? 'Táhni myší — označí se obdélník a každé další tažení k výběru přidává. Pravým tlačítkem buňku z výběru odebereš, Esc zahodí vše. Pak Aplikovat. Průchod ven vznikne sám tam, kde podlaha navazuje na zem vedle (rozdíl do 0,6 m).'
-      : 'Novou jeskyni začneš kliknutím na stěnu útesu: zelená značka ukáže vchod, pak táhni výběr do skály. Povrch se upravuje v záložkách Zóny, Výška a Herní plocha.';
+      : 'Novou jeskyni začneš kliknutím na stěnu útesu: zelená značka ukáže vchod, pak táhni výběr do skály. Povrch se upravuje v ostatních záložkách.';
     this.renderWarnings(underground ? view.report : null, underground ? view.edgeCounts : null);
   }
 

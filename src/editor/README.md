@@ -38,7 +38,7 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
 - **Z** vrací poslední krok, **X** zapíná a vypíná mazání.
 - **H** přepíná režim výšek, **Q** výšku sníží, **E** zvýší a číslice 1–9 ladí výšku.
 - **R** pootočí náhled sázeného objektu o 45°, **Shift+R** zpět (u palem určuje směr prohnutí).
-- **Shift+1–4** přepíná záložky Zóny, Výška, Herní plocha a Patra.
+- **Shift+1–7** přepíná záložky Terén, Voda, Povrch, Jeskyně, Rostliny, Předměty a Tvorové.
 - **N** posune denní dobu.
 - **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).
 
@@ -49,9 +49,28 @@ nevšímají, takže tě nemůžou napadnout, když zrovna kreslíš.
 Panel vpravo dole vypisuje, co na buňce leží, jaká je její výška a co se tam
 chystá položit. Panel editoru hlásí stav: mimo plochu, neuložené změny, aplikováno.
 
-## Režimy
+## Záložky
 
-### Zóny
+Hlavní panel má dvě řady záložek. Horní je krajina — **Terén**, **Voda**, **Povrch**
+a **Jeskyně** — spodní to, co v ní je — **Rostliny**, **Předměty** a **Tvorové**.
+Záložka ukáže jen svoje tlačítka, rozdělená do menších skupin, a na konci svou gumu
+s červeným okrajem. Které tlačítko leží ve které záložce, určuje jen `hudTabs.js`;
+štětec, který tam chybí, se objeví dole mezi společnými tlačítky.
+
+- **Terén** — nástroje **Výška** a **Herní plocha** (přerušovaný okraj; další klik
+  vrátí štětce), Kopec, Prohlubeň, Útes, Pláž, Spojnice, Most a guma terénu,
+- **Voda** — hladina moře, Jezero a Řeka,
+- **Povrch** — Povrch, Cesta a guma cesty,
+- **Jeskyně** — otevře okno Patra,
+- **Rostliny** — stromy a podrost,
+- **Předměty** — les a skály, pláž a moře, tábor a poklady,
+- **Tvorové** — tvorové na souši (i hnízdo Koa'tiki a krabi) a ryby.
+
+**Start hráče** a **Guma: všechno** jsou dole pod záložkami, protože nepatří k jedné.
+Nad tlačítky je přepínač patra (Povrch a jednotlivá patra jeskyní); u záložky Jeskyně
+ho nahrazuje seznam pater v okně Patra. Přepnutím záložky se odvybere štětec z jiné záložky.
+
+### Štětce
 
 Kreslí rostliny, objekty, cesty, pláž, útes, most a tvory. U štětců s více druhy
 se v panelu vybírá konkrétní druh; pod kurzorem se ukazuje průsvitný náhled
@@ -72,10 +91,6 @@ k buňce, takže vedle sebe může být holý trs bez koberce a koberec bez trs�
 **Tvorové** se plní z katalogu tvorů. Každý tvor má vlastní tlačítko a v panelu
 se volí stáří. Na jedné buňce zůstane vždy jen jeden tvor; nový starý nahradí.
 V režimu Mazat se tvor odebere.
-
-Štětce jsou rozdělené podle toho, co do světa kladou: **Povrch**, **Terén**,
-**Rostliny**, **Objekty**, **Tvorové** a **Ostatní**. Na konci každé kategorie
-sedí její guma s červeným okrajem.
 
 V podzemním patře jsou zašedlé štětce, které umí zapisovat jen na povrch
 (`brushAboveGroundOnly` v katalogu štětců): Tráva, Cesta, Kopec, Prohlubeň, Pláž,
@@ -217,22 +232,32 @@ celou — nic se tak nerozbije tiše.
 Dokud přestavba běží, svítí nahoře uprostřed proužek s tím, co se právě počítá.
 Klikání neblokuje: další tah se jen zařadí za běžící práci.
 
-Se štětci ze skupiny **Terén** a na záložkách **Výška**, **Plocha** a **Patra**
-(kopání a zasypávání) se schovají všechny předměty
+Se štětci, které mění terén (`brushShapesTerrain` v katalogu štětců: Kopec, Prohlubeň,
+Útes, Pláž, Spojnice, Most, Jezero, Řeka, guma terénu), v nástrojích **Výška**
+a **Herní plocha** a v záložce **Jeskyně** (kopání a zasypávání) se schovají všechny předměty
 a tráva a hra stojí. Přepočítává se jen terén a voda; předměty se postaví znovu
 jednou, až přepneš na jiný štětec nebo záložku nebo editor zavřeš.
 
+Výška políčka má v editoru dvě jediná místa. Výšku zapsanou v mapě vrací
+`EditorMode.cellHeightValue` (stejné pravidlo jako terén). Výšku, na kterou se kreslí
+značky, obrys štětce a hologram, vrací scéna (`GameScene.cellSurfaceAt`). Když jsou předměty
+schované, bere jen terén, protože výšky předmětů se do té doby nepřepočítávají.
+
 ## Kde editor bydlí
 
-- `mapEditor.js` — spojuje režim, panely, scénu a ukládání mapy; jeho části
-  `editorLakes.js` a `editorRivers.js` kreslí jezera a řeky,
+- `mapEditor.js` — spojuje režim, panely a scénu (otevření, zavření, panely, štětec, plocha, Zpět);
+  jeho části: `mapInput.js` (klávesy a myš), `mapOverlays.js` (značky, hologram a popisky výšek,
+  kruhy tvorů), `mapReadouts.js` (popisky pod myší), `mapFloors.js` (patra a jeskyně),
+  `mapSave.js` (neuložené změny a uložení), `mapWater.js` (hladina moře), `mapLakes.js`
+  a `mapRivers.js` (jezera a řeky),
 - `editorMode.js` — stav editoru (režim, štětec, návrh); zápis do mapy dělají jeho části:
   `editorBrushApply.js` (použití štětce), `editorLayoutEdits.js` (úpravy buněk),
   `editorHeights.js` (výšky), `editorArea.js` (herní plocha), `editorFloors.js` (patra),
   `editorJoinBridge.js` (spojnice a mosty), `editorHistory.js` (Zpět),
   `editorQuery.js` (co je v buňce, otisk mapy),
 - `editorSettings.js` — čísla a pomocné výpočty společné pro víc částí,
-- `editorHud.js` — hlavní panel editoru, `editorToggle.js` — tlačítko v horní liště,
+- `editorHud.js` — hlavní panel editoru, `hudTabs.js` — co leží ve které jeho záložce,
+  `editorToggle.js` — tlačítko v horní liště,
 - `brushPanel.js`, `areaPanel.js`, `heightPanel.js`, `floorPanel.js` — panely jednotlivých režimů,
 - `heightHologram.js`, `heightLabels.js`, `heightRamp.js` — náhled změny výšek a barvy výšek,
 - `creatureOverlay.js` — značky spawních míst a náhledy tvorů,

@@ -2,7 +2,7 @@
 // Patří k EditorMode (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { getDecoration, DEFAULT_FLOOR, decoFamily } from '../data/catalogs/decorations.js';
 import { cellKey } from '../utils/gridMath.js';
-import { PLANE_LAYERS, layerAt, layerEntriesAt, floorCellAt, layerLiftAt, dropLayerCell, worldCells, levelOfEntry } from '../data/maps/areaShape.js';
+import { PLANE_LAYERS, layerAt, layerEntriesAt, floorCellAt, dropLayerCell, worldCells, levelOfEntry } from '../data/maps/areaShape.js';
 import { bridgeCells } from '../utils/bridgeShape.js';
 import { onSurface } from './editorSettings.js';
 
@@ -88,7 +88,7 @@ export default {
     } else {
       if (!this.layout.floor) this.layout.floor = [];
       const entry = { key, cx, cz, rotation: 0 };
-      const lift = layerLiftAt(this.layout, cx, cz) || 0;
+      const lift = this.cellHeightValue(cx, cz);
       if (lift) entry.liftY = lift;
       this.layout.floor.push(entry);
     }

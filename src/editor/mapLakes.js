@@ -1,4 +1,4 @@
-// Část editoru: jezera — klik do prohlubně ji naplní po okraj, další kliky hladinu zvedají nebo snižují.
+// Část řízení editoru: jezera — klik do prohlubně ji naplní po okraj, další kliky hladinu zvedají nebo snižují.
 // Patří k MapEditor (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { fillLake, brimLevel } from '../utils/lakeFill.js';

@@ -362,7 +362,7 @@ export default {
         continue;
       }
       if (!floorCellAt(this.layout, cx, cz)) continue;
-      if (level !== null && (layerLiftAt(this.layout, cx, cz) || 0) <= level) continue;
+      if (level !== null && this.cellHeightValue(cx, cz) <= level) continue;
       this.layout.crabs.push({ cx, cz, count: CRAB.brushCount });
       changed += 1;
     }
@@ -385,7 +385,7 @@ export default {
         continue;
       }
       if (level === null) continue;
-      const depth = level - layerLiftAt(this.layout, cx, cz);
+      const depth = level - this.cellHeightValue(cx, cz);
       if (depth < FISH_SWIM_DEPTH) continue;
       this.layout.fish.push({
         cx,
@@ -440,7 +440,7 @@ export default {
     const patch = valueNoise(cx / 3.4, cz / 3.4);
     if (hash01(cx * 91.7, cz * 47.3) > scatter.chance * (0.25 + 1.3 * patch)) return touched;
     const amount = scatter.min + Math.floor(hash01(cx * 13.1, cz * 71.9) * (scatter.max - scatter.min + 1 + patch));
-    const lift = layerLiftAt(this.layout, cx, cz) || 0;
+    const lift = this.cellHeightValue(cx, cz);
     for (let index = 0; index < amount; index += 1) {
       const seed = cx * 37 + cz * 11 + index * 5;
       const entry = {

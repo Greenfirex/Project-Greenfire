@@ -51,7 +51,6 @@ function depthMeters(level) {
 const SURFACE_BRUSH = SURFACES.length
   ? {
       label: 'Povrch',
-      group: 'Povrch',
       note: 'Přebarví povrch země (tráva, písek, hlína, štěrk), výšku nemění. Tažením označíš obdélník.',
       shape: 'blob',
       surfaceOnly: true,
@@ -64,14 +63,11 @@ const SURFACE_BRUSH = SURFACES.length
     }
   : null;
 
-const CREATURE_GROUP = 'Tvorové';
-
 function creatureBrush(kind) {
   const type = CREATURE_TYPES[kind];
   const tierKeys = type && type.tiers ? Object.keys(type.tiers) : [];
   return {
     label: type.label,
-    group: CREATURE_GROUP,
     note: 'Položí tvora na buňku. V panelu zvolíš, jak je starý; toulá se pak kolem místa, kam ho dáš.',
     shape: 'blob',
     creature: true,
@@ -84,12 +80,9 @@ function creatureBrush(kind) {
 
 const CREATURE_BRUSHES = Object.fromEntries(CREATURE_KEYS.map((kind) => [`creature_${kind}`, creatureBrush(kind)]));
 
-const ERASER_GROUP = 'Ostatní';
-
-function eraserBrush(erase, group, label, note) {
+function eraserBrush(erase, label, note) {
   return {
     label,
-    group,
     note,
     shape: 'blob',
     erase,
@@ -97,19 +90,18 @@ function eraserBrush(erase, group, label, note) {
 }
 
 const ERASER_BRUSHES = {
-  erase_plants: eraserBrush('plants', 'Rostliny', 'Guma: rostliny', 'Smaže stromy, keře, houby, květiny i trávu.'),
-  erase_objects: eraserBrush('objects', 'Objekty', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály, táborák, truhly a kostlivce.'),
-  erase_path: eraserBrush('path', 'Povrch', 'Guma: cesta', 'Smaže jen vrstvu cesty.'),
-  erase_terrain: eraserBrush('terrain', 'Terén', 'Guma: terén', 'Srovná zem na nulu, zruší označení útesu a smaže most.'),
-  erase_creatures: eraserBrush('creatures', 'Tvorové', 'Guma: tvorové', 'Smaže tvora nebo hejno ryb z buňky.'),
-  erase_all: eraserBrush('all', ERASER_GROUP, 'Guma: všechno', 'Smaže, co na buňce stojí — dekorace, trávu, cestu, tvora i rybu. Dlaždici nechá.'),
+  erase_plants: eraserBrush('plants', 'Guma: rostliny', 'Smaže stromy, keře, houby, květiny i trávu.'),
+  erase_objects: eraserBrush('objects', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály, táborák, truhly a kostlivce.'),
+  erase_path: eraserBrush('path', 'Guma: cesta', 'Smaže jen vrstvu cesty.'),
+  erase_terrain: eraserBrush('terrain', 'Guma: terén', 'Srovná zem na nulu, zruší označení útesu a smaže most.'),
+  erase_creatures: eraserBrush('creatures', 'Guma: tvorové', 'Smaže tvora nebo hejno ryb z buňky.'),
+  erase_all: eraserBrush('all', 'Guma: všechno', 'Smaže, co na buňce stojí — dekorace, trávu, cestu, tvora i rybu. Dlaždici nechá.'),
 };
 
 export const BRUSHES = {
   ...CREATURE_BRUSHES,
   forest_exact: {
     label: 'Les',
-    group: 'Rostliny',
     note: 'Nasadí hustý les ze všech druhů stromů.',
     shape: 'blob',
     pool: [
@@ -120,7 +112,6 @@ export const BRUSHES = {
   },
   araucarias: {
     label: 'Araukárie',
-    group: 'Rostliny',
     note: 'Nasadí araukárie, velké i mladé. Náhoda střídá tvary a k tomu i natočení, posun na buňce a velikost.',
     shape: 'blob',
     pool: ['tree_araucaria_a', 'tree_araucaria_b', 'tree_araucaria_young_a', 'tree_araucaria_young_b'],
@@ -131,7 +122,6 @@ export const BRUSHES = {
   },
   pandans: {
     label: 'Pandány',
-    group: 'Rostliny',
     note: 'Nasadí pandány, hodí se na přechod mezi pláží a vnitrozemím. Náhoda střídá oba tvary a k tomu i natočení, posun na buňce a velikost.',
     shape: 'blob',
     pool: ['tree_pandan_a', 'tree_pandan_b'],
@@ -142,7 +132,6 @@ export const BRUSHES = {
   },
   palms: {
     label: 'Palmy',
-    group: 'Rostliny',
     note: 'Nasadí palmy, vhodné k písku a vodě. Tlačítky vybereš rovnou nebo prohnutou, náhoda střídá všechny. S volbou Kokosy kolem leží u zhruba třetiny palem na sousedních buňkách kokosy, které jde sebrat.',
     shape: 'blob',
     style: 'palm_a',
@@ -169,7 +158,6 @@ export const BRUSHES = {
   },
   bananas: {
     label: 'Banánovníky',
-    group: 'Rostliny',
     note: 'Nasadí banánovníky, jdou pokácet sekerou. Náhoda střídá oba tvary a k tomu i natočení, posun na buňce a velikost.',
     shape: 'blob',
     pool: ['tree_banana_a', 'tree_banana_b'],
@@ -180,7 +168,6 @@ export const BRUSHES = {
   },
   broadleaf: {
     label: 'Listnáče',
-    group: 'Rostliny',
     note: 'Nasadí listnaté stromy (mořské hrozno, mandlovník).',
     shape: 'blob',
     pool: ['tree_seagrape', 'tree_almond'],
@@ -188,7 +175,6 @@ export const BRUSHES = {
   },
   herbs: {
     label: 'Květiny',
-    group: 'Rostliny',
     note: 'Nasadí léčivé byliny, které jde utrhnout rukou. Předmět pak leží v batohu.',
     shape: 'blob',
     style: 'plant_healing',
@@ -199,7 +185,6 @@ export const BRUSHES = {
   },
   rocks: {
     label: 'Kameny',
-    group: 'Objekty',
     note: 'Nasadí velké i malé kameny a balvany. Tlačítky vybereš světlé, tmavé nebo všechny, náhoda střídá tvary ve vybrané skupině.',
     shape: 'blob',
     style: 'all',
@@ -216,7 +201,6 @@ export const BRUSHES = {
   },
   deadwood: {
     label: 'Mrtvé dřevo',
-    group: 'Objekty',
     note: 'Nasadí padlé kmeny a suché větve na lesní půdu.',
     shape: 'blob',
     pool: [
@@ -229,7 +213,6 @@ export const BRUSHES = {
   },
   driftwood: {
     label: 'Naplavené dřevo',
-    group: 'Objekty',
     note: 'Nasadí vybledlé kmeny a větve na pláž a k vodě.',
     shape: 'blob',
     pool: ['driftwood_palm_a', 'driftwood_palm_b'],
@@ -238,7 +221,6 @@ export const BRUSHES = {
   },
   clubs: {
     label: 'Klacky',
-    group: 'Objekty',
     note: 'Rozhodí klacky, které jde sebrat a vzít do ruky jako zbraň. Náhoda střídá osm tvarů, světlé i tmavé.',
     shape: 'blob',
     pool: ['club_a', 'club_b', 'club_c', 'club_d', 'club_e', 'club_f', 'club_g', 'club_h'],
@@ -247,7 +229,6 @@ export const BRUSHES = {
   },
   planks: {
     label: 'Prkna',
-    group: 'Objekty',
     note: 'Rozhodí prkna, která odpadla z rozpadlých staveb; jdou sebrat rukou jako dřevo. Náhoda střídá čtyři tvary.',
     shape: 'blob',
     pool: ['loose_plank_a', 'loose_plank_b', 'loose_plank_c', 'loose_plank_d'],
@@ -256,7 +237,6 @@ export const BRUSHES = {
   },
   palmLeaves: {
     label: 'Palmové listy',
-    group: 'Objekty',
     note: 'Rozhodí spadlé palmové listy, které jde sebrat rukou. Náhoda střídá zelený a suchý list.',
     shape: 'blob',
     pool: ['palm_frond_green', 'palm_frond_dry'],
@@ -265,7 +245,6 @@ export const BRUSHES = {
   },
   cliffDebris: {
     label: 'Suť z útesu',
-    group: 'Objekty',
     note: 'Nasadí sesunuté skalní desky, hromady a rozsypané kamení. Náhodně střídá tvary i tmavé varianty.',
     shape: 'blob',
     pool: [
@@ -278,7 +257,6 @@ export const BRUSHES = {
   },
   mushrooms: {
     label: 'Houby',
-    group: 'Rostliny',
     note: 'Nasadí houby na lesní půdu.',
     shape: 'blob',
     pool: ['mushroom_red', 'mushroom_tan'],
@@ -286,7 +264,6 @@ export const BRUSHES = {
   },
   bushes: {
     label: 'Keře',
-    group: 'Rostliny',
     note: 'Nasadí keře; hustota říká, kolik jich na buňce vyroste, kolísání to nechá houpat o ±1. Skvrny = druh se střídá sám po plochách kolem sedmi buněk.',
     shape: 'blob',
     pool: ['bush', 'bush_round', 'bush_bramble', 'bush_small'],
@@ -301,7 +278,6 @@ export const BRUSHES = {
   },
   moss: {
     label: 'Mech',
-    group: 'Rostliny',
     note: 'Rozhází mechové polštáře: zhruba na dvě třetiny buněk jeden až tři shluky, různě velké a různě natočené. Náhoda střídá malý, střední a rozlezlý shluk.',
     shape: 'blob',
     pool: ['moss_small', 'moss_mid', 'moss_wide'],
@@ -312,7 +288,6 @@ export const BRUSHES = {
   },
   monsteras: {
     label: 'Monstery',
-    group: 'Rostliny',
     note: 'Rozhází monstery po ploše: zhruba na polovinu buněk, na buňku jednu nebo dvě, každou jinak natočenou a jinak velkou.',
     shape: 'blob',
     pool: ['bush_monstera', 'bush_monstera_small', 'bush_monstera_large'],
@@ -323,7 +298,6 @@ export const BRUSHES = {
   },
   grass: {
     label: 'Tráva',
-    group: 'Rostliny',
     note: 'Zaseje porost; Směs určí, co na ploše vyroste, a Automaticky se řídí polohou (písek, stromy, skvrny).',
     shape: 'blob',
     flora: true,
@@ -338,7 +312,6 @@ export const BRUSHES = {
   ...(SURFACE_BRUSH ? { surface: SURFACE_BRUSH } : {}),
   trail: {
     label: 'Cesta',
-    group: 'Povrch',
     note: 'Nakreslí cestu, která kopíruje terén (hlína, kámen, dřevo).',
     shape: 'line',
     style: 'dirt',
@@ -346,7 +319,6 @@ export const BRUSHES = {
   },
   join: {
     label: 'Spojnice',
-    group: 'Terén',
     note: 'Klikni na vrchol a pak na spodek — země se mezi nimi plynule srovná po krocích výšky.',
     shape: 'line',
     join: true,
@@ -356,7 +328,6 @@ export const BRUSHES = {
   },
   bridge: {
     label: 'Most',
-    group: 'Terén',
     note: 'Klikni na jeden břeh a pak na protější — přes propast vznikne skalní most, po kterém se dá chodit.',
     shape: 'line',
     bridge: true,
@@ -368,7 +339,6 @@ export const BRUSHES = {
   },
   hill: {
     label: 'Kopec',
-    group: 'Terén',
     note: 'Vyzdvihne zem do kopce se svahem, výšku volíš v panelu.',
     shape: 'blob',
     style: 'low',
@@ -390,7 +360,6 @@ export const BRUSHES = {
   },
   hollow: {
     label: 'Prohlubeň',
-    group: 'Terén',
     note: 'Sníží zem do prohlubně se svahem.',
     shape: 'blob',
     style: 'shallow',
@@ -408,14 +377,12 @@ export const BRUSHES = {
   },
   lake: {
     label: 'Jezero',
-    group: 'Terén',
     note: 'Klikni do prohlubně — voda ji naplní až po okraj. Klik na jezero hladinu zvedne, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.',
     shape: 'blob',
     lake: true,
   },
   river: {
     label: 'Řeka',
-    group: 'Terén',
     note: 'Táhni od pramene k ústí a potvrď Aplikovat — řeka si vyhloubí koryto a poteče ve směru tahu, nikdy do kopce. Tah přes existující řeku ji v tom úseku nahradí. Pravé tlačítko nebo režim Mazat řeku smaže i s korytem.',
     shape: 'blob',
     river: true,
@@ -439,7 +406,6 @@ export const BRUSHES = {
   },
   beach: {
     label: 'Pláž',
-    group: 'Terén',
     note: 'Vykope břeh do zvolené hloubky a nasype písek.',
     shape: 'blob',
     style: 'shallow',
@@ -458,7 +424,6 @@ export const BRUSHES = {
   },
   shore: {
     label: 'Mušle',
-    group: 'Objekty',
     note: 'Rozsype lastury po písku u vody.',
     shape: 'blob',
     pool: ['shore_shells', 'shore_shells_mid'],
@@ -466,7 +431,6 @@ export const BRUSHES = {
   },
   starfish: {
     label: 'Hvězdice',
-    group: 'Objekty',
     note: 'Položí hvězdici na dno v hloubce 0,5–4 m. Na suchu se nepoloží.',
     shape: 'blob',
     pool: ['starfish'],
@@ -477,7 +441,6 @@ export const BRUSHES = {
   },
   koa_nest: {
     label: "Hnízdo Koa'tiki",
-    group: 'Objekty',
     note: "Postaví hnízdo s vejci. Koa'tiki v okolí ho hlídají a za krádež vejce zaútočí.",
     shape: 'blob',
     pool: ['koa_nest'],
@@ -485,7 +448,6 @@ export const BRUSHES = {
   },
   reef: {
     label: 'Koraly',
-    group: 'Objekty',
     note: 'Položí na dno hrudu korálů; náhodně střídá variace.',
     shape: 'blob',
     pool: [
@@ -497,7 +459,6 @@ export const BRUSHES = {
   },
   fish: {
     label: 'Ryby',
-    group: 'Tvorové',
     note: 'Vypustí hejno rybek zvolené barvy; na suché buňce se neuloží.',
     shape: 'blob',
     fish: true,
@@ -507,14 +468,12 @@ export const BRUSHES = {
   },
   crabs: {
     label: 'Krabi',
-    group: 'Tvorové',
     note: 'Vypustí pár krabů navíc. Krabi se sami objevují i na písku u moře; ve vodě se neuloží.',
     shape: 'blob',
     crabs: true,
   },
   cliff: {
     label: 'Útes',
-    group: 'Terén',
     note: 'Označí buňky jako plošinu, kde je skok, vznikne svislá stěna. Volba Pata přebarví povrch buněk pod stěnou.',
     shape: 'blob',
     style: 'stone',
@@ -535,7 +494,6 @@ export const BRUSHES = {
   },
   camp: {
     label: 'Táborák',
-    group: 'Objekty',
     note: 'Postaví ohniště s ohněm, které jde zapálit.',
     shape: 'blob',
     pool: ['campfire'],
@@ -543,7 +501,6 @@ export const BRUSHES = {
   },
   chest: {
     label: 'Truhla',
-    group: 'Objekty',
     note: 'Postaví truhlu zády ke kraji buňky; jde jednou otevřít a vybrat. Natočením určíš, ke kterému kraji.',
     shape: 'blob',
     pool: ['loot_chest'],
@@ -552,7 +509,6 @@ export const BRUSHES = {
   },
   skeleton: {
     label: 'Kostlivec',
-    group: 'Objekty',
     note: 'Posadí kostlivce zády ke kraji buňky; jde jednou prohledat. Natočením určíš, ke kterému kraji.',
     shape: 'blob',
     pool: ['loot_skeleton'],
@@ -561,7 +517,6 @@ export const BRUSHES = {
   },
   spawn: {
     label: 'Start hráče',
-    group: 'Ostatní',
     note: 'Určí buňku, na které hráč začíná. Klikni na jednu buňku a potvrď.',
     shape: 'blob',
     spawn: true,
@@ -571,10 +526,10 @@ export const BRUSHES = {
 
 export const BRUSH_KEYS = Object.keys(BRUSHES);
 
-export const BRUSH_GROUPS = ['Povrch', 'Terén', 'Rostliny', 'Objekty', 'Tvorové', 'Ostatní'];
-
-export function brushesOf(group) {
-  return BRUSH_KEYS.filter((key) => (BRUSHES[key].group || 'Ostatní') === group);
+export function brushShapesTerrain(brushKey) {
+  const brush = BRUSHES[brushKey];
+  if (!brush) return false;
+  return Boolean(brush.height || brush.heights || brush.cliff || brush.join || brush.bridge || brush.lake || brush.river || brush.erase === 'terrain');
 }
 
 export function getBrush(brushKey) {

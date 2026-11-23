@@ -1,0 +1,231 @@
+// Část řízení editoru: ovládání — klávesy a co udělá kliknutí, tažení a pravé tlačítko v kterém režimu.
+// Patří k MapEditor (sdílí jeho this).
+import { HEIGHT_PRESETS, formatMeters } from '../data/maps/layoutStore.js';
+import { NO_BRUSH_HINT, cellCount } from './editorSettings.js';
+
+export default {
+  handleKey(evt, typing) {
+    if (evt.key === 'F2') {
+      evt.preventDefault();
+      this.s.toggleEditorMode();
+      return;
+    }
+    if ((evt.ctrlKey || evt.metaKey) && evt.code === 'KeyS') {
+      evt.preventDefault();
+      this.saveMap();
+      return;
+    }
+    if (typing && evt.key !== 'Escape') return;
+    if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+    if (evt.key === 'p' || evt.key === 'P') {
+      evt.preventDefault();
+      this.s.togglePause();
+      return;
+    }
+    if (evt.key === 'Escape') {
+      if (this.mode.selectsArea && this.mode.hasAreaSelection) {
+        this.clearAreaSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
+        this.cancelHeightDraft();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.draftStarted || this.riverStroke) {
+        this.clearBrushDraft();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.hasDraft) {
+        this.cancelBrushDraft();
+        evt.preventDefault();
+      }
+      return;
+    }
+    if (evt.key === 'Enter') {
+      if (this.mode.selectsArea && this.mode.hasAreaSelection) {
+        this.applyAreaSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
+        this.applyHeightSelection();
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.hasDraft) {
+        this.applyBrushDraft();
+        evt.preventDefault();
+      }
+      return;
+    }
+    if (evt.shiftKey && /^Digit[1-9]$/.test(evt.code)) {
+      this.selectTabAt(Number(evt.code.slice(5)) - 1);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'x' || evt.key === 'X') {
+      this.setEraseMode(!this.erasing);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'n' || evt.key === 'N') {
+      if (!evt.repeat) this.s.skipTime();
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'z' || evt.key === 'Z') {
+      this.undo();
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'h' || evt.key === 'H') {
+      this.mode.setMode(this.mapMode === 'height' ? 'zone' : 'height');
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'q' || evt.key === 'Q') {
+      if (this.mode.undergroundFloor) this.stepFloorHeight(-1);
+      else this.mode.stepHeightLevel(-1);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'e' || evt.key === 'E') {
+      if (this.mode.undergroundFloor) this.stepFloorHeight(1);
+      else this.mode.stepHeightLevel(1);
+      evt.preventDefault();
+      return;
+    }
+    if (evt.key === 'r' || evt.key === 'R') {
+      if (this.mode.rotateDeco(evt.shiftKey ? -1 : 1)) {
+        this.refreshBrushOptions();
+        this.s.handleHover(this.s.hoverCell);
+        evt.preventDefault();
+        return;
+      }
+    }
+    if (/^[1-9]$/.test(evt.key)) {
+      this.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
+      evt.preventDefault();
+      return;
+    }
+    if (/^F\d+$/.test(evt.key)) return;
+    evt.preventDefault();
+  },
+
+  paintCell(cx, cz) {
+    return this.mode.paint(cx, cz);
+  },
+
+  startPaint(cell) {
+    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+    if (this.mode.mode === 'floors') {
+      if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
+      else this.startCave(cell);
+    } else if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
+    else if (this.mode.mode === 'height') {
+      this.mode.beginHeightStroke();
+      this.mode.paint(cell.cx, cell.cz);
+    } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
+    else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
+    else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
+    else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
+    else if (this.mode.isRiverBrush) this.startRiver(cell);
+    else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
+    else this.mode.beginDraftDrag(cell.cx, cell.cz);
+  },
+
+  pickJoinCell(cell) {
+    if (this.mode.draftMode === 'remove') {
+      this.hud.setReadout('Spojnice se v režimu Mazat nepoužívá — vypni Mazat');
+      return;
+    }
+    const state = this.mode.pickJoinCell(cell.cx, cell.cz);
+    if (state === 'invalid') {
+      this.hud.setReadout('Spojnice: klikni na buňku, která v mapě existuje');
+      return;
+    }
+    if (state === 'top') {
+      this.hud.setReadout('Vrchol označen — klikni na spodek');
+      return;
+    }
+    const info = this.mode.joinInfo;
+    if (!info) return;
+    const limit = Number(this.s.walkStepLimit);
+    const steep = Number.isFinite(limit) && info.maxStep > limit;
+    const note = steep ? ' — hráč to nevyleze' : '';
+    this.hud.setReadout(`Spojnice: ${cellCount(info.count)} · krok ${formatMeters(info.maxStep)}${note}`);
+  },
+
+  pickBridgeCell(cell) {
+    const state = this.mode.pickBridgeCell(cell.cx, cell.cz);
+    if (state === 'invalid') {
+      this.hud.setReadout('Most: klikni na buňku, která v mapě existuje');
+      return;
+    }
+    if (state === 'top') {
+      this.hud.setReadout('Břeh označen — klikni na protější břeh');
+      return;
+    }
+    if (state === 'bad') {
+      this.hud.setReadout('Most nejde postavit — břehy musí ležet proti sobě a mezi nimi musí být propast');
+      return;
+    }
+    const info = this.mode.bridgeInfo;
+    if (!info) return;
+    this.hud.setReadout(`Most: ${cellCount(info.span + 1)} · převýšení ${formatMeters(info.drop)}`);
+  },
+
+  movePaint(cell) {
+    const from = this.lastPaintCell || cell;
+    if (this.mode.mode === 'floors') this.mode.moveFloorDrag(cell.cx, cell.cz);
+    else if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
+    else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
+    else if (this.mode.isRiverBrush) this.extendRiver(cell);
+    else if (!this.mode.isJoinBrush && !this.mode.isLakeBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
+    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+  },
+
+  endPaint() {
+    if (this.riverDrawing) this.endRiverStroke();
+    this.lastPaintCell = null;
+  },
+
+  rightClickCell(cell) {
+    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
+    if (this.mode.mode === 'zone' && this.mode.isJoinBrush) {
+      this.mode.cancelJoin();
+      this.hud.setReadout('Spojnice zrušena — klikni znovu na vrchol');
+      return;
+    }
+    if (this.mode.mode === 'zone' && this.mode.isBridgeBrush) {
+      this.mode.cancelBridge();
+      this.hud.setReadout('Most zrušen — klikni znovu na břeh');
+      return;
+    }
+    if (this.mode.mode === 'zone' && this.mode.isLakeBrush) {
+      this.pickLake(cell, 'lower');
+      return;
+    }
+    if (this.mode.mode === 'zone' && this.mode.isRiverBrush) {
+      this.removeRiverAt(cell);
+      return;
+    }
+    if (this.mode.selectsArea) {
+      this.mode.removeAreaCells([[cell.cx, cell.cz]]);
+      return;
+    }
+    if (this.mode.mode === 'height') {
+      this.mode.unmarkHeightCell(cell.cx, cell.cz);
+      return;
+    }
+    if (!this.mode.canEditCell(cell.cx, cell.cz)) return;
+    if (!this.mode.hasBrush) {
+      this.hud.setReadout(NO_BRUSH_HINT);
+      return;
+    }
+    this.mode.undraftCell(cell.cx, cell.cz);
+  },
+};

@@ -1,17 +1,32 @@
-// DOM panel editačního režimu — přepínání režimů, paleta brushů, čtení buňky a uložení.
-// Napojený přes callbacky na scene, sám nic generuje ani nemění.
-import { BRUSHES, BRUSH_GROUPS, brushesOf, getBrush, brushAboveGroundOnly } from '../data/catalogs/brushes.js';
+// DOM panel editačního režimu — záložky, štětce vybrané záložky, přepínač patra, voda a uložení.
+// Napojený přes callbacky na scene, sám nic generuje ani nemění; rozložení záložek je v hudTabs.js.
+import { BRUSHES, getBrush, brushAboveGroundOnly } from '../data/catalogs/brushes.js';
 import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { floorName } from './floorPanel.js';
+import { HUD_TABS, COMMON_BRUSHES, hudTab, tabForMode, looseBrushes } from './hudTabs.js';
 
-const COMMON_HINT = 'WASD pohled · Shift+1–4 záložky · Z zpět · N posunout čas · Ctrl+S uložit';
+const COMMON_HINT = `WASD pohled · Shift+1–${HUD_TABS.length} záložky · Z zpět · N posunout čas · Ctrl+S uložit`;
 const MODE_HINTS = {
   zone: 'Vyber štětec a táhni · X mazání',
   height: 'Táhni po buňkách · Q a E krok výšky · 1–9 předvolby · Enter použít · Esc zahodit',
   area: 'Táhni obdélník · Enter použít · Esc zahodit',
   floors: 'Na povrchu klikni na útes · v patře táhni výběr · Enter vykopat',
 };
+
+const SEA_MARKUP = `
+  <div class="editor-panel__water">
+    <div class="editor-panel__water-top">
+      <span class="editor-panel__water-label">Hladina moře</span>
+      <button type="button" class="editor-panel__water-toggle" title="Zapnout nebo vypnout vodu pro celou mapu">Vypnuto</button>
+    </div>
+    <div class="editor-panel__water-level">
+      <button type="button" data-water-step="-1" title="Snížit hladinu o ${formatMeters(HEIGHT_STEP)}">−</button>
+      <span class="editor-panel__water-value">–</span>
+      <button type="button" data-water-step="1" title="Zvýšit hladinu o ${formatMeters(HEIGHT_STEP)}">+</button>
+    </div>
+  </div>
+`;
 
 export default class EditorHud {
 
@@ -20,12 +35,13 @@ export default class EditorHud {
     this.onBrush = null;
     this.onClose = null;
     this.onMode = null;
+    this.onTab = null;
     this.onFloor = null;
     this.onSaveMap = null;
     this.onPause = null;
     this.onWaterToggle = null;
     this.onWaterStep = null;
-    this.state = { mode: 'zone', brush: null, erasing: false, underground: false };
+    this.state = { mode: 'zone', tab: HUD_TABS[0].key, brush: null, erasing: false, underground: false };
     this.waterLevel = null;
     this.waterShown = true;
     this.busyEl = null;
@@ -38,29 +54,16 @@ export default class EditorHud {
     root.className = 'editor-panel';
     root.dataset.mode = this.state.mode;
     root.innerHTML = `
-      <div class="editor-panel__tabs">
-        <button type="button" data-mode="zone" title="Zóny (Shift+1)">Zóny</button>
-        <button type="button" data-mode="height" title="Výška (Shift+2)">Výška</button>
-        <button type="button" data-mode="area" title="Herní plocha (Shift+3)">Herní plocha</button>
-        <button type="button" data-mode="floors" title="Patra (Shift+4)">Patra</button>
-        <button type="button" class="editor-panel__close" title="Zavřít (F2)">×</button>
-      </div>
+      <div class="editor-panel__tabs"></div>
       <div class="editor-panel__hint"></div>
-      <label class="editor-panel__floor">Patro <select></select></label>
+      <div class="editor-panel__floor">
+        <span class="editor-panel__floor-label">Patro</span>
+        <div class="editor-panel__floor-list"></div>
+      </div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__note">–</div>
+      <div class="editor-panel__common"></div>
       <div class="editor-panel__readout">–</div>
-      <div class="editor-panel__water">
-        <div class="editor-panel__water-top">
-          <span class="editor-panel__water-label">Voda</span>
-          <button type="button" class="editor-panel__water-toggle" title="Zapnout nebo vypnout vodu pro celou mapu">Vypnuto</button>
-        </div>
-        <div class="editor-panel__water-level">
-          <button type="button" data-water-step="-1" title="Snížit hladinu o ${formatMeters(HEIGHT_STEP)}">−</button>
-          <span class="editor-panel__water-value">–</span>
-          <button type="button" data-water-step="1" title="Zvýšit hladinu o ${formatMeters(HEIGHT_STEP)}">+</button>
-        </div>
-      </div>
       <div class="editor-panel__save-row">
         <button type="button" class="editor-panel__save editor-panel__pause" title="Pozastavit nebo pustit hru (P)">Pauza</button>
         <button type="button" class="editor-panel__save editor-panel__save-map" title="Uložit mapu (zapíše se do souboru v projektu)">Uložit mapu</button>
@@ -79,48 +82,17 @@ export default class EditorHud {
     window.addEventListener('pointermove', (evt) => this.placeCursor(evt.clientX, evt.clientY));
     makeDraggable(root);
 
+    this.buildTabs(root.querySelector('.editor-panel__tabs'));
     const grid = root.querySelector('.editor-panel__grid');
-    for (const group of BRUSH_GROUPS) {
-      const keys = brushesOf(group);
-      if (!keys.length) continue;
-      const section = document.createElement('div');
-      section.className = 'editor-panel__group';
-      const head = document.createElement('div');
-      head.className = 'editor-panel__group-head';
-      head.textContent = group;
-      section.appendChild(head);
-      const row = document.createElement('div');
-      row.className = 'editor-panel__group-grid';
-      for (const key of keys) {
-        const brush = BRUSHES[key];
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.dataset.brush = key;
-        btn.textContent = brush.label;
-        btn.title = brush.note || brush.label;
-        if (brush.erase) btn.classList.add('is-eraser');
-        btn.addEventListener('mouseenter', () => this.showNote(key));
-        btn.addEventListener('mouseleave', () => this.showNote(this.state.brush));
-        btn.addEventListener('click', () => {
-          if (this.state.underground && brushAboveGroundOnly(key)) return;
-          this.state.brush = key;
-          this.refresh();
-          this.showNote(key);
-          if (this.onBrush) this.onBrush(key);
-        });
-        row.appendChild(btn);
-      }
-      section.appendChild(row);
-      grid.appendChild(section);
+    for (const tab of HUD_TABS) grid.appendChild(this.buildPane(tab));
+    const common = root.querySelector('.editor-panel__common');
+    for (const key of [...COMMON_BRUSHES, ...looseBrushes()]) {
+      if (BRUSHES[key]) common.appendChild(this.brushButton(key));
     }
 
-    for (const btn of root.querySelectorAll('[data-mode]')) {
-      btn.addEventListener('click', () => {
-        if (this.onMode) this.onMode(btn.dataset.mode);
-      });
-    }
-    root.querySelector('.editor-panel__floor select').addEventListener('change', (event) => {
-      if (this.onFloor) this.onFloor(Number(event.target.value));
+    root.querySelector('.editor-panel__floor-list').addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-floor]');
+      if (chip && this.onFloor) this.onFloor(Number(chip.dataset.floor));
     });
     root.querySelector('.editor-panel__save-map').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
@@ -128,7 +100,6 @@ export default class EditorHud {
     root.querySelector('.editor-panel__pause').addEventListener('click', () => {
       if (this.onPause) this.onPause();
     });
-
     root.querySelector('.editor-panel__water-toggle').addEventListener('click', () => {
       if (this.onWaterToggle) this.onWaterToggle();
     });
@@ -137,7 +108,6 @@ export default class EditorHud {
         if (this.onWaterStep) this.onWaterStep(Number(btn.dataset.waterStep));
       });
     }
-
     root.querySelector('.editor-panel__close').addEventListener('click', () => {
       if (this.onClose) this.onClose();
     });
@@ -145,17 +115,116 @@ export default class EditorHud {
     return root;
   }
 
-  setFloors(floors, selected) {
-    const select = this.root && this.root.querySelector('.editor-panel__floor select');
-    if (!select) return;
-    select.textContent = '';
-    for (const floor of floors) {
-      const option = document.createElement('option');
-      option.value = String(floor.level);
-      option.textContent = floorName(floor.level, floor.name);
-      select.appendChild(option);
+  buildTabs(host) {
+    const rows = [...new Set(HUD_TABS.map((tab) => tab.row))];
+    for (const rowIndex of rows) {
+      const row = document.createElement('div');
+      row.className = 'editor-panel__tab-row';
+      for (const tab of HUD_TABS.filter((item) => item.row === rowIndex)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.tab = tab.key;
+        btn.textContent = tab.label;
+        btn.title = `${tab.label} (Shift+${HUD_TABS.indexOf(tab) + 1})`;
+        btn.addEventListener('click', () => {
+          if (this.onTab) this.onTab(tab.key);
+        });
+        row.appendChild(btn);
+      }
+      if (rowIndex === rows[0]) {
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'editor-panel__close';
+        close.title = 'Zavřít (F2)';
+        close.textContent = '×';
+        row.appendChild(close);
+      }
+      host.appendChild(row);
     }
-    select.value = String(selected);
+  }
+
+  buildPane(tab) {
+    const pane = document.createElement('div');
+    pane.className = 'editor-panel__pane';
+    pane.dataset.pane = tab.key;
+    for (const section of tab.sections) {
+      const group = document.createElement('div');
+      group.className = 'editor-panel__group';
+      if (section.label) {
+        const head = document.createElement('div');
+        head.className = 'editor-panel__group-head';
+        head.textContent = section.label;
+        group.appendChild(head);
+      }
+      if (section.text) {
+        const text = document.createElement('div');
+        text.className = 'editor-panel__pane-text';
+        text.textContent = section.text;
+        group.appendChild(text);
+      }
+      if (section.sea) group.insertAdjacentHTML('beforeend', SEA_MARKUP);
+      const buttons = [
+        ...(section.tools || []).map((tool) => this.toolButton(tool)),
+        ...(section.brushes || []).filter((key) => BRUSHES[key]).map((key) => this.brushButton(key)),
+      ];
+      if (buttons.length) {
+        const row = document.createElement('div');
+        row.className = 'editor-panel__group-grid';
+        for (const btn of buttons) row.appendChild(btn);
+        group.appendChild(row);
+      }
+      pane.appendChild(group);
+    }
+    return pane;
+  }
+
+  toolButton(tool) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.tool = tool.mode;
+    btn.className = 'is-tool';
+    btn.textContent = tool.label;
+    btn.title = tool.note;
+    btn.addEventListener('mouseenter', () => this.showText(tool.note));
+    btn.addEventListener('mouseleave', () => this.showNote(this.state.brush));
+    btn.addEventListener('click', () => {
+      if (this.onMode) this.onMode(this.state.mode === tool.mode ? 'zone' : tool.mode);
+    });
+    return btn;
+  }
+
+  brushButton(key) {
+    const brush = BRUSHES[key];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.brush = key;
+    btn.textContent = brush.label;
+    btn.title = brush.note || brush.label;
+    if (brush.erase) btn.classList.add('is-eraser');
+    btn.addEventListener('mouseenter', () => this.showNote(key));
+    btn.addEventListener('mouseleave', () => this.showNote(this.state.brush));
+    btn.addEventListener('click', () => {
+      if (this.state.underground && brushAboveGroundOnly(key)) return;
+      this.state.brush = key;
+      this.refresh();
+      this.showNote(key);
+      if (this.onBrush) this.onBrush(key);
+    });
+    return btn;
+  }
+
+  setFloors(floors, selected) {
+    const list = this.root && this.root.querySelector('.editor-panel__floor-list');
+    if (!list) return;
+    list.textContent = '';
+    for (const floor of floors) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.dataset.floor = String(floor.level);
+      chip.textContent = floorName(floor.level, floor.name);
+      chip.classList.toggle('is-active', floor.level === selected);
+      list.appendChild(chip);
+    }
   }
 
   setBusy(text) {
@@ -169,6 +238,7 @@ export default class EditorHud {
     if (this.busyEl.textContent !== label) this.busyEl.textContent = label;
     this.busyEl.classList.add('is-on');
   }
+
   placeCursor(x, y) {
     if (!this.cursorEl) return;
     this.cursorEl.style.left = `${x + 18}px`;
@@ -226,17 +296,31 @@ export default class EditorHud {
 
   setMode(mode) {
     this.state.mode = mode === 'height' || mode === 'area' || mode === 'floors' ? mode : 'zone';
+    this.state.tab = tabForMode(this.state.mode, this.state.tab);
     this.state.erasing = false;
     if (this.root) this.root.dataset.mode = this.state.mode;
     this.refresh();
   }
 
+  setTab(key) {
+    if (!hudTab(key)) return;
+    this.state.tab = key;
+    this.refresh();
+  }
+
+  get tab() {
+    return this.state.tab;
+  }
+
   showNote(key) {
-    const node = this.root && this.root.querySelector('.editor-panel__note');
-    if (!node) return;
     const brush = key ? getBrush(key) : null;
     const locked = this.state.underground && brushAboveGroundOnly(key);
-    const note = brush && brush.note ? `${locked ? 'Funguje jen na povrchu. ' : ''}${brush.note}` : '';
+    this.showText(brush && brush.note ? `${locked ? 'Funguje jen na povrchu. ' : ''}${brush.note}` : '');
+  }
+
+  showText(note) {
+    const node = this.root && this.root.querySelector('.editor-panel__note');
+    if (!node) return;
     node.textContent = note || '–';
     node.classList.toggle('is-empty', !note);
   }
@@ -244,11 +328,18 @@ export default class EditorHud {
   refresh() {
     if (!this.root) return;
     this.root.querySelector('.editor-panel__hint').textContent = `${MODE_HINTS[this.state.mode]} · ${COMMON_HINT}`;
-    for (const btn of this.root.querySelectorAll('[data-mode]')) {
-      btn.classList.toggle('is-active', btn.dataset.mode === this.state.mode);
+    for (const btn of this.root.querySelectorAll('[data-tab]')) {
+      btn.classList.toggle('is-active', btn.dataset.tab === this.state.tab);
     }
+    for (const pane of this.root.querySelectorAll('[data-pane]')) {
+      pane.classList.toggle('is-current', pane.dataset.pane === this.state.tab);
+    }
+    for (const btn of this.root.querySelectorAll('[data-tool]')) {
+      btn.classList.toggle('is-active', btn.dataset.tool === this.state.mode);
+    }
+    const brushes = this.state.mode === 'zone';
     for (const btn of this.root.querySelectorAll('[data-brush]')) {
-      btn.classList.toggle('is-active', !this.state.erasing && btn.dataset.brush === this.state.brush);
+      btn.classList.toggle('is-active', brushes && !this.state.erasing && btn.dataset.brush === this.state.brush);
       btn.classList.toggle('is-locked', Boolean(this.state.underground) && brushAboveGroundOnly(btn.dataset.brush));
     }
   }

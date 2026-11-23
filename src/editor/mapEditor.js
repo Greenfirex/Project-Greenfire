@@ -1,8 +1,5 @@
 // Řízení editoru mapy — spojuje práci s mapou (EditorMode) s panely a scénou.
-// Drží otevření editoru, štětec, plochu, neuložené změny a ukládání mapy do souboru.
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { mapFileFromLayout } from '../data/catalogs/mapFile.js';
-import { HEIGHT_STEP, HEIGHT_PRESETS, formatMeters } from '../data/maps/layoutStore.js';
+// Drží otevření a zavření editoru, panely, štětec, plochu a Zpět; ostatní dělají části map*.js.
 import EditorMode from './editorMode.js';
 import EditorHud from './editorHud.js';
 import BrushPanel from './brushPanel.js';
@@ -12,29 +9,19 @@ import FloorPanel from './floorPanel.js';
 import CreatureOverlay from './creatureOverlay.js';
 import HeightLabels from './heightLabels.js';
 import HeightHologram from './heightHologram.js';
-import { formatLevel } from './heightRamp.js';
-import { floorName } from './floorPanel.js';
-import { getDecoration } from '../data/catalogs/decorations.js';
-import { BRUSHES, brushAboveGroundOnly } from '../data/catalogs/brushes.js';
-import { CELL_SIZE } from '../utils/gridMath.js';
-import { SIDES, MARK_COLORS, cellCount, creatureWord, parseCell } from './editorSettings.js';
-import { ENTRY_LAYERS } from '../data/maps/areaShape.js';
-import { nextDoorFrame } from './editorFloors.js';
-import { NO_FLOOR_PICK_HEIGHT } from '../scenes/sceneSettings.js';
-import editorLakesParts from './editorLakes.js';
-import editorRiversParts from './editorRivers.js';
+import { BRUSHES, brushShapesTerrain } from '../data/catalogs/brushes.js';
+import { HUD_TABS, COMMON_BRUSHES, hudTab, tabBrushes, tabModes } from './hudTabs.js';
+import { NO_BRUSH_HINT, cellCount, creatureWord } from './editorSettings.js';
+import mapFloorsParts from './mapFloors.js';
+import mapInputParts from './mapInput.js';
+import mapOverlaysParts from './mapOverlays.js';
+import mapReadoutsParts from './mapReadouts.js';
+import mapSaveParts from './mapSave.js';
+import mapWaterParts from './mapWater.js';
+import mapLakesParts from './mapLakes.js';
+import mapRiversParts from './mapRivers.js';
 
-const TAB_KEYS = { Digit1: 'zone', Digit2: 'height', Digit3: 'area', Digit4: 'floors' };
-const HEIGHT_LABEL_LIFT = 0.45;
-const HEIGHT_LABEL_LIMIT = 240;
-const MARKS_FOLLOW_SECONDS = 0.25;
 const SHAPING_MODES = ['height', 'area', 'floors'];
-
-const ZONE = Object.fromEntries(Object.entries(MARK_COLORS).map(([name, rgb]) => [name, Color3.FromArray(rgb)]));
-
-const FRAME_NAMES = { stone: 'kamenný', dirt: 'hliněný' };
-
-const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
 export default class MapEditor {
 
@@ -124,7 +111,11 @@ export default class MapEditor {
       this.refreshCreatureMarks();
     };
 
-    this.hud.onBrush = (key) => this.mode.setBrush(key);
+    this.hud.onBrush = (key) => {
+      if (this.mode.mode !== 'zone') this.mode.setMode('zone');
+      this.mode.setBrush(key);
+    };
+    this.hud.onTab = (key) => this.selectTab(key);
     this.hud.onMode = (mode) => this.mode.setMode(mode);
     this.hud.onClose = () => this.requestClose();
     this.hud.onSaveMap = () => this.saveMap();
@@ -221,215 +212,28 @@ export default class MapEditor {
     this.hud.onWaterStep = (delta) => this.stepWater(delta);
   }
 
-  floorPlane(x, z, picking = false) {
-    if (!this.mode.active || !this.mode.undergroundView) return null;
-    const level = this.mode.floorLevel;
-    const navigation = this.s.navigation;
-    if (navigation.isWalkableAt(x, z, level)) return this.s.terrainSystem.heightAt(x, z, level);
-    return picking && this.mode.mode === 'zone' && navigation.floorCells(level).size ? NO_FLOOR_PICK_HEIGHT : this.mode.floorHeight;
-  }
-
-  floorView() {
-    return this.mode.floorView();
-  }
-
   shapesTerrain() {
     if (!this.mode.active) return false;
     if (SHAPING_MODES.includes(this.mode.mode)) return true;
-    const brush = this.mode.mode === 'zone' && this.mode.brushKey ? BRUSHES[this.mode.brushKey] : null;
-    return Boolean(brush && brush.group === 'Terén');
+    return this.mode.mode === 'zone' && brushShapesTerrain(this.mode.brushKey);
   }
 
-  syncFloorView() {
-    const underground = this.mode.active && this.mode.undergroundView;
-    this.s.revealSystem.setEditorMap(underground ? this.mode.floorViewMap() : null);
-    this.s.gridSystem.setOverlaysOnTop(underground);
-    this.refreshCreatureMarks();
-    this.showFloorEdges(this.mode.getAreaSelection());
-    if (this.mode.active) this.hud.setFloors(this.mode.floorList(), this.mode.floorLevel);
-    const below = this.mode.floorLevel < 0;
-    this.hud.setUnderground(below);
-    if (below && brushAboveGroundOnly(this.mode.brushKey)) this.mode.setBrush(null);
-    if (this.mode.active && this.mode.mode === 'floors') {
-      this.refreshFloorPanel();
-      this.refreshZoneOverlay();
-    }
-  }
-
-  selectFloor(level) {
-    this.mode.selectFloor(level);
-    this.mode.clearDraft();
-    this.syncFloorView();
-    this.announceBrushFloor();
-    this.s.handleHover(this.s.hoverCell);
-  }
-
-  stepFloorHeight(delta) {
-    this.mode.stepFloorHeight(delta);
-    this.syncFloorView();
-    this.showAreaPreview(this.mode.getAreaSelection());
-    this.s.handleHover(this.s.hoverCell);
-  }
-
-  currentFloorReport() {
-    return this.mode.floorReport(this.s.terrainSystem.movementConnectors);
-  }
-
-  floorPanelView() {
-    const selection = this.mode.getAreaSelection();
-    return {
-      floors: this.mode.floorList(),
-      level: this.mode.floorLevel,
-      tool: this.mode.areaTool,
-      surface: this.mode.areaSurface,
-      height: this.mode.floorHeight,
-      clearance: this.mode.floorClearance,
-      count: selection ? selection.cells.length : 0,
-      undoEnabled: this.mode.canUndo,
-      report: this.mode.undergroundFloor ? this.currentFloorReport() : null,
-      edgeCounts: this.floorEdgeCounts,
-      caveTarget: this.mode.caveTarget,
-    };
-  }
-
-  refreshFloorPanel() {
-    this.floorPanel.update(this.floorPanelView());
-  }
-
-  showFloorMarks() {
-    if (!this.mode.undergroundFloor) {
-      this.s.gridSystem.clearZones();
+  selectTab(key) {
+    const tab = hudTab(key);
+    if (!tab) return;
+    this.hud.setTab(tab.key);
+    if (tab.mode) {
+      if (this.mode.mode !== tab.mode) this.mode.setMode(tab.mode);
       return;
     }
-    const report = this.currentFloorReport();
-    this.floorMarksReport = report;
-    this.s.gridSystem.showZones([
-      { cells: report.doors, color: ZONE.door, glow: ZONE.door, alpha: 0.6, lift: 0.06 },
-      { cells: [...report.low, ...report.pierced, ...report.steep], color: ZONE.problem, glow: ZONE.problem, alpha: 0.45, lift: 0.05 },
-    ], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
+    if (!tabModes(tab).includes(this.mode.mode)) this.mode.setMode('zone');
+    const brush = this.mode.brushKey;
+    if (brush && !tabBrushes(tab).includes(brush) && !COMMON_BRUSHES.includes(brush)) this.mode.setBrush(null);
   }
 
-  askFloorName(floor) {
-    this.s.dialog.ask({
-      title: 'Přejmenovat patro',
-      text: 'Prázdné pole vrátí původní název. Název se uloží s mapou.',
-      input: { value: floor.name || '', placeholder: floorName(floor.level), maxLength: 32 },
-      confirmLabel: 'Uložit',
-      onConfirm: (name) => {
-        this.mode.renameFloor(floor.level, name);
-        this.syncFloorView();
-        this.refreshUndoButton();
-        this.refreshFloorPanel();
-      },
-    });
-  }
-
-  showCaveStart(plan) {
-    if (!plan) {
-      this.s.gridSystem.showEdges([]);
-      this.s.tooltipPanel.show('Povrch', 'Najeď na stěnu útesu a klikni — začneš kopat jeskyni');
-      return;
-    }
-    const door = this.doorAtPlan(plan);
-    const color = door ? MARK_COLORS.door : plan.missing ? MARK_COLORS.problem : plan.overlap ? MARK_COLORS.thin : MARK_COLORS.door;
-    this.s.gridSystem.showEdges([{ cx: plan.cx, cz: plan.cz, dx: plan.dx, dz: plan.dz, y: plan.floor, color }]);
-    if (door) {
-      const next = frameLabel(nextDoorFrame(door.frameStyle), door.autoStyle);
-      this.s.tooltipPanel.show('Vchod do jeskyně', `Rám: ${frameLabel(door.frameStyle, door.autoStyle)} · klikni → ${next}`);
-      return;
-    }
-    if (plan.missing) {
-      this.s.tooltipPanel.show('Sem jeskyně nepůjde', `Útes je moc nízký, chybí ${formatMeters(plan.missing)}`);
-      return;
-    }
-    const where = this.caveFloorLabel(plan.level);
-    const warning = plan.overlap ? ` · pozor: v patře ${where} tu už jeskyně je, nová se s ní spojí` : '';
-    this.s.tooltipPanel.show('Vykopat jeskyni', `Klikni · vchod ve výšce ${formatMeters(plan.floor)} · ${where}${warning}`);
-  }
-
-  caveFloorLabel(level) {
-    const names = this.mode.getMap().floorNames || {};
-    return floorName(level, names[level]);
-  }
-
-  doorAtPlan(plan) {
-    if (!plan) return null;
-    return this.s.terrainSystem.caveDoors().find((door) => (
-      door.cx === plan.cx && door.cz === plan.cz && door.dx === plan.dx && door.dz === plan.dz
-    )) || null;
-  }
-
-  startCave(cell) {
-    const plan = this.mode.caveStartAt(cell);
-    if (!plan) {
-      this.hud.setReadout('Klikni na stěnu útesu, tam začne vchod do jeskyně');
-      return;
-    }
-    const door = this.doorAtPlan(plan);
-    if (door) {
-      const next = this.mode.cycleDoorFrame(door);
-      if (next === undefined) return;
-      this.refreshUndoButton();
-      this.hud.setReadout(`Rám vchodu: ${frameLabel(next, door.autoStyle)}`);
-      this.s.handleHover(this.s.hoverCell);
-      return;
-    }
-    if (plan.missing) {
-      this.hud.setReadout(`Útes je moc nízký, chybí ${formatMeters(plan.missing)}`);
-      return;
-    }
-    this.mode.beginCave(plan);
-    this.syncFloorView();
-    const joined = plan.overlap ? ' · napojí se na jeskyni, která tu v patře už je' : '';
-    this.hud.setReadout(`${this.caveFloorLabel(plan.level)}: táhni výběr do skály a potvrď Aplikovat${joined}`);
-  }
-
-  showFloorHoverReadout(cell) {
-    this.hud.setCursorValue(null);
-    if (!this.mode.undergroundView) {
-      this.showCaveStart(this.mode.caveStartAt(cell));
-      return;
-    }
-    const zone = this.mode.mode === 'zone';
-    const state = zone ? 'kreslím předměty' : (this.mode.areaTool === 'erase' ? 'zasypávám' : 'kopu');
-    const report = zone ? null : this.floorMarksReport;
-    const has = (list) => Boolean(report) && list.some(([cx, cz]) => cx === cell.cx && cz === cell.cz);
-    let mark = '';
-    if (report && has(report.doors)) mark = ' · vchod';
-    else if (report && has(report.pierced)) mark = ' · strop prorazil povrch';
-    else if (report && has(report.low)) mark = ' · nízký strop';
-    else if (report && has(report.steep)) mark = ' · příliš strmé';
-    const dug = this.mode.floorEntries(this.mode.floorLevel).find((entry) => entry.cx === cell.cx && entry.cz === cell.cz);
-    const floorText = dug ? `podlaha ${formatMeters(dug.liftY || 0)}` : `nová podlaha ${formatMeters(this.mode.floorHeight)}`;
-    this.s.tooltipPanel.show(`Patro — ${state}`, `${cell.cx}, ${cell.cz} · ${floorText}${mark}`);
-  }
-
-  toggleWater() {
-    const shown = this.mode.toggleWaterShown();
-    if (shown && this.mode.getWaterLevel() === null) {
-      this.setWater(-HEIGHT_STEP);
-      return;
-    }
-    this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
-    this.s.refreshWaterVisibility();
-  }
-
-  stepWater(delta) {
-    const current = this.mode.getWaterLevel();
-    const base = current === null ? 0 : current;
-    this.mode.setWaterShown(true);
-    this.setWater(base + delta * HEIGHT_STEP);
-  }
-
-  setWater(level) {
-    const snapped = Math.round((Number(level) || 0) / HEIGHT_STEP) * HEIGHT_STEP;
-    const value = this.mode.setWaterLevel(snapped);
-    this.mode.setWaterShown(true);
-    this.hud.setWater(value, this.mode.waterShown);
-    this.s.adoptEditorMap();
-    this.s.renderWater();
-    this.s.handleHover(this.s.hoverCell);
-    this.markDirty();
+  selectTabAt(index) {
+    const tab = HUD_TABS[index];
+    if (tab) this.selectTab(tab.key);
   }
 
   toggle() {
@@ -476,8 +280,7 @@ export default class MapEditor {
   centerPanels() {
     for (const panel of [this.hud.root, this.brushPanel.root, this.areaPanel.root, this.heightPanel.root, this.floorPanel.root]) {
       if (!panel) continue;
-      panel.style.left = '';
-      panel.style.top = '';
+      for (const side of ['left', 'top', 'right', 'bottom', 'transform']) panel.style[side] = '';
     }
   }
 
@@ -510,117 +313,6 @@ export default class MapEditor {
     this.s.releaseGameFromEditor();
     this.s.syncZoomLimit();
     this.s.handleHover(this.s.hoverCell);
-  }
-
-  handleKey(evt, typing) {
-    if (evt.key === 'F2') {
-      evt.preventDefault();
-      this.s.toggleEditorMode();
-      return;
-    }
-    if ((evt.ctrlKey || evt.metaKey) && evt.code === 'KeyS') {
-      evt.preventDefault();
-      this.saveMap();
-      return;
-    }
-    if (typing && evt.key !== 'Escape') return;
-    if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
-    if (evt.key === 'p' || evt.key === 'P') {
-      evt.preventDefault();
-      this.s.togglePause();
-      return;
-    }
-    if (evt.key === 'Escape') {
-      if (this.mode.selectsArea && this.mode.hasAreaSelection) {
-        this.clearAreaSelection();
-        evt.preventDefault();
-        return;
-      }
-      if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
-        this.cancelHeightDraft();
-        evt.preventDefault();
-        return;
-      }
-      if (this.mode.draftStarted || this.riverStroke) {
-        this.clearBrushDraft();
-        evt.preventDefault();
-        return;
-      }
-      if (this.mode.hasDraft) {
-        this.cancelBrushDraft();
-        evt.preventDefault();
-      }
-      return;
-    }
-    if (evt.key === 'Enter') {
-      if (this.mode.selectsArea && this.mode.hasAreaSelection) {
-        this.applyAreaSelection();
-        evt.preventDefault();
-        return;
-      }
-      if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
-        this.applyHeightSelection();
-        evt.preventDefault();
-        return;
-      }
-      if (this.mode.hasDraft) {
-        this.applyBrushDraft();
-        evt.preventDefault();
-      }
-      return;
-    }
-    if (evt.shiftKey && TAB_KEYS[evt.code]) {
-      this.mode.setMode(TAB_KEYS[evt.code]);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'x' || evt.key === 'X') {
-      this.setEraseMode(!this.erasing);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'n' || evt.key === 'N') {
-      if (!evt.repeat) this.s.skipTime();
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'z' || evt.key === 'Z') {
-      this.undo();
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'h' || evt.key === 'H') {
-      this.mode.setMode(this.mapMode === 'height' ? 'zone' : 'height');
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'q' || evt.key === 'Q') {
-      if (this.mode.undergroundFloor) this.stepFloorHeight(-1);
-      else this.mode.stepHeightLevel(-1);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'e' || evt.key === 'E') {
-      if (this.mode.undergroundFloor) this.stepFloorHeight(1);
-      else this.mode.stepHeightLevel(1);
-      evt.preventDefault();
-      return;
-    }
-    if (evt.key === 'r' || evt.key === 'R') {
-      if (this.mode.rotateDeco(evt.shiftKey ? -1 : 1)) {
-        this.refreshBrushOptions();
-        this.s.handleHover(this.s.hoverCell);
-        evt.preventDefault();
-        return;
-      }
-    }
-    if (/^[1-9]$/.test(evt.key)) {
-      this.mode.setHeightLevel(HEIGHT_PRESETS[Number(evt.key) - 1]);
-      evt.preventDefault();
-      return;
-    }
-    if (/^F\d+$/.test(evt.key)) return;
-    evt.preventDefault();
   }
 
   togglePanel(active) {
@@ -691,19 +383,6 @@ export default class MapEditor {
       level: group.level,
       count: group.cells.length,
     }));
-  }
-
-  showFloorEdges(selection) {
-    const preview = this.mode.floorEdgePreview(selection);
-    this.floorEdgeCounts = { door: preview.door.length, thin: preview.thin.length, pierced: preview.pierced.length };
-    const edges = [
-      ...preview.door.map((edge) => ({ ...edge, color: MARK_COLORS.door })),
-      ...preview.thin.map((edge) => ({ ...edge, color: MARK_COLORS.thin })),
-    ];
-    for (const cell of preview.pierced) {
-      for (const [dx, dz] of SIDES) edges.push({ ...cell, dx, dz, color: MARK_COLORS.problem });
-    }
-    this.s.gridSystem.showEdges(edges);
   }
 
   showAreaPreview(selection) {
@@ -813,223 +492,6 @@ export default class MapEditor {
     this.refreshZoneOverlay();
     this.refreshCreatureMarks();
     this.s.handleHover(this.s.hoverCell);
-  }
-
-  paintCell(cx, cz) {
-    return this.mode.paint(cx, cz);
-  }
-
-  clearHoverReadout() {
-    this.hud.setCursorValue(null);
-    this.s.gridSystem.clearBrush();
-    this.s.gridSystem.clearHoverCell();
-    this.s.gridSystem.clearCreatureRadius();
-    this.hud.setReadout('–');
-    this.s.tooltipPanel.hide();
-  }
-
-  syncCreatureRadius(cell) {
-    const grid = this.s.gridSystem;
-    if (!grid) return;
-    if (!this.mode.active || !cell) {
-      grid.clearCreatureRadius();
-      return;
-    }
-    const preview = this.mode.creaturePreviewAt(cell.cx, cell.cz);
-    if (!preview) {
-      grid.clearCreatureRadius();
-      return;
-    }
-    grid.showCreatureRadius(cell.cx, cell.cz, preview.radius, (cx, cz) => this.s.cellSurfaceAt(cx, cz), preview.radiusKind);
-  }
-
-  refreshCreatureMarks() {
-    const overlay = this.creatureOverlay;
-    if (!overlay) return;
-    const brush = this.mode.brushKey;
-    const active = this.mode.active && this.mode.mode === 'zone';
-    const nests = active && brush && (this.mode.isCreatureBrush || this.mode.isNestBrush);
-    const nestMarks = nests ? this.mode.nestMarks() : [];
-    for (const nest of nestMarks) {
-      nest.guards = nest.guards.map((guard) => {
-        const state = this.s.creatureStatusAt ? this.s.creatureStatusAt(guard.cx, guard.cz, guard.kind, guard.tierKey, 0) : null;
-        return state && state.alive ? { ...guard, x: state.x, z: state.z, alive: true } : guard;
-      });
-    }
-    overlay.showNests(nestMarks, (cx, cz) => this.s.cellSurfaceAt(cx, cz));
-    if (!active || !this.mode.isCreatureBrush || !brush) {
-      overlay.show([], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
-      return;
-    }
-    const marks = this.mode.creatureMarks().map((mark) => {
-      const state = this.s.creatureStatusAt
-        ? this.s.creatureStatusAt(mark.cx, mark.cz, mark.kind, mark.tierKey, mark.level)
-        : null;
-      if (!state) return { ...mark, state: 'new' };
-      if (state.alive) return { ...mark, state: 'alive', x: state.x, z: state.z };
-      if (!state.waiting) return { ...mark, state: 'new' };
-      return { ...mark, state: 'waiting', remainingDays: state.remainingDays };
-    });
-    overlay.show(marks, (cx, cz) => this.s.cellSurfaceAt(cx, cz));
-  }
-
-  showAreaHoverReadout(cell) {
-    this.hud.setCursorValue(null);
-    const info = this.mode.describeAt(cell.cx, cell.cz);
-    const state = this.mode.areaTool === 'erase' ? 'mažu' : 'maluju';
-    const zone = info.layerEntry ? `povrch: ${entryLabel(info.layerEntry)}` : 'bez povrchu';
-    this.s.tooltipPanel.show(`Plocha — ${state}`, `${cell.cx}, ${cell.cz} · ${zone}`);
-  }
-
-  showCellHoverReadout(cell) {
-    const info = this.mode.describeAt(cell.cx, cell.cz);
-    const parts = [];
-    const surface = entryLabel(info.layerEntry);
-    if (surface) parts.push(surface);
-    for (const item of info.decorations || []) parts.push(item.name);
-    const beast = info.creature;
-    if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
-    const water = this.s.waterBodyAtCell(cell.cx, cell.cz);
-    if (water) parts.push(`${water.kind === 'river' ? 'Řeka' : 'Jezero'} ${formatMeters(water.level)}`);
-    const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;
-    this.hud.setCursorValue(this.mode.mode === 'height' ? formatMeters(lift) : null);
-    const staged = this.mode.mode === 'height' ? this.mode.heightLevelAt(cell.cx, cell.cz) : null;
-    const goal = this.mode.mode === 'height' ? this.mode.heightLevel : null;
-    const joined = this.mode.joinMetersAt(cell.cx, cell.cz);
-    let target = '';
-    if (staged !== null) target = ` → ${formatLevel(staged)}`;
-    else if (goal !== null) target = ` → ${formatLevel(goal)}`;
-    else if (joined !== null) target = ` → ${formatMeters(joined)}`;
-    let draft = '';
-    if (this.mode.draft) {
-      const count = this.mode.clusterCountAt(this.mode.draft.brushKey);
-      const amount = count.max > 1 ? (count.min === count.max ? ` ×${count.min}` : ` ×${count.min}–${count.max}`) : '';
-      draft = ` · kreslím: ${brushLabel(this.mode.draft.brushKey)}${amount}`;
-    }
-    const range = beast ? this.mode.creatureRangeInfo(beast.type, beast.tier) : null;
-    const roam = !range || range.radius <= 0
-      ? ''
-      : range.radiusKind === 'notice'
-        ? ` · všimne si do ${formatMeters(range.radius)}`
-        : ` · toulá se do ${formatMeters(range.radius)}`;
-    const runtime = beast && this.s.creatureStatusAt
-      ? this.s.creatureStatusAt(cell.cx, cell.cz, beast.entry.kind, beast.tierKey)
-      : null;
-    const status = runtime
-      ? (runtime.alive ? ' · živý' : runtime.waiting ? ` · mrtvý, ${respawnLabel(runtime.remainingDays)}` : '')
-      : '';
-    const title = parts.length ? parts.join(' · ') : 'Prázdno';
-    this.s.tooltipPanel.show(title, `${cell.cx}, ${cell.cz} · výška ${formatMeters(lift)}${target}${draft}${roam}${status}`);
-  }
-
-  startPaint(cell) {
-    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
-    if (this.mode.mode === 'floors') {
-      if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
-      else this.startCave(cell);
-    } else if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
-    else if (this.mode.mode === 'height') {
-      this.mode.beginHeightStroke();
-      this.mode.paint(cell.cx, cell.cz);
-    } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
-    else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
-    else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
-    else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
-    else if (this.mode.isRiverBrush) this.startRiver(cell);
-    else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
-    else this.mode.beginDraftDrag(cell.cx, cell.cz);
-  }
-
-  pickJoinCell(cell) {
-    if (this.mode.draftMode === 'remove') {
-      this.hud.setReadout('Spojnice se v režimu Mazat nepoužívá — vypni Mazat');
-      return;
-    }
-    const state = this.mode.pickJoinCell(cell.cx, cell.cz);
-    if (state === 'invalid') {
-      this.hud.setReadout('Spojnice: klikni na buňku, která v mapě existuje');
-      return;
-    }
-    if (state === 'top') {
-      this.hud.setReadout('Vrchol označen — klikni na spodek');
-      return;
-    }
-    const info = this.mode.joinInfo;
-    if (!info) return;
-    const limit = Number(this.s.walkStepLimit);
-    const steep = Number.isFinite(limit) && info.maxStep > limit;
-    const note = steep ? ' — hráč to nevyleze' : '';
-    this.hud.setReadout(`Spojnice: ${cellCount(info.count)} · krok ${formatMeters(info.maxStep)}${note}`);
-  }
-
-  pickBridgeCell(cell) {
-    const state = this.mode.pickBridgeCell(cell.cx, cell.cz);
-    if (state === 'invalid') {
-      this.hud.setReadout('Most: klikni na buňku, která v mapě existuje');
-      return;
-    }
-    if (state === 'top') {
-      this.hud.setReadout('Břeh označen — klikni na protější břeh');
-      return;
-    }
-    if (state === 'bad') {
-      this.hud.setReadout('Most nejde postavit — břehy musí ležet proti sobě a mezi nimi musí být propast');
-      return;
-    }
-    const info = this.mode.bridgeInfo;
-    if (!info) return;
-    this.hud.setReadout(`Most: ${cellCount(info.span + 1)} · převýšení ${formatMeters(info.drop)}`);
-  }
-
-  movePaint(cell) {
-    const from = this.lastPaintCell || cell;
-    if (this.mode.mode === 'floors') this.mode.moveFloorDrag(cell.cx, cell.cz);
-    else if (this.mode.mode === 'area') this.mode.moveAreaDrag(cell.cx, cell.cz);
-    else if (this.mode.mode === 'height') this.mode.paintRun(from, cell);
-    else if (this.mode.isRiverBrush) this.extendRiver(cell);
-    else if (!this.mode.isJoinBrush && !this.mode.isLakeBrush && (!this.mode.isBridgeBrush || this.mode.draftMode === 'remove')) this.mode.moveDraftDrag(cell.cx, cell.cz);
-    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
-  }
-
-  endPaint() {
-    if (this.riverDrawing) this.endRiverStroke();
-    this.lastPaintCell = null;
-  }
-
-  rightClickCell(cell) {
-    this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
-    if (this.mode.mode === 'zone' && this.mode.isJoinBrush) {
-      this.mode.cancelJoin();
-      this.hud.setReadout('Spojnice zrušena — klikni znovu na vrchol');
-      return;
-    }
-    if (this.mode.mode === 'zone' && this.mode.isBridgeBrush) {
-      this.mode.cancelBridge();
-      this.hud.setReadout('Most zrušen — klikni znovu na břeh');
-      return;
-    }
-    if (this.mode.mode === 'zone' && this.mode.isLakeBrush) {
-      this.pickLake(cell, 'lower');
-      return;
-    }
-    if (this.mode.mode === 'zone' && this.mode.isRiverBrush) {
-      this.removeRiverAt(cell);
-      return;
-    }
-    if (this.mode.selectsArea) {
-      this.mode.removeAreaCells([[cell.cx, cell.cz]]);
-      return;
-    }
-    if (this.mode.mode === 'height') {
-      this.mode.unmarkHeightCell(cell.cx, cell.cz);
-      return;
-    }
-    if (!this.mode.canEditCell(cell.cx, cell.cz)) return;
-    if (!this.mode.hasBrush) {
-      this.hud.setReadout(NO_BRUSH_HINT);
-      return;
-    }
-    this.mode.undraftCell(cell.cx, cell.cz);
   }
 
   applyBrushDraft() {
@@ -1165,136 +627,6 @@ export default class MapEditor {
     this.refreshZoneOverlay();
   }
 
-  refreshZoneOverlay() {
-    this.refreshRiverArrows();
-    if (!this.mode.active || !this.s.mapLayout) {
-      this.s.gridSystem.clearZones();
-      this.s.gridSystem.clearDraftCells();
-      this.s.gridSystem.clearDraftOutline();
-      this.heightLabels.clear();
-      this.heightHologram.clear();
-      return;
-    }
-    if (this.mode.mode === 'floors') {
-      this.s.gridSystem.clearDraftCells();
-      this.s.gridSystem.clearDraftOutline();
-      this.heightLabels.clear();
-      this.heightHologram.clear();
-      this.showFloorMarks();
-      return;
-    }
-    if (this.mode.mode === 'height' && this.mode.heightDraftCount) {
-      this.showHeightDraftOverlay();
-      return;
-    }
-    this.heightLabels.clear();
-    this.heightHologram.clear();
-    const spawnZone = this.spawnZone();
-    if (!this.mode.hasDraft) {
-      if (spawnZone) this.s.gridSystem.showZones([spawnZone], (cx, cz) => this.s.cellSurfaceAt(cx, cz));
-      else this.s.gridSystem.clearZones();
-      this.s.gridSystem.clearDraftCells();
-      this.s.gridSystem.clearDraftOutline();
-      return;
-    }
-    this.s.gridSystem.clearDraftOutline();
-    const draft = this.mode.draft;
-    const removing = draft.mode === 'remove' || Boolean(this.mode.eraseKind);
-    const surfaceAt = (cx, cz) => this.s.cellSurfaceAt(cx, cz);
-    const shape = this.mode.heightDraftShape(draft);
-
-    const draftCells = [...draft.cells].map(parseCell).map(({ cx, cz }) => [cx, cz]);
-
-    const groups = [
-      {
-        cells: draftCells,
-        color: removing ? ZONE.erase : ZONE.draft,
-        glow: removing ? ZONE.eraseGlow : ZONE.draftGlow,
-        alpha: 0.72,
-        lift: 0.055,
-      },
-      {
-        cells: shape ? shape.slope.map((entry) => [entry.cx, entry.cz]) : [],
-        color: ZONE.slope,
-        glow: ZONE.slopeGlow,
-        alpha: 0.34,
-        lift: 0.035,
-      },
-      {
-        cells: shape && shape.rim ? shape.rim.map((entry) => [entry.cx, entry.cz]) : [],
-        color: ZONE.rim,
-        glow: ZONE.rimGlow,
-        alpha: 0.22,
-        lift: 0.03,
-      },
-    ];
-    this.s.gridSystem.showZones(spawnZone ? [spawnZone, ...groups] : groups, surfaceAt);
-
-    this.s.gridSystem.showDraftCells(draftCells, surfaceAt, draft.mode);
-  }
-
-  spawnZone() {
-    if (!this.mode.active || this.mode.mode !== 'zone' || !this.mode.isSpawnBrush) return null;
-    const spawn = this.mode.spawnCell();
-    if (!spawn) return null;
-    return {
-      cells: [[spawn.cx, spawn.cz]],
-      color: ZONE.spawn,
-      glow: ZONE.spawnGlow,
-      alpha: 0.5,
-      lift: 0.05,
-    };
-  }
-
-  showHeightDraftOverlay() {
-    const groups = this.mode.heightDraftGroups();
-    const surfaceAt = (cx, cz) => this.s.decoSystem.surfaceAt(cx, cz);
-    if (!groups.length) {
-      this.s.gridSystem.clearZones();
-      this.s.gridSystem.clearDraftCells();
-      this.s.gridSystem.clearDraftOutline();
-      this.heightLabels.clear();
-      this.heightHologram.clear();
-      return;
-    }
-    const cells = [];
-    const labels = [];
-    const volumes = [];
-    for (const group of groups) {
-      const target = group.level * HEIGHT_STEP;
-      for (const cell of group.cells) {
-        const [cx, cz] = cell;
-        cells.push(cell);
-        const ground = surfaceAt(cx, cz);
-        const y = Number.isFinite(ground) ? ground : 0;
-        const diff = target - y;
-        const dir = diff > 0.05 ? 'up' : diff < -0.05 ? 'down' : 'flat';
-        const text = dir === 'flat' ? formatMeters(target) : `${dir === 'up' ? '↑' : '↓'} ${formatMeters(target)} (z ${formatMeters(y)})`;
-        labels.push({ x: cx * CELL_SIZE, y: Math.max(y, target) + HEIGHT_LABEL_LIFT, z: cz * CELL_SIZE, dir, text });
-        volumes.push({ cx, cz, from: y, to: target });
-      }
-    }
-    this.heightHologram.show(volumes);
-    const stride = labels.length > HEIGHT_LABEL_LIMIT ? Math.ceil(labels.length / HEIGHT_LABEL_LIMIT) : 1;
-    this.heightLabels.show(stride === 1 ? labels : labels.filter((item, index) => index % stride === 0));
-    this.s.gridSystem.clearZones();
-    this.s.gridSystem.clearDraftCells();
-    this.s.gridSystem.showDraftOutline(cells, surfaceAt);
-  }
-
-  followCreatureMarks(dt) {
-    if (!this.mode.active || !(this.mode.isCreatureBrush || this.mode.isNestBrush)) return;
-    this.marksClock += dt;
-    if (this.marksClock < MARKS_FOLLOW_SECONDS) return;
-    this.marksClock = 0;
-    this.refreshCreatureMarks();
-  }
-
-  updateHeightLabels() {
-    if (!this.heightLabels.items.length) return;
-    this.heightLabels.update((x, y, z) => this.s.screenPointOf(x, y, z));
-  }
-
   applyHeightSelection() {
     const count = this.mode.applyHeightSelection();
     if (count) this.hud.setReadout(`Aplikováno ${cellCount(count)} — výšky se přepočítají`);
@@ -1320,130 +652,6 @@ export default class MapEditor {
     this.heightPanel.setStaged(this.stagedList());
     this.refreshZoneOverlay();
   }
-
-  markDirty() {
-    const saved = this.savedFingerprint;
-    if (saved !== null && this.mode.fingerprint() === saved) {
-      if (!this.mapDirty) return;
-      this.mapDirty = false;
-      this.hud.setReadout('Mapa je zpátky v uloženém stavu');
-      return;
-    }
-    if (this.mapDirty) return;
-    this.mapDirty = true;
-    this.hud.setReadout('● Neuložené změny');
-  }
-
-  clearDirty() {
-    this.mapDirty = false;
-    this.savedFingerprint = this.mode.fingerprint();
-    this.hud.setReadout('Uloženo ✓');
-  }
-
-  saveMap() {
-    const layout = this.mode.getMap();
-    const key = typeof this.s.mapKey === 'string' ? this.s.mapKey.toLowerCase() : '';
-    const file = mapFileFromLayout(key, layout);
-    if (!file) {
-      this.hud.setReadout('Mapu nejde složit');
-      return Promise.resolve(false);
-    }
-    if (!Number.isInteger(layout.spawn.cx) || !Number.isInteger(layout.spawn.cz)) {
-      this.markDirty();
-      this.hud.setReadout(`Mapa se neuložila — start hráče nemá platné souřadnice (${layout.spawn.cx}, ${layout.spawn.cz})`);
-      return Promise.resolve(false);
-    }
-    const broken = brokenEntries(layout);
-    if (broken) {
-      this.markDirty();
-      this.hud.setReadout(`Mapa se neuložila — ${cellCount(broken)} nemá platné souřadnice, takže by se v souboru rozsypala`);
-      return Promise.resolve(false);
-    }
-    this.hud.setReadout('Ukládám do souboru…');
-    return this.writeMapFile(file).then((result) => this.finishSave(file, result));
-  }
-
-  finishSave(file, result) {
-    this.s.mapFile = file;
-    if (result.ok) {
-      this.clearDirty();
-      this.hud.setReadout('Mapa zapsaná do souboru projektu ✓');
-      return true;
-    }
-    this.downloadMapFile(file);
-    this.markDirty();
-    this.hud.setReadout(`Mapu se nepodařilo zapsat do souboru (${result.reason}) — soubor je stažený, polož ho do projektu`);
-    return false;
-  }
-
-  async writeMapFile(file) {
-    const url = `/_map/${encodeURIComponent(file.mapKey)}`;
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(file),
-      });
-    } catch {
-      return { ok: false, reason: `server neodpověděl (${url})` };
-    }
-    if (response.ok) return { ok: true };
-    let reason = `HTTP ${response.status}`;
-    try {
-      const answer = await response.json();
-      if (answer && answer.error) reason = `${reason} — ${answer.error}`;
-    } catch {
-      reason = `${reason} z ${url}`;
-    }
-    return { ok: false, reason };
-  }
-
-  downloadMapFile(file) {
-    const name = `${file.mapKey}-map.json`;
-    const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
 }
 
-function frameLabel(style, autoStyle) {
-  if (!style) return `podle útesu (${FRAME_NAMES[autoStyle] || autoStyle})`;
-  return FRAME_NAMES[style] || style;
-}
-
-function entryLabel(entry) {
-  if (!entry) return null;
-  const def = getDecoration(entry.key);
-  return def && def.displayName ? def.displayName : entry.key;
-}
-
-function brushLabel(key) {
-  const brush = BRUSHES[key];
-  return brush ? brush.label : key;
-}
-
-function respawnLabel(days) {
-  if (!Number.isFinite(days)) return 'čeká na obnovu';
-  const whole = Math.max(0, Math.ceil(days));
-  if (whole <= 0) return 'obnoví se každou chvíli';
-  if (whole === 1) return 'obnoví se za 1 den';
-  if (whole <= 4) return `obnoví se za ${whole} dny`;
-  return `obnoví se za ${whole} dní`;
-}
-
-function brokenEntries(layout) {
-  let count = 0;
-  for (const name of ENTRY_LAYERS) {
-    for (const entry of layout[name] || []) {
-      if (!entry || !Number.isFinite(entry.cx) || !Number.isFinite(entry.cz)) count += 1;
-    }
-  }
-  return count;
-}
-
-Object.assign(MapEditor.prototype, editorLakesParts, editorRiversParts);
+Object.assign(MapEditor.prototype, mapFloorsParts, mapInputParts, mapOverlaysParts, mapReadoutsParts, mapSaveParts, mapWaterParts, mapLakesParts, mapRiversParts);

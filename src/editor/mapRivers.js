@@ -1,4 +1,4 @@
-// Část editoru: řeky — tah myší od pramene k ústí je návrh, Aplikovat z něj postaví řeku i s korytem.
+// Část řízení editoru: řeky — tah myší od pramene k ústí je návrh, Aplikovat z něj postaví řeku i s korytem.
 // Patří k MapEditor (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { formatMeters } from '../data/maps/layoutStore.js';
 import { cellKey } from '../utils/gridMath.js';

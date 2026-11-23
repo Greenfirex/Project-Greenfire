@@ -88,8 +88,7 @@ export default {
   },
 
   cellHeightValue(cx, cz) {
-    const floor = floorCellAt(this.layout, cx, cz);
-    return floor ? (floor.liftY || 0) : (layerLiftAt(this.layout, cx, cz) || 0);
+    return layerLiftAt(this.layout, cx, cz) || 0;
   },
 
   heightShape(brushKey, zone, mode = 'add') {

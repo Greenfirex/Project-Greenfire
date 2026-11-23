@@ -1870,7 +1870,8 @@ export default class GameScene {
     const plane = this.editor.floorPlane(cx * CELL_SIZE, cz * CELL_SIZE);
     if (plane !== null) return plane;
     const deck = this.terrainSystem.bridgeDeckAt(cx * CELL_SIZE, cz * CELL_SIZE);
-    return deck === null ? this.decoSystem.surfaceAt(cx, cz) : deck;
+    if (deck !== null) return deck;
+    return this.decorHidden ? this.terrainSystem.heightAt(cx * CELL_SIZE, cz * CELL_SIZE) : this.decoSystem.surfaceAt(cx, cz);
   }
 
   handleHover(cell) {
