@@ -8,7 +8,9 @@ const STEP = 1 / 60;
 const TOOL_WAIT_MS = 15000;
 const LID_AHEAD = 0.65;
 const HIP_LENGTH = 0.8;
-const SCENES = ['idle', 'walk', 'run', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway'];
+const SCENES = ['idle', 'walk', 'run', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway', 'eat', 'use'];
+const EAT_LENGTH = 1.6;
+const USE_LENGTH = 0.7;
 const HIP_SCENES = ['draw', 'sheath', 'grab', 'putaway'];
 
 function rounded(value, digits) {
@@ -126,6 +128,14 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
       return player.dodgeTimer;
     },
     pickup: () => player.pickUp(),
+    eat: () => {
+      player.eat(ITEM_TYPES.mushroom.food.hold);
+      return EAT_LENGTH;
+    },
+    use: () => {
+      player.useToward(0.4, 2);
+      return USE_LENGTH;
+    },
     draw: () => {
       player.weaponDrawn = true;
       player.setHeldTool(sheathKey, false, true);
@@ -155,6 +165,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
     scene.render();
     player.setOffHandTool(null, true);
   }
+  if (scenario === 'eat') await player.prefetchMeal(ITEM_TYPES.mushroom.food.hold);
   const action = actions[scenario] || null;
   const lead = action ? options.lead || 0 : 0;
   let seconds = options.seconds || 2;
@@ -164,6 +175,8 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
     player.pickupTimer = 0;
     player.dodgeTimer = 0;
     player.dodgeWait = 0;
+    player.stopEating();
+    player.useTimer = 0;
     player.play(player.idleAnim(), true);
     seconds = options.seconds || lead + length + (lead ? 0.5 : 0.2);
   }

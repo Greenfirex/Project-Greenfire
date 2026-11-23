@@ -1,7 +1,7 @@
 // Část herní scény: vybavení — nasazení předmětu z batohu do slotu, sundání zpět, model na postavě a co z toho plyne pro staty.
 // Taky tasení a zandávání zbraně a rozhodnutí, co má postava v ruce.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
-import { ITEM_TYPES, EQUIP_SLOTS, gearBonus, itemWeight, toolForItem, getTool, hotbarTool } from '../data/catalogs/items.js';
+import { ITEM_TYPES, EQUIP_SLOTS, gearBonus, itemFood, itemWeight, toolForItem, getTool, hotbarTool } from '../data/catalogs/items.js';
 
 export default {
   equipItem(itemKey, slot) {
@@ -20,6 +20,7 @@ export default {
     const def = ITEM_TYPES[itemKey];
     if (!def) return false;
     if (def.slot) return this.equipItem(itemKey, def.slot);
+    if (itemFood(itemKey)) return this.eatItem(itemKey);
     const toolKey = toolForItem(itemKey);
     if (!toolKey || !hotbarTool(toolKey)) return false;
     const bar = this.heldItemSystem.bar;

@@ -51,6 +51,7 @@ import { loadModel, instantiateModel, loadImported } from '../../utils/assetLoad
 import TorchFire from '../../effects/torchFire.js';
 import SwingTrail from '../../effects/swingTrail.js';
 import playerWear from './playerWear.js';
+import playerGestures from './playerGestures.js';
 
 const ANIM_BLEND = 0.1;
 const STRIKE_PLAY_SHARE = {
@@ -309,6 +310,14 @@ export default class PlayerSystem {
     this.igniteImpactAt = 0;
     this.pickupTimer = 0;
     this.pickupImpactAt = 0;
+    this.eatTimer = 0;
+    this.eatClock = 0;
+    this.eatBlend = 0;
+    this.mealNode = null;
+    this.mealToken = null;
+    this.torchHidden = false;
+    this.useTimer = 0;
+    this.useAt = null;
     this.travelled = 0;
     this.homeX = 0;
     this.homeZ = 0;
@@ -675,8 +684,10 @@ export default class PlayerSystem {
     this.holdGuard(dt);
     this.reachHip(dt);
     this.reachPocket(dt);
+    this.reachUse();
     this.holdInFist(dt);
     this.holdOffHand();
+    this.feedMouth(dt);
     this.updateSwingTrail(dt);
     if (this.torchFire) this.torchFire.update(dt);
   }
@@ -1045,7 +1056,7 @@ export default class PlayerSystem {
   holdOffHand() {
     const tool = TOOL_TYPES[this.offNodeKey];
     const grip = tool && tool.grip;
-    if (!grip || !grip.upright || !this.offNode || !this.leftSlot || !this.leftArm) return;
+    if (!grip || !grip.upright || !this.offNode || !this.leftSlot || !this.leftArm || this.torchHidden) return;
     const lift = (1 - this.guardBlend) * (1 - this.pocketWeight);
     if (lift > 0 && this.strikeTimer <= 0 && this.pickupTimer <= 0) {
       const right = new Vector3(Math.cos(this.bodyFacing), 0, -Math.sin(this.bodyFacing));
@@ -1147,6 +1158,7 @@ export default class PlayerSystem {
 
   strike(animKey) {
     this.finishHipSwap();
+    this.stopEating();
     this.flinchTimer = 0;
     this.strikeAnim = animKey || this.strikeAnimationForTool();
     const group = this.anims[this.strikeAnim];
@@ -1187,6 +1199,7 @@ export default class PlayerSystem {
   }
 
   igniteAt(x, z) {
+    this.stopEating();
     this.faceTo(x, z);
     this.strikeTimer = 0;
     this.flinchTimer = 0;
@@ -1200,6 +1213,8 @@ export default class PlayerSystem {
   pickUp() {
     this.finishHipSwap();
     this.finishPocket();
+    this.stopEating();
+    this.useTimer = 0;
     this.strikeTimer = 0;
     this.flinchTimer = 0;
     this.pickupKey = 'pickup';
@@ -1208,6 +1223,10 @@ export default class PlayerSystem {
     this.pickupImpactAt = Math.max(0.12, length * PICKUP_SHARE);
     this.play('pickup', true, false);
     return this.pickupTimer;
+  }
+
+  refreshNode(node) {
+    refreshChain(node);
   }
 
   walkTo(x, z, onArrive) {
@@ -1270,6 +1289,7 @@ export default class PlayerSystem {
     if (!this.ready || this.dead || this.lying) return 0;
     if (this.strikeTimer > 0 || this.pickupTimer > 0 || this.igniteTimer > 0) return 0;
     if (!this.anims.flinch) return 0;
+    this.stopEating();
     this.flinchTimer = Math.max(0.2, this.animLength('flinch', FLINCH_FALLBACK) * FLINCH_PLAY);
     this.play('flinch', true, false);
     return this.flinchTimer;
@@ -1544,6 +1564,7 @@ export default class PlayerSystem {
     const data = PLAYER_BASE.dodge || {};
     const seconds = Number.isFinite(data.seconds) && data.seconds > 0 ? data.seconds : 0.3;
     this.finishHipSwap();
+    this.stopEating();
     if (this.strikeTimer > 0) this.endStrike();
     this.autoWalk = null;
     this.dodgeX = dirX / length;
@@ -1657,6 +1678,8 @@ export default class PlayerSystem {
     this.pickupTimer = 0;
     this.igniteTimer = 0;
     this.flinchTimer = 0;
+    this.useTimer = 0;
+    this.stopEating();
     this.releaseKeys();
     const wanted = fromBehind ? 'dieShot' : 'dieFall';
     const key = this.anims[wanted] ? wanted : (this.anims.dieFall ? 'dieFall' : (this.anims.dieShot ? 'dieShot' : null));
@@ -1684,6 +1707,7 @@ export default class PlayerSystem {
     this.waking = false;
     this.wakeTimer = 0;
     this.flinchTimer = 0;
+    this.stopEating();
     if (Number.isFinite(x) && Number.isFinite(z)) this.apply({ x, z, facing: 0 });
     this.play(this.idleAnim(), true);
     return true;
@@ -1862,6 +1886,7 @@ export default class PlayerSystem {
     this.keepGrounded();
     this.turnBody(dt);
     this.sprinting = false;
+    this.tickGestures(dt);
     if (this.dead) return;
     if (this.lying) {
       if (this.waking) {
@@ -1932,7 +1957,7 @@ export default class PlayerSystem {
 
     const allowed = !this.canSprint || this.canSprint();
     if (!allowed && this.input.sprint) this.sprintSpent = true;
-    const sprint = this.input.sprint && allowed && !this.sprintSpent;
+    const sprint = this.input.sprint && allowed && !this.sprintSpent && !this.eating();
     this.sprinting = sprint;
     const scale = this.speedScale ? this.speedScale(this.root.position.x, this.root.position.z) : 1;
     const pace = Number.isFinite(scale) ? scale : 1;
@@ -2120,4 +2145,4 @@ function turnToward(current, target, maxDelta) {
   return current + Math.sign(diff) * maxDelta;
 }
 
-Object.assign(PlayerSystem.prototype, playerWear);
+Object.assign(PlayerSystem.prototype, playerWear, playerGestures);

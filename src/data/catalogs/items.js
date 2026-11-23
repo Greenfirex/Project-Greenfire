@@ -17,6 +17,7 @@ export const ITEM_TAG_LABELS = {
   tool: 'Nástroj',
   weapon: 'Zbraň',
   wear: 'Oblečení',
+  food: 'Jídlo',
 };
 
 export const ITEM_TYPES = {
@@ -58,6 +59,7 @@ export const ITEM_TYPES = {
     stackSize: 100,
     weight: 0.1,
     kind: 'raw',
+    food: { heal: 5, perSecond: 1, hold: { decoration: 'mushroom_red', scale: 0.25 } },
     color: [0.78, 0.55, 0.42],
   },
   coconut: {
@@ -294,6 +296,23 @@ export function hotbarTool(toolKey) {
   return Boolean(tool) && tool.kind !== 'weapon';
 }
 
+export function itemFood(itemKey) {
+  const def = ITEM_TYPES[itemKey];
+  const food = def ? def.food : null;
+  return food && Number.isFinite(food.heal) && food.heal > 0 ? food : null;
+}
+
+export function barItem(key) {
+  return hotbarTool(key) || Boolean(itemFood(key));
+}
+
+export function barEntry(key) {
+  if (hotbarTool(key)) return getTool(key);
+  if (!itemFood(key)) return null;
+  const def = ITEM_TYPES[key];
+  return { item: key, displayName: def.displayName, shortName: def.displayName, icon: def.icon, food: def.food };
+}
+
 export function toolForItem(itemKey) {
   return Object.keys(TOOL_TYPES).find((key) => TOOL_TYPES[key].item === itemKey) || null;
 }
@@ -328,5 +347,6 @@ export function itemTags(itemKey) {
   const toolKey = toolForItem(itemKey);
   const tool = toolKey ? TOOL_TYPES[toolKey] : null;
   if (tool && tool.kind) keys.push(tool.kind);
+  if (def.food) keys.push('food');
   return [...new Set(keys)].map((key) => ({ key, label: ITEM_TAG_LABELS[key] || key }));
 }

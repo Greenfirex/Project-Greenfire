@@ -1,7 +1,7 @@
 // Okno postavy a batohu — výbava a staty vlevo, batoh uprostřed, detail předmětu vpravo.
 // Jen zobrazuje a hlásí callbacky; co hráč nese a má na sobě, drží systémy scény.
 import WindowFrame from './windowFrame.js';
-import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, itemTags, itemWeapon, itemWeight, toolForItem } from '../data/catalogs/items.js';
+import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, itemFood, itemTags, itemWeapon, itemWeight, toolForItem } from '../data/catalogs/items.js';
 import { DAMAGE_GROUPS, DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
 import { PLAYER_STAT_INFO } from '../data/catalogs/statInfo.js';
 import { damageText } from '../utils/combatRoll.js';
@@ -10,6 +10,7 @@ import { fillIcon, fillItemIcon, itemIconElement } from './itemIcons.js';
 import { wearDragType, SLOT_DRAG_TYPE, BAG_DRAG_TYPE, HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 
 const COMPARED_STATS = ['attack', 'defense', 'armor', 'damage'];
+const DETAIL_LINGER_MS = 450;
 
 function statScore(value) {
   if (Array.isArray(value)) return (Number(value[0]) + Number(value[1])) / 2;
@@ -53,6 +54,7 @@ export default class CharacterPanel {
     this.hoverAmount = 0;
     this.hoverStat = null;
     this.hoverWorn = false;
+    this.lingerTimer = null;
     this.preview = null;
     this.characterData = null;
     this.lastInventorySignature = '';
@@ -174,7 +176,11 @@ export default class CharacterPanel {
     this.summaryEl = layout.querySelector('.character-panel__summary');
     this.itemsEl = layout.querySelector('.inv-grid');
     this.detailEl = layout.querySelector('.character-panel__detail');
-    this.itemsEl.addEventListener('pointerleave', () => this.clearDetail());
+    this.itemsEl.addEventListener('pointerleave', () => this.lingerDetail());
+    this.detailEl.addEventListener('pointerenter', () => this.stopLinger());
+    this.detailEl.addEventListener('pointerleave', () => {
+      if (this.hoverKey && !this.hoverWorn) this.clearDetail();
+    });
     this.watchGridDrop(this.itemsEl);
   }
 
@@ -316,7 +322,22 @@ export default class CharacterPanel {
     this.frame.close();
   }
 
+  lingerDetail() {
+    this.stopLinger();
+    this.lingerTimer = setTimeout(() => {
+      this.lingerTimer = null;
+      this.clearDetail();
+    }, DETAIL_LINGER_MS);
+  }
+
+  stopLinger() {
+    if (this.lingerTimer === null) return;
+    clearTimeout(this.lingerTimer);
+    this.lingerTimer = null;
+  }
+
   showDetail(key, amount, worn = false) {
+    this.stopLinger();
     this.hoverKey = key;
     this.hoverAmount = amount;
     this.hoverWorn = worn;
@@ -355,6 +376,14 @@ export default class CharacterPanel {
       description.textContent = def.description;
       this.detailEl.appendChild(description);
     }
+    const food = itemFood(key);
+    if (food) {
+      const perSecond = Number.isFinite(food.perSecond) && food.perSecond > 0 ? food.perSecond : food.heal;
+      this.detailHeading('Efekt');
+      this.detailRow('Zdraví', `+${decimal(food.heal)}`);
+      this.detailRow('Rychlost', `${decimal(perSecond)} zdraví / s`);
+      this.detailRow('Trvá', `${decimal(food.heal / perSecond)} s`);
+    }
     const weapon = itemWeapon(key);
     if (weapon) {
       this.detailHeading(ITEM_TAG_LABELS.weapon);
@@ -383,6 +412,16 @@ export default class CharacterPanel {
         this.stackBar(amount, def.stackSize);
       }
       this.detailRow('Váha', amount > 1 ? `${kilos(weight)} kg / ks · ${kilos(weight * amount)} kg` : `${kilos(weight)} kg`);
+    }
+    if (food && !worn) {
+      const use = document.createElement('button');
+      use.type = 'button';
+      use.className = 'inv-detail__use';
+      use.textContent = 'Použít';
+      use.addEventListener('click', () => {
+        if (this.onUse) this.onUse(key);
+      });
+      this.detailEl.appendChild(use);
     }
     const hint = document.createElement('div');
     hint.className = 'inv-detail__actions';
@@ -488,6 +527,7 @@ export default class CharacterPanel {
 
   usageHint(key, def) {
     if (def && def.slot) return 'Pravý klik nebo dvojklik nasadí, jde i přetáhnout na postavu.';
+    if (itemFood(key)) return 'Pravý klik nebo dvojklik sní, přetažením jde dát na lištu dole.';
     if (toolForItem(key)) return 'Pravý klik nebo dvojklik dá na lištu dole (nebo z ní sundá), jde i přetáhnout.';
     return 'Přetáhni na jiné políčko pro přesun.';
   }
@@ -533,6 +573,7 @@ export default class CharacterPanel {
   }
 
   clearDetail() {
+    this.stopLinger();
     this.hoverKey = null;
     this.hoverAmount = 0;
     this.hoverWorn = false;
@@ -568,9 +609,11 @@ export default class CharacterPanel {
     cell.addEventListener('contextmenu', use);
     cell.addEventListener('dblclick', use);
     const slot = def ? def.slot : null;
-    const tool = toolForItem(key);
+    const food = itemFood(key);
+    const tool = toolForItem(key) || (food ? key : null);
     cell.title = `${label} × ${amount}`;
     if (slot) cell.title = `${label} — pravý klik nebo dvojklik nasadí`;
+    else if (food) cell.title = `${label} — pravý klik nebo dvojklik sní`;
     else if (tool) cell.title = `${label} — pravý klik nebo dvojklik dá na lištu (nebo z ní sundá)`;
     cell.addEventListener('dragstart', (evt) => {
       if (this.onGrab) this.onGrab();

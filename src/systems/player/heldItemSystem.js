@@ -1,6 +1,6 @@
-// Co má hráč právě v ruce a co má rozložené na liště dole (klávesy 1–5). Zbraně na lištu nepatří, ty jsou ve výbavě.
+// Co má hráč právě v ruce a co má rozložené na liště dole (klávesy 1–5): nástroje a jídlo. Zbraně na lištu nepatří, ty jsou ve výbavě.
 // Drží jen klíče nástrojů a umí se uložit, ať po obnovení stránky zůstane stejná věc v ruce i na liště.
-import { getTool, hotbarTool, HOTBAR_SLOTS } from '../../data/catalogs/items.js';
+import { getTool, hotbarTool, barItem, HOTBAR_SLOTS } from '../../data/catalogs/items.js';
 
 export default class HeldItemSystem {
 
@@ -23,7 +23,7 @@ export default class HeldItemSystem {
   }
 
   assign(index, toolKey) {
-    if (!this.inBar(index) || !hotbarTool(toolKey)) return;
+    if (!this.inBar(index) || !barItem(toolKey)) return;
     const previous = this.bar.indexOf(toolKey);
     if (previous >= 0) this.bar[previous] = this.bar[index];
     this.bar[index] = toolKey;
@@ -43,7 +43,7 @@ export default class HeldItemSystem {
   }
 
   keep(toolKey) {
-    if (!hotbarTool(toolKey) || this.bar.includes(toolKey)) return;
+    if (!barItem(toolKey) || this.bar.includes(toolKey)) return;
     const free = this.bar.indexOf(null);
     if (free < 0) return;
     this.bar[free] = toolKey;
@@ -68,7 +68,7 @@ export default class HeldItemSystem {
     const saved = data && Array.isArray(data.bar) ? data.bar : [];
     this.bar = new Array(HOTBAR_SLOTS).fill(null);
     saved.slice(0, HOTBAR_SLOTS).forEach((toolKey, index) => {
-      if (hotbarTool(toolKey) && !this.bar.includes(toolKey)) this.bar[index] = toolKey;
+      if (barItem(toolKey) && !this.bar.includes(toolKey)) this.bar[index] = toolKey;
     });
     this.barChanged();
     if (this.onChange) this.onChange(this.key);

@@ -521,11 +521,31 @@ se použije emoji.
 **Batoh a lišta:** batoh má pevná políčka (`INVENTORY_SLOTS`, mřížka 6 sloupců).
 Každý druh předmětu leží na jednom políčku, `inventorySystem.slots` pamatuje kde;
 přetažením se políčka prohodí. Nový předmět jde na první volné políčko, vypotřebovaný
-políčko uvolní. Lištu dole (`HOTBAR_SLOTS`) drží `heldItemSystem.bar` (klíče nástrojů).
-Na lištu jde jen předmět, ke kterému existuje nástroj (`toolForItem`); přetáhne se
+políčko uvolní. Lištu dole (`HOTBAR_SLOTS`) drží `heldItemSystem.bar` (klíče nástrojů
+a jídla). Na lištu jde předmět, ke kterému existuje nástroj (`toolForItem`), nebo jídlo
+(`food` u předmětu, `itemFood`); co na lištu smí, říká `barItem`, co se na ní ukáže
+`barEntry`. Jídlo se nebere do ruky, klik nebo klávesa ho sní. Přetáhne se
 z batohu, mezi sloty se prohazuje, pravé tlačítko nebo přetažení zpět do batohu ho
 z lišty sundá. První kus nového nástroje se na lištu přidá sám (`GameScene.receiveItems`).
 Každý nástroj má `item`; pochodeň je předmět a leží v truhlách.
+
+**Jídlo:** předmět s `food: { heal, perSecond }` jde sníst tlačítkem Použít v detailu
+batohu, pravým klikem, dvojklikem nebo z lišty. Detail ukazuje oddíl Efekt. Jídlo řídí
+`sceneFood.js`. Pohyb není animace, ale tah ruky v kódu nad chůzí nebo stáním
+(`playerGestures.js`, část PlayerSystem): levá ruka donese jídlo k puse (bod spočítaný z kosti
+hlavy a `headTop`) a zase klesne. Ve chvíli, kdy je u pusy (`EAT_BITE_AT`), jídlo z ruky zmizí,
+kus se odebere a začne léčení v čase (`playerStats.healOverTime`). Jíst jde i za chůze, běh se
+při jídle vypne. V ruce je model dekorace z `food.hold` (`decoration`, `scale`), pěst drží jeho
+spodní část (`MEAL_GRIP`). Model i jeho materiál se připraví předem (`prefetchMeal`, když je jídlo
+na liště), jinak by se první jídlo nevykreslilo. Levá ruka zavírá prsty záporným `EAT_CURL`;
+kladný ohne prsty dozadu. Pochodeň v levé ruce se na dobu jídla schová. Úder, úskok, sebrání věci nebo zásah jídlo přeruší; před
+kousnutím se pak nic nesní. Léčení v čase se neukládá (trvá pár sekund, jako ochrana po
+úskoku); po smrti a po načtení se zahodí.
+
+**Použití věci:** u dveří (otevření i zavření), knihovny na páku a věcí na stole (lucerna,
+ponk) pravá ruka natáhne a máchne směrem k věci (`playerSystem.useToward`, stejný soubor
+`playerGestures.js`). Chůzi nezastaví. Fotoateliér postavy zná scény `eat` a `use`
+(`node tools/capture.cjs player eat --view side2 --focus head --zoom 0.6`).
 
 **Vybavení:** předmět s `slot` se přetáhne z batohu
 na slot v okně postavy, zpět ho sundá přetažení do batohu (`dragTypes.js`). Co má

@@ -1,6 +1,6 @@
-// Hotbar dole uprostřed — sloty pro předměty v ruce, plní se přetažením z batohu.
+// Hotbar dole uprostřed — sloty pro předměty v ruce a jídlo, plní se přetažením z batohu.
 // Kliknutí a přetahování jen hlásí callbacky; sedí uprostřed dolní lišty pod ukazateli zdraví a výdrže.
-import { getTool, HOTBAR_SLOTS } from '../data/catalogs/items.js';
+import { barEntry, HOTBAR_SLOTS } from '../data/catalogs/items.js';
 import { itemIconElement } from './itemIcons.js';
 import { HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 import { dockArea } from './dock.js';
@@ -28,7 +28,7 @@ export default class Hotbar {
     const dock = dockArea('center');
     const root = document.createElement('div');
     root.className = 'hotbar';
-    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_SLOTS}</span> výběr · pravý klik v batohu sem dá nástroj</div>`;
+    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_SLOTS}</span> výběr · pravý klik v batohu sem dá nástroj, jídlo sem přetáhni</div>`;
     this.slotsEl = root.querySelector('.hotbar__slots');
     for (let index = 0; index < HOTBAR_SLOTS; index += 1) this.slotEls.push(this.createSlot(index));
     dock.appendChild(root);
@@ -116,7 +116,7 @@ export default class Hotbar {
     if (!this.root) return;
     this.slotEls.forEach((btn, index) => {
       const key = this.bar[index] || null;
-      const tool = key ? getTool(key) : null;
+      const tool = key ? barEntry(key) : null;
       const locked = Boolean(tool) && !this.isAvailable(key);
       btn.draggable = Boolean(tool);
       btn.classList.toggle('is-empty', !tool);
@@ -127,9 +127,10 @@ export default class Hotbar {
         btn.innerHTML = `<span class="hotbar__key">${index + 1}</span><span class="hotbar__icon">·</span><span class="hotbar__name">—</span>`;
         return;
       }
+      const action = tool.food ? 'klik sní' : 'klik vezme do ruky';
       btn.title = locked
-        ? `${tool.displayName} — zatím ho nemáš (pravé tlačítko odebere)`
-        : `${tool.displayName} (${index + 1}) — pravé tlačítko odebere z lišty`;
+        ? `${tool.displayName} — zatím nemáš (pravé tlačítko odebere)`
+        : `${tool.displayName} (${index + 1}) — ${action}, pravé tlačítko odebere z lišty`;
       const keyLabel = document.createElement('span');
       keyLabel.className = 'hotbar__key';
       keyLabel.textContent = String(index + 1);

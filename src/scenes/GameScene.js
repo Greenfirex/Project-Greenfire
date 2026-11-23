@@ -74,7 +74,7 @@ import MouseHint from '../ui/mouseHint.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
-import { ITEM_TYPES, getTool, toolForItem } from '../data/catalogs/items.js';
+import { ITEM_TYPES, barEntry, getTool, itemFood, toolForItem } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
@@ -93,6 +93,7 @@ import sceneGatheringParts from './sceneGathering.js';
 import sceneStepsParts from './sceneSteps.js';
 import sceneEquipmentParts from './sceneEquipment.js';
 import sceneCraftingParts from './sceneCrafting.js';
+import sceneFoodParts from './sceneFood.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -179,6 +180,7 @@ export default class GameScene {
     this.lootSystem = new LootSystem(scene);
     this.equipmentSystem = new EquipmentSystem();
     this.lootPickup = null;
+    this.meal = null;
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
     this.dayNightSystem = new DayNightSystem(scene);
@@ -283,6 +285,7 @@ export default class GameScene {
     this.heldItemSystem.onBarChange = (bar) => {
       this.hotbar.setSlots(bar);
       for (const key of bar) if (key) this.playerSystem.prefetchTool(key);
+      for (const key of bar) if (itemFood(key)) this.playerSystem.prefetchMeal(itemFood(key).hold);
     };
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1);
@@ -422,6 +425,7 @@ export default class GameScene {
       this.footprintSystem.update(dt);
       this.sandBursts.update(dt);
       this.updateGathering(dt);
+      this.updateMeal(dt);
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
@@ -799,6 +803,7 @@ export default class GameScene {
         return { ref: door, detail: `Levé tlačítko — ${this.buildingSystem.doorHint(door)}`, inReach: this.buildingSystem.inReach(door, root.position) };
       },
       act: (target) => {
+        this.playerSystem.useToward(target.ref.x, target.ref.z);
         if (this.buildingSystem.toggleDoor(target.ref)) this.audioSystem.play('doorOpen');
         return true;
       },
@@ -813,6 +818,7 @@ export default class GameScene {
         return { ref: station, detail: `Levé tlačítko — ${this.buildingSystem.stationHint(station)}`, inReach: this.buildingSystem.inReach(station, root.position) };
       },
       act: (target) => {
+        this.playerSystem.useToward(target.ref.x, target.ref.z);
         if (target.ref.use.kind === 'crafting' && !this.craftingWindow.open) this.toggleCraftingWindow();
         if (target.ref.use.kind === 'lamp' && this.buildingSystem.toggleLamp(target.ref)) this.audioSystem.play('ignite');
         return true;
@@ -1533,13 +1539,19 @@ export default class GameScene {
     return Boolean(tool) && this.inventorySystem.count(tool.item) > 0;
   }
 
+  ownsBarItem(key) {
+    const entry = barEntry(key);
+    return Boolean(entry) && this.inventorySystem.count(entry.item) > 0;
+  }
+
   selectTool(key) {
-    if (this.ownsTool(key)) this.heldItemSystem.set(key);
+    if (itemFood(key)) this.eatItem(key);
+    else if (this.ownsTool(key)) this.heldItemSystem.set(key);
   }
 
   refreshInventory() {
     this.characterPanel.updateInventory(this.inventorySystem, this.carriedLoad());
-    this.hotbar.setAvailable((key) => this.ownsTool(key));
+    this.hotbar.setAvailable((key) => this.ownsBarItem(key));
     if (this.heldItemSystem.key && !this.ownsTool(this.heldItemSystem.key)) this.heldItemSystem.set(null);
     if (this.characterPanel.open) this.refreshCharacterPanel();
     this.refreshCrafting();
@@ -2064,4 +2076,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts);

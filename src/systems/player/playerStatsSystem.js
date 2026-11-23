@@ -15,6 +15,7 @@ export default class PlayerStatsSystem {
     this.carryWeight = this.amount(PLAYER_BASE.carryWeight, 0, 0);
     this.resistances = this.readResistances(PLAYER_BASE.resistances);
     this.immunity = 0;
+    this.heals = [];
     const stamina = PLAYER_BASE.stamina || {};
     this.maxStamina = this.amount(stamina.max, 100, 1);
     this.stamina = this.maxStamina;
@@ -141,7 +142,26 @@ export default class PlayerStatsSystem {
     return dealt;
   }
 
+  healOverTime(points, perSecond) {
+    if (!Number.isFinite(points) || points <= 0 || this.health <= 0) return;
+    const rate = Number.isFinite(perSecond) && perSecond > 0 ? perSecond : points;
+    this.heals.push({ left: points, rate });
+  }
+
+  tickHeals(dt) {
+    if (!this.heals.length) return 0;
+    let gain = 0;
+    for (const heal of this.heals) {
+      const step = Math.min(heal.left, heal.rate * dt);
+      heal.left -= step;
+      gain += step;
+    }
+    this.heals = this.heals.filter((heal) => heal.left > 0.0001);
+    return gain;
+  }
+
   resurrect() {
+    this.heals = [];
     this.health = this.maxHealth;
     this.stamina = this.maxStamina;
     this.sinceEffort = 0;
@@ -155,10 +175,12 @@ export default class PlayerStatsSystem {
     if (!Number.isFinite(dt) || dt <= 0) return;
     if (this.immunity > 0) this.immunity = Math.max(0, this.immunity - dt);
     this.tickStamina(dt, sprinting);
+    const healed = this.health > 0 ? this.tickHeals(dt) : 0;
+    if (this.health <= 0) this.heals = [];
     if (this.health >= this.maxHealth) return;
     const rate = this.amount(PLAYER_BASE.regenPerSecond, 0, 0);
-    if (rate <= 0) return;
-    const next = Math.min(this.maxHealth, this.health + rate * dt);
+    if (rate <= 0 && healed <= 0) return;
+    const next = Math.min(this.maxHealth, this.health + rate * dt + healed);
     if (next === this.health) return;
     this.health = next;
     if (this.onChange) this.onChange(this.health, this.maxHealth);
@@ -176,6 +198,7 @@ export default class PlayerStatsSystem {
     this.stamina = Math.max(0, Math.min(this.maxStamina, savedStamina));
     this.sinceEffort = 0;
     this.immunity = 0;
+    this.heals = [];
     this.refreshSprintLock();
     if (this.onChange) this.onChange(this.health, this.maxHealth);
     this.notifyStamina();

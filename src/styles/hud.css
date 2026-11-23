@@ -31,6 +31,7 @@
 .hud-bar__btn,
 .loot-take-all,
 .craft-recipe__make,
+.inv-detail__use,
 .confirm-card__btn,
 .pause-card__resume,
 .death-card__respawn,
@@ -53,6 +54,7 @@
 .hud-bar__btn.is-open,
 .loot-take-all:hover,
 .craft-recipe__make:hover:not(:disabled),
+.inv-detail__use:hover,
 .confirm-card__btn:hover,
 .pause-card__resume:hover,
 .death-card__respawn:hover,
@@ -1285,6 +1287,17 @@
   font-size: 10px;
   line-height: 1.4;
   color: var(--text-dim);
+}
+
+.inv-detail__use {
+  align-self: center;
+  min-width: 110px;
+  margin-top: auto;
+  padding: 7px 14px;
+}
+
+.inv-detail__use + .inv-detail__actions {
+  margin-top: 8px;
 }
 
 .journal-placeholder,
