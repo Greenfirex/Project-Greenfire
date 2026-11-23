@@ -233,7 +233,8 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
   (rozbilo by mapy, spoje i savy). Pořadí si buňka spočítá z výšek.
 - Mezi plochami se chodí **jen po spoji** (sekce `connectors` v mapě: odkud, kam,
   druh; v mapě je zatím jen `passage` a kód druhy nerozlišuje). Spoj znamená i díru ve stropě
-  či podlaze a vynechanou stěnu. V buňkách spoje neplatí stěnová kolize útesu.
+  či podlaze a vynechanou stěnu. V buňkách spoje neplatí stěnová kolize útesu (pro hráče
+  i tvory, `navigationSystem.bodyFree`).
 - Světlá výška aspoň 2,6 m (postava měří 2,0 m, `MODEL_HEIGHT` v `playerSystem.js`), výchozí 3,0 m.
 - „Jsem pod střechou" se odvozuje ze stropu nade mnou, neukládá se.
 - Kde jeskynní buňka sousedí s venkovní ve stejné výšce (do 0,6 m), vznikne sama
@@ -244,6 +245,10 @@ vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.j
   za ostění (`setDoorBlends` v `terrainField.js`). Úprava závisí jen na poloze, ne na
   buňce, takže mezi buňkou vchodu a sousedy nevznikne škvíra. Každá plocha se jinak
   vyhlazuje jen podle svých buněk; dřív tak na prahu vznikal zub a u ostění škvíra.
+  Švy (pás, kterým je vidět voda a prázdno) se ale objeví, když zem venku u vchodu
+  a podlaha jeskyně nejsou ve stejné výšce, i když je rozdíl do 0,6 m a průchod vznikne.
+  Lék je v mapě: srovnat buňky kolem vchodu na výšku podlahy (díry u −16,−2 a −18,−4
+  zmizely právě tak).
 - Otvor vchodu je užší a nižší než díra ve skále: kameny rámu (`caveFrameSystem.js`)
   ho zúží na `DOOR_OPEN_HALF` od středu a sníží na `DOOR_OPEN_HEIGHT` nad podlahou
   (`areaShape.js`). Chůze to hlídá stejně: v pásu `DOOR_FRAME_DEPTH` kolem prahu je
@@ -927,20 +932,22 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   hráč, který z výseče uteče, není zasažen.
 - Úskok na mezerník: krátký přískok, stojí výdrž, chvilka nezranitelnosti.
 - Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
-- Jak je to udělané: na začátku nápřahu se tvor natočí k hráči a směr zamkne. Při dopadu
+- Jak je to udělané: na začátku nápřahu se tvor natočí k hráči, během nápřahu ho sleduje svou
+  rychlostí otáčení (`turnRate`) a směr zamkne až `BITE_AIM_LOCK` (0,2 s) před dopadem; dřív ho
+  zamkl hned a chůzí dokola kolem tvora se nedalo nikdy trefit. Při dopadu
   (`resolveBite`) musí hráč stát ve výseči (`biteRange` k okraji těla hráče 0,3 m,
   úhel `biteArc` u tvora), jinak „Uhnul“. Ve výseči rozhodne stejná kostka jako u hráče
   (`rollQuality`: zásah, kritický, škrábnutí, minutí); `rollStrike` zmizel. Během nápřahu
   je pod tvorem slabá červená výseč a v ní se od tvora k okraji vyplňuje sytější výseč;
   když dojde na konec, tvor kousne (`updateBiteArcs`, `biteView`, `AttackArc` s barvou
-  `DANGER_COLOR` a `progress`). Nápřahy: Koa'tiki 0,35 s, běs 0,4 s, kajmanka 0,45 s;
-  výseče 100° / 80° / 60°. V posledních 0,15 s nápřahu tvor vyrazí vpřed (`biteLunge`:
+  `DANGER_COLOR` a `progress`). Nápřahy a výseče: Koa'tiki 0,35 s a 100°, běs 0,4 s a 80°,
+  hryzokrysa 0,4 s a 80°, kajmanka 0,45 s a 60°. V posledních 0,15 s nápřahu tvor vyrazí vpřed (`biteLunge`:
   1 m / 0,8 m / 0,5 m, `lunge`; zastaví se, když se čumákem — půl délky těla od středu —
   dotkne okraje těla hráče, aby nezajel do postavy), takže chůzí se uhnout nedá,
   na útěk je potřeba sprint nebo úskok. Výseč ukazuje skutečný dosah včetně výpadu
   a okraje těla hráče.
 - Úskok (`tryDodge` ve scéně, `dodge`/`stepDodge` v `playerSystem`, čísla
-  `PLAYER_BASE.dodge`): kotoul 3 m za 0,9 s směrem WASD, bez pohybu pryč od kurzoru;
+  `PLAYER_BASE.dodge`): kotoul 3 m za 0,75 s směrem WASD, bez pohybu pryč od kurzoru;
   animace `roll` se přizpůsobí délce úskoku. Kotoul v animaci vede šikmo, o 0,79 rad
   vpravo od pohledu (`PLAYER_ROLL_HEADING`), proto se postava natočí o tolik doleva od směru
   úskoku (rychlým otočením `DODGE_TURN_SPEED`); 20 výdrže, 0,5 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
@@ -996,6 +1003,29 @@ buňka s podlahou ± 1) se hrana počítá „chůzí“ po čáře (`walkLine`)
 schodech schod po schodu; hrana nesmí projít kládou (`BUILDING_WALL_HIT`). Jinde zůstává rychlý výpočet
 po buňkách. Narovnání cesty nepřeskočí změnu vrstvy. Přímá chůze k cíli platí, jen když dojde do výšky
 cíle (`directReach`), jinak se hledá cesta (po schodech).
+**Tvorové přes patra:** do jiného patra smí jen tvor s `entersCaves` (v honičce kamkoli, mimo ni jen zpět
+na svoje patro `homeLevel`). Když je cíl v jiném patře, tvor míří nejdřív na buňku za vchodem, který
+k cíli vede nejkratší cestou (`creatureSystem.floorWaypoint`, vchody dává `navigation.doorsBetween`),
+a teprve na cílovém patře hledá cestu k cíli. Dřív hledal rovnou k cíli; hledání nezná vchody a má
+omezený počet kroků, takže k domovu hluboko v jeskyni nedošel a zůstal stát u skály. Mrtvoly v podzemí
+tlumí slunce a oblohu jako živí tvorové (`creatureSystem.meshesBelowGround`).
+**Kudy se vejde tělo** je jedno pravidlo pro hráče i tvory: `navigationSystem.bodyFree` dostane místo,
+patro, odkud tělo jde (`here`, i výška chodidel) a tělo (`radius`, `margin`; hráč 0,3 + 0,08, tvor
+0,22 + 0,08). Hlídá pochozí místo (i úzký rám vchodu), zdi staveb, předměty (`objectGapAt` z
+`decoSystem.nearestContact`), blízkost útesu, šířku těla v podzemí a převýšení skály kolem; útes, šířka
+a převýšení platí jen mimo buňky vchodu. Předměty, útes, šířka i převýšení platí tak, že se tělo nesmí
+dostat hlouběji, než je teď (z horšího místa vždy odejde). Hráč k tomu přidává vytlačení z předmětu
+(`pushOut`) a klouzání podél něj, tvor výškový krok a únik ze zaseknutí (`relaxed`, hlídá se jen zeď
+stavby). Hledání cesty tvorů bere políčko, kterému uprostřed stojí předmět, jako neprůchozí
+(`creatureSystem.cellInfo`); paměť políček se smaže, když se předměty změní (`decoSystem.blockedVersion`).
+**Rozestupy:** živí tvorové na stejném patře a ve stejné výšce se každý krok jemně rozestoupí
+(`creatureSystem.keepApart`, rozestup = délka × velikost × 0,3, krok jen tam, kam smí tělo); od hráče
+(`PLAYER_BODY`) se odtlačí jen tvor, hráč projde vždy, aby ho smečka nemohla uvěznit v chodbě.
+Od hráče je rozestup menší (`PLAYER_APART_REACH` 0,7 běžného) a odtlačení pomalejší (`PLAYER_APART_SPEED`).
+Rozestup od hráče je u všech tvorů menší než dosah kousnutí. Seznam všech těl tvorů,
+živých i mrtvých, dává jen `creatureSystem.bodies()`; podle něj se tvorové v jeskyni neschovají
+a tlumí se jim světlo. Dřív měl každý svá pravidla a pravidlo „ve vchodu se útes nehlídá“ měl jen
+hráč, proto se tvorové ve vchodu zasekávali.
 Stěny srubu neleží na hranách buněk (posun `shift`), proto se začátek i cíl cesty berou jen z buněk,
 kam se z tvora, resp. z cíle dojde (`searchRoute`, `reachable`). Kousnutí přes zeď neprojde
 (`inBiteRange`, `biteReaches`); honička se za zdí nezastaví na dosah kousnutí a míří přímo na postavu

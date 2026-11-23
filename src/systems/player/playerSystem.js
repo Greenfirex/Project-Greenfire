@@ -143,7 +143,7 @@ const STANCE_UPRIGHT = -0.13;
 const STANCE_FADE = 0.3;
 const BODY_RADIUS = 0.3;
 const BODY_MARGIN = 0.08;
-const BODY_SAMPLES = 8;
+export const PLAYER_BODY = { radius: BODY_RADIUS, margin: BODY_MARGIN };
 const SLIDE_LOOKAHEAD = 1.2;
 const SLIDE_MIN = 0.12;
 const WALL_SLIDE_ANGLES = [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, Math.PI / 2, -Math.PI / 2];
@@ -213,7 +213,7 @@ export default class PlayerSystem {
     this.blockedTest = null;
     this.walkable = null;
     this.stepLevel = null;
-    this.passageAt = null;
+    this.bodyFree = null;
     this.level = 0;
     this.speedScale = null;
     this.bodyFacing = 0;
@@ -223,9 +223,6 @@ export default class PlayerSystem {
     this.sprintSpent = false;
     this.decoSystem = null;
     this.groundHeightAt = null;
-    this.wallRiseAt = null;
-    this.cliffOverlapAt = null;
-    this.buildingGapAt = null;
     this.moveBlocked = null;
     this.spawnCell = null;
     this.walkableCells = null;
@@ -1759,40 +1756,9 @@ export default class PlayerSystem {
   free(x, z, level = this.level) {
     const { cx, cz } = worldToCellCoords(x, z);
     if (this.blockedTest && this.blockedTest(cx, cz)) return false;
-    if (this.walkable && !this.walkable(x, z, level)) return false;
-    if (this.decoSystem && this.decoSystem.overlaps(x, z, BODY_RADIUS + BODY_MARGIN, level)) return false;
-    if (this.buildingGapAt && this.root) {
-      const { x: hereX, y: feet, z: hereZ } = this.root.position;
-      const gap = this.buildingGapAt(x, z, feet, level);
-      if (gap < BODY_RADIUS + BODY_MARGIN && gap < this.buildingGapAt(hereX, hereZ, feet, this.level)) return false;
-    }
-    const passage = this.passageAt ? this.passageAt(x, z, level) : false;
-    if (!passage && this.cliffOverlapAt && this.root) {
-      const overlap = this.cliffOverlapAt(x, z, level);
-      if (overlap > 0) {
-        const hereOverlap = this.cliffOverlapAt(this.root.position.x, this.root.position.z, this.level);
-        if (overlap >= hereOverlap) return false;
-      }
-    }
-    if (!passage && level !== 0 && this.walkable && this.root && !this.bodyFits(x, z, level)) {
-      if (this.bodyFits(this.root.position.x, this.root.position.z, this.level)) return false;
-    }
-    if (!passage && this.wallRiseAt && this.root) {
-      const rise = this.wallRiseAt(x, z, BODY_RADIUS + BODY_MARGIN, level);
-      if (rise > STEP_LIMIT) {
-        const here = this.wallRiseAt(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level);
-        if (rise >= here) return false;
-      }
-    }
-    return true;
-  }
-
-  bodyFits(x, z, level) {
-    for (let index = 0; index < BODY_SAMPLES; index += 1) {
-      const angle = (index / BODY_SAMPLES) * Math.PI * 2;
-      if (!this.walkable(x + Math.cos(angle) * BODY_RADIUS, z + Math.sin(angle) * BODY_RADIUS, level)) return false;
-    }
-    return true;
+    if (!this.bodyFree || !this.root) return !this.walkable || this.walkable(x, z, level);
+    const { x: hereX, y: feetY, z: hereZ } = this.root.position;
+    return this.bodyFree(x, z, level, { x: hereX, z: hereZ, level: this.level, feetY }, PLAYER_BODY);
   }
 
   pushOut() {
@@ -1838,7 +1804,7 @@ export default class PlayerSystem {
   }
 
   tryMove(x, z, dirX, dirZ, step) {
-    if (!this.free(this.root.position.x, this.root.position.z, this.level)) this.pushOut();
+    if (this.decoSystem && this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level)) this.pushOut();
     if (this.commit(x, z)) return true;
     const startX = this.root.position.x;
     const startZ = this.root.position.z;

@@ -3,10 +3,8 @@
 Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie patří do gitu.
 
 ### Odladit tvory přes patra (rozdělané, ve hře netestované)
-- [ ] Ověřit návrat domů přes průchody a to, že písečný ďábel a kajmanka se zastaví u vchodu z povrchu.
-- [ ] Doladit vnímání přes průchod (`FLOOR_LINK_RADIUS` 8 m v `navigationSystem.js`): viditelnost tvora a jeho reakce u průchodu.
+- [ ] Ověřit po sjednocení pravidel chůze (`navigationSystem.bodyFree`): krysa projde vchod bez zaseknutí oběma směry a vrátí se domů; mrtvoly v jeskyni nesvítí; hráč chodí jako dřív u vchodů, útesů, ve srubu a mezi kameny; tvorové u útesů a ve srubu; tvorové obcházejí kameny a nevjíždějí do sebe ani do hráče.
 - [ ] Tvor umístěný do jeskyně: drží se v podzemí? Správné značky a stav v editoru (`statusAt` zná jen povrch).
-- [ ] Ověřit výkon hledání cesty přes patra.
 
 ### Bestiář
 - [ ] Bestiář: doplnit obsah okna (popis tvora, kde žije, obrázek); kostra se seznamem a statistikami je hotová.
@@ -99,4 +97,3 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
 - [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; dál chůze dovnitř po krocích (zdi pro postavu hotové jako pokus — ověřit průchod z pavlače na −21,11; schovávání patra a střechy hotové; seříznutí stěn ke kameře hotové; průhled ke kameře hotový; tvorové v přízemí hotoví; tvorové v patře hotoví; dveře hotové; nábytek a knihovna na páku před tajným vchodem hotové jako pokus — ověřit ve hře — `DEV.md`, etapa 3), rozbité okenice, zvuk odsouvání knihovny a vybavení z Meshy (chodba −21,12 se dá v editoru prodloužit).
 - [ ] Rozhodnout o šířce plynulého okraje pláže.
-- [ ] Díry u vchodů do jeskyní −16,−2 a −18,−4: podél paty útesu vedle vchodu je široký pás, skrz který je vidět voda a prázdno. Okolní buňky −0,25 až 0,5 m, podlaha jeskyně 0, jedna buňka přesně ve výšce vody. Nejspíš úprava prahu (`setDoorBlends` v `terrainField.js`) srovná zem až o půl buňky za ostění, ale spodní hrana útesu se neposune — neověřeno.

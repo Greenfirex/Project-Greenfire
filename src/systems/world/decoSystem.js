@@ -60,6 +60,7 @@ export default class DecoSystem {
     this.caveBlocked = new Map();
     this.treeCells = new Set();
     this.columnTop = new Map();
+    this.blockedVersion = 0;
     this.surfaceKeys = new Map();
     this.onDecoReady = null;
     this.onDecoBroken = null;
@@ -201,6 +202,7 @@ export default class DecoSystem {
   }
 
   refreshBlocked(layout) {
+    this.blockedVersion += 1;
     this.blocked.clear();
     this.caveBlocked.clear();
     this.treeCells.clear();
@@ -691,6 +693,7 @@ export default class DecoSystem {
     const def = anchor && anchor.metadata ? anchor.metadata.def : null;
     if (def && def.blocks === false && def.kind !== 'tree') return;
     const key = cellKey(cx, cz);
+    this.blockedVersion += 1;
     const level = levelOfEntry(anchor && anchor.metadata ? anchor.metadata.entry : null);
     if (level !== 0) {
       this.blockedOn(level).delete(key);

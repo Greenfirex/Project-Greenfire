@@ -196,6 +196,14 @@ export default class GameScene {
     this.navigation.bridgeDeckAt = (x, z) => this.terrainSystem.bridgeDeckAt(x, z);
     this.navigation.waterDepthAt = (x, z) => this.waterDepthAt(x, z);
     this.navigation.topAt = (cx, cz) => this.decoSystem.topAt(cx, cz);
+    this.navigation.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level, this.standHeightAt(x, z, level));
+    this.navigation.cliffOverlapAt = (x, z, level) => (this.onBuildingDeck(x, z, level) ? -Infinity : this.terrainSystem.cliffOverlap(x, z, level));
+    this.navigation.buildingGapAt = (x, z, feetY, level) => ((level || 0) === 0 ? this.buildingSystem.wallGapAt(x, z, feetY) : Infinity);
+    this.navigation.objectGapAt = (x, z, radius, level) => {
+      const contact = this.decoSystem.nearestContact(x, z, radius, 0, level);
+      return contact ? contact.gap : Infinity;
+    };
+    this.navigation.stepLimit = STEP_LIMIT;
     this.inputSystem = new InputSystem(scene, this);
     this.playerSystem = new PlayerSystem(scene);
     const fireSource = (source, on) => (on ? this.fireLights.add(source) : this.fireLights.remove(source));
@@ -845,7 +853,7 @@ export default class GameScene {
     this.playerSystem.moveBlocked = () => this.editor.active;
     this.playerSystem.walkable = (x, z, level) => this.isWalkableAt(x, z, level);
     this.playerSystem.stepLevel = (fromX, fromZ, level, toX, toZ) => this.stepLevel(fromX, fromZ, level, toX, toZ);
-    this.playerSystem.passageAt = (x, z, level) => this.isPassageAt(x, z, level);
+    this.playerSystem.bodyFree = (x, z, level, here, body) => this.navigation.bodyFree(x, z, level, here, body);
     this.playerSystem.inCombat = () => Boolean(this.playerSystem.root) && this.creatureSystem.isPlayerInCombat(this.playerSystem.root.position);
     this.playerSystem.canSprint = () => this.playerStats.canSprint();
     this.playerSystem.speedScale = (x, z) => {
@@ -858,9 +866,6 @@ export default class GameScene {
     this.playerSystem.decoSystem = this.decoSystem;
     this.creatureSystem.pointerLevel = () => this.viewLevel();
     this.playerSystem.groundHeightAt = (x, z, level) => this.standHeightAt(x, z, level);
-    this.playerSystem.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level, this.standHeightAt(x, z, level));
-    this.playerSystem.cliffOverlapAt = (x, z, level) => (this.onBuildingDeck(x, z, level) ? -Infinity : this.terrainSystem.cliffOverlap(x, z, level));
-    this.playerSystem.buildingGapAt = (x, z, feetY, level) => ((level || 0) === 0 ? this.buildingSystem.wallGapAt(x, z, feetY) : Infinity);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
       if (lying) this.log.add('Stiskni WASD nebo šipky pro vstání', 'info');
@@ -1244,7 +1249,7 @@ export default class GameScene {
       const floor = this.editor.mode.floorLevel;
       const own = [...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoMeshes(floor)];
       if (root && level === floor) own.push(...root.getChildMeshes(false));
-      for (const creature of this.creatureSystem.creatures) {
+      for (const creature of this.creatureSystem.bodies()) {
         if ((creature.level || 0) === floor) own.push(...creature.meshes);
       }
       this.revealSystem.setKeptMeshes(own);
@@ -1252,7 +1257,7 @@ export default class GameScene {
       const viewer = { x: root.position.x, y: root.position.y, z: root.position.z, level };
       const seen = ({ x, y, z }, floor) => this.navigation.seesAcrossFloors(viewer, { x, y, z, level: floor });
       const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen)];
-      for (const creature of this.creatureSystem.creatures) {
+      for (const creature of this.creatureSystem.bodies()) {
         const floor = creature.level || 0;
         const y = this.creatureSystem.groundAt(creature.x, creature.z, floor, creature.y);
         if (seen({ x: creature.x, y, z: creature.z }, floor)) own.push(...creature.meshes);
@@ -1303,9 +1308,7 @@ export default class GameScene {
     }
     const meshes = [...this.caveDecoList];
     if (root && level < 0) meshes.push(...root.getChildMeshes(false));
-    for (const creature of this.creatureSystem.creatures) {
-      if ((creature.level || 0) < 0) meshes.push(...creature.meshes);
-    }
+    meshes.push(...this.creatureSystem.meshesBelowGround());
     this.revealSystem.setUndergroundMeshes(meshes);
   }
 
@@ -1962,10 +1965,6 @@ export default class GameScene {
 
   stepLevel(fromX, fromZ, level, toX, toZ) {
     return this.navigation.stepLevel(fromX, fromZ, level, toX, toZ);
-  }
-
-  isPassageAt(x, z, level = 0) {
-    return this.navigation.isPassageAt(x, z, level);
   }
 
   waterDepthAt(x, z) {

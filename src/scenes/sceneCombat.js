@@ -5,7 +5,7 @@ import { cellToWorldCoords } from '../utils/gridMath.js';
 import { nestSpots } from '../utils/nestGuard.js';
 import { Ray } from '@babylonjs/core/Culling/ray';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
+import { PLAYER_EYE_HEIGHT, PLAYER_BODY } from '../systems/player/playerSystem.js';
 import { SIGHT_GROUND_LIFT, SIGHT_RISE_START, SIGHT_RISE_FULL, SIGHT_HIGHER_START, SIGHT_HIGHER_FULL, SIGHT_EDGE } from '../utils/revealGlsl.js';
 import { smoothstep } from '../utils/noise.js';
 import { formatMeters } from '../data/maps/layoutStore.js';
@@ -45,8 +45,12 @@ export default {
     system.wallGapAt = (x, z, level, y) => ((level || 0) === 0 ? this.buildingSystem.wallGapAt(x, z, Number.isFinite(y) ? y : this.creatureGroundAt(x, z, 0)) : Infinity);
     system.nearBuildingAt = (x, z) => this.buildingSystem.nearCell(x, z);
     system.walkableAt = (x, z, level) => this.isWalkableAt(x, z, level);
-    system.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level);
+    system.bodyFree = (x, z, level, here, body, relaxed) => this.navigation.bodyFree(x, z, level, here, body, relaxed);
+    system.objectInWay = (x, z, radius, level) => this.navigation.objectInWay(x, z, radius, level);
+    system.objectsVersion = () => this.decoSystem.blockedVersion;
+    system.playerRadius = PLAYER_BODY.radius;
     system.levelAcross = (fromX, fromZ, level, toX, toZ) => this.navigation.stepLevel(fromX, fromZ, level, toX, toZ);
+    system.doorsBetween = (fromLevel, toLevel) => this.navigation.doorsBetween(fromLevel, toLevel);
     system.playerLevel = () => this.playerSystem.level;
     system.floorsLinked = (x, z, levelA, levelB) => this.navigation.floorsLinkedNear(x, z, levelA, levelB);
     system.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
@@ -547,9 +551,8 @@ export default {
     const sight = this.sightSystem.view();
     const watching = Boolean(root) && !this.editor.active && sight.active;
     const eye = watching ? new Vector3(root.position.x, root.position.y + PLAYER_EYE_HEIGHT, root.position.z) : null;
-    const meshes = new Set();
+    const meshes = new Set(system.bodies().flatMap((body) => body.meshes || []));
     for (const creature of system.creatures) {
-      for (const mesh of creature.meshes) meshes.add(mesh);
       if (!watching || system.inFight(creature)) {
         system.setSeen(creature, true);
         continue;

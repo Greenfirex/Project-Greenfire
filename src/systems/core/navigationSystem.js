@@ -4,6 +4,7 @@ import { worldToCellCoords, CELL_SIZE } from '../../utils/gridMath.js';
 import { worldCells, levelOfEntry, ceilingLiftAt, DOOR_WALK_HALF, DOOR_FRAME_DEPTH } from '../../data/maps/areaShape.js';
 
 const FLOOR_LINK_RADIUS = 8;
+const BODY_SAMPLES = 8;
 const DOORWAY_SIGHT_HEIGHT = 3;
 const WALK_CLEARANCE = 1.25;
 export const WADE_DEPTH = 0.6;
@@ -21,6 +22,11 @@ export default class NavigationSystem {
     this.bridgeDeckAt = null;
     this.waterDepthAt = null;
     this.topAt = null;
+    this.wallRiseAt = null;
+    this.cliffOverlapAt = null;
+    this.buildingGapAt = null;
+    this.objectGapAt = null;
+    this.stepLimit = Infinity;
     this.areaLookup = null;
     this.floorSets = new Map();
     this.floorSetsFor = null;
@@ -131,6 +137,44 @@ export default class NavigationSystem {
     return !this.topAt || this.topAt(cx, cz) < WALK_CLEARANCE;
   }
 
+  bodyFree(x, z, level, here, body, relaxed = false) {
+    const reach = body.radius + body.margin;
+    if (this.buildingGapAt) {
+      const gap = this.buildingGapAt(x, z, here.feetY, level);
+      if (gap < reach && gap < this.buildingGapAt(here.x, here.z, here.feetY, here.level)) return false;
+    }
+    if (relaxed) return true;
+    if (!this.isWalkableAt(x, z, level)) return false;
+    if (this.objectGapAt) {
+      const gap = this.objectGapAt(x, z, reach, level);
+      if (gap < 0 && gap < this.objectGapAt(here.x, here.z, reach, here.level)) return false;
+    }
+    if (this.isPassageAt(x, z, level)) return true;
+    const worse = (measure) => {
+      const there = measure(x, z, level);
+      return there > 0 && there >= measure(here.x, here.z, here.level);
+    };
+    if (this.cliffOverlapAt && worse((px, pz, floor) => this.cliffOverlapAt(px, pz, floor))) return false;
+    if (level !== 0 && !this.bodyFits(x, z, level, body.radius) && this.bodyFits(here.x, here.z, here.level, body.radius)) return false;
+    if (this.wallRiseAt) {
+      const rise = this.wallRiseAt(x, z, reach, level);
+      if (rise > this.stepLimit && rise >= this.wallRiseAt(here.x, here.z, reach, here.level)) return false;
+    }
+    return true;
+  }
+
+  objectInWay(x, z, radius, level) {
+    return Boolean(this.objectGapAt) && this.objectGapAt(x, z, radius, level) < 0;
+  }
+
+  bodyFits(x, z, level, radius) {
+    for (let index = 0; index < BODY_SAMPLES; index += 1) {
+      const angle = (index / BODY_SAMPLES) * Math.PI * 2;
+      if (!this.isWalkableAt(x + Math.cos(angle) * radius, z + Math.sin(angle) * radius, level)) return false;
+    }
+    return true;
+  }
+
   connectorLevelMap() {
     const records = this.connectors();
     if (this.connectorMap && this.connectorMapFor === records) return this.connectorMap;
@@ -176,6 +220,25 @@ export default class NavigationSystem {
     this.passageSet = set;
     this.passageFor = records;
     return set;
+  }
+
+  doorsBetween(fromLevel, toLevel) {
+    const doors = [];
+    for (const record of this.connectors()) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to) continue;
+      const [near, far] = levelOf(from) === fromLevel && levelOf(to) === toLevel ? [from, to]
+        : levelOf(to) === fromLevel && levelOf(from) === toLevel ? [to, from] : [null, null];
+      if (!near) continue;
+      doors.push({
+        x: ((near.cx + far.cx) / 2) * CELL_SIZE,
+        z: ((near.cz + far.cz) / 2) * CELL_SIZE,
+        farX: far.cx * CELL_SIZE,
+        farZ: far.cz * CELL_SIZE,
+      });
+    }
+    return doors;
   }
 
   floorsLinkedNear(x, z, levelA, levelB) {
