@@ -50,7 +50,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
 
 - [ ] Etapa 3: vyzkoušet ve hře rozdělení rány mezi víc tvorů a sekundární ránu na pravé tlačítko, doladit čísla a animaci úderu klackem.
-- [ ] Šavle: vlastní zvuk zásahu čepelí (dnes zvuk klacku).
 - [ ] Šavli a kopí z truhly u spawnu po testu odebrat nebo přesunout (dnes jsou ve všech truhlách).
 
 ### Etapa 3 — kořist
@@ -70,7 +69,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 - [ ] Hryzokrysa: projít ve hře chůzi a běh (kloužou tlapky?), sednutí, útok a smrt; ověřit, jestli není v jeskyni moc tmavá.
 - [ ] Hryzokrysa: z modelu vyhodit nepoužité animace (`cat_idle2`, `wolf_idle1`, `fox_mon_xiaohuli_01_xiuwen`, `wolf_jump_*`, `wolf_walk_fight_forward`), pokud se nebudou hodit.
-- [ ] Hryzokrysa: zvuky (varování, syčení, kousnutí, zásah, smrt, čenichání) — prompty pro ElevenLabs, pak zapojit.
 - [ ] Hryzokrysa: smečka — když si jeden všimne hráče, přivolá ostatní poblíž (nové chování v systému tvorů).
 
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
@@ -83,6 +81,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Hudba: vymyslet systém výběru (den/noc, klid versus souboj) místo dnešního náhodného střídání tří skladeb.
 
 - [ ] Tón smrti (`death_sting`) — vygenerovat a zapojit.
+- [ ] Kritický zásah tvora: těžký úder navíc přes zvuk zbraně (`hit_crit_1–2`, prompt hotový).
+- [ ] Kopí: vlastní bodnutí (`hit_spear_1–3`); dnes hraje jen maso (`fleshCut`).
 - [ ] Kroky tvorů (aspoň tiché našlapování, dnes dělají jen stopy).
 - [ ] Švihnutí zbraně do prázdna (mine/chop bez zásahu).
 - [ ] Vstup do vody (šplouchnutí, ne jen kroky ve vodě).

@@ -78,6 +78,8 @@ const OUTLINE_WIDTH = 0.038;
 const OUTLINE_COMBAT_SPEED = 8;
 const OUTLINE_COMBAT_SCALE = 1.35;
 const COMBAT_MARK_SECONDS = 1;
+const ALERT_SECONDS = [5, 6];
+const ALERT_CALL_SHARE = 0.5;
 const MARK_HEIGHT = 0.22;
 const MARK_BOB = 0.02;
 const MARK_PULSE = 0.06;
@@ -920,7 +922,7 @@ export default class CreatureSystem {
     const heightGap = this.heightGap(creature, player);
     const baseAggro = Number.isFinite(creature.tier.aggroRange) ? creature.tier.aggroRange : type.aggroRange;
     const aggro = this.provoked(creature, player) ? Math.max(baseAggro, gap + 1) : baseAggro;
-    const alertSeconds = Array.isArray(type.alertSeconds) ? type.alertSeconds : [2, 3];
+    const alertSeconds = Array.isArray(type.alertSeconds) ? type.alertSeconds : ALERT_SECONDS;
     const playerFloor = this.playerLevel ? this.playerLevel() : 0;
     const sameFloor = playerFloor === creature.level;
     const sees = sameFloor || (Boolean(player) && Boolean(this.floorsLinked) && this.canReachFloor(creature, playerFloor) && this.floorsLinked(creature.x, creature.z, creature.level, playerFloor));
@@ -1016,6 +1018,10 @@ export default class CreatureSystem {
       if (gap > 0.001) {
         const look = Math.atan2(player.x - creature.x, player.z - creature.z);
         creature.facing = turnToward(creature.facing, look, type.turnRate * dt * 0.7);
+      }
+      if (creature.alertCallAt > 0 && creature.timer <= creature.alertCallAt) {
+        creature.alertCallAt = 0;
+        this.playSound(creature, 'alert');
       }
       if ((gap <= type.chargeRange || creature.timer <= 0) && this.canGetTo(creature, player, playerFloor, heightGap, aggro)) {
         this.beginCharge(creature);
@@ -1137,11 +1143,13 @@ export default class CreatureSystem {
   beginAlert(creature, seconds) {
     creature.mode = 'alert';
     creature.timer = randomBetween(seconds[0], seconds[1]);
+    creature.alertCallAt = creature.timer * ALERT_CALL_SHARE;
     this.playSound(creature, 'alert');
   }
 
   beginAggro(creature, seconds, reachable = true) {
-    if (creature.type.noWarning && reachable) {
+    const fighting = creature.engaged || (creature.mode === 'confused' && creature.searching);
+    if ((creature.type.noWarning || fighting) && reachable) {
       this.beginCharge(creature);
       return;
     }

@@ -47,7 +47,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `turnRate` | jak rychle se otáčí (radiány za sekundu) | povinné |
 | `aggroRange` | od jaké dálky si tě všimne | povinné |
 | `chargeRange` | od jaké dálky rovnou útočí; dál jde nejdřív varování | povinné |
-| `alertSeconds` | rozsah `[min, max]`, jak dlouho varuje | `[2, 3]` |
+| `alertSeconds` | rozsah `[min, max]`, jak dlouho varuje; v půlce zaskřečí podruhé | `[5, 6]` |
 | `noWarning` | `true` = žádné varování, rovnou boj | `false` |
 | `damageType` | typ poškození (`piercing`, `slashing`, …) proti resistitám hráče | žádný |
 | `biteRange` | na jakou dálku dosáhne | povinné |
@@ -356,4 +356,4 @@ Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `T
 | převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) | ne (`deathRoll: 0`, pád dělá animace) |
 | stopy z reálných chodidel | ano (4 nohy; přední pár nese jako ruce) | odhad (4 nohy stejně) | chybí (jedna šmouha) | ano (4 tlapky) |
 | varování před útokem (`noWarning`) | ne — rovnou útok | ano | ano | ano (přikrčí se, animace) |
-| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | ano (ElevenLabs; zvlášť klovnutí, drápy, volání a zobání) | chybí (zatím němý) |
+| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | ano (ElevenLabs; zvlášť klovnutí, drápy, volání a zobání) | ano (ElevenLabs; varování, útok, kousnutí, rána, smrt, čenichání v klidu) |

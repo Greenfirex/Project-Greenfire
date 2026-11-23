@@ -65,6 +65,7 @@ export default {
     if (this.playerSystem.weaponDrawn) return false;
     this.playerSystem.weaponDrawn = true;
     this.refreshHands(how);
+    if (how !== 'instant' && this.equippedWeapon()) this.audioSystem.play('weaponDraw');
     return true;
   },
 
@@ -73,6 +74,7 @@ export default {
     this.playerSystem.weaponDrawn = false;
     this.drawStrike = null;
     this.refreshHands(how);
+    if (how !== 'instant' && this.equippedWeapon()) this.audioSystem.play('weaponSheathe');
     return true;
   },
 

@@ -153,6 +153,7 @@ export default {
     this.drawStrike = null;
     this.playerStats.spendStamina(dodge.cost);
     this.playerStats.protect(dodge.immunity);
+    this.audioSystem.play('dodgeRoll');
     return true;
   },
 

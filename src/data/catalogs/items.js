@@ -258,7 +258,7 @@ export const TOOL_TYPES = {
     sheath: { side: -0.95, lift: 0.5, ahead: 0.1, back: 0.15, out: -0.06, edge: -1 },
     guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
     weapon: {
-      damage: [4, 6], attack: 1, damageType: 'slashing', hitSound: 'hitClub',
+      damage: [4, 6], attack: 1, damageType: 'slashing', hitSound: 'hitBlade',
       primary: { reach: 1.8, arc: 80, cooldown: 0.85, anim: ['slash', 'double1', 'triple3'] },
       secondary: { reach: 1.9, arc: 50, cooldown: 1.5, cost: 22, anim: 'smash' },
     },
@@ -272,7 +272,7 @@ export const TOOL_TYPES = {
     sheath: { side: -0.95, lift: 0.5, ahead: -0.3, back: 1.2, out: -0.06 },
     guard: { hand: [0.2, -0.36, 0.38], elbow: [0.2, -0.27, -0.02], club: [0.15, 0.75, 0.8], leftHand: [-0.02, -0.32, 0.28], leftElbow: [0.12, -0.28, 0.02] },
     weapon: {
-      damage: [4, 7], attack: 1, damageType: 'piercing', hitSound: 'hitClub',
+      damage: [4, 7], attack: 1, damageType: 'piercing', hitSound: 'fleshCut',
       primary: { reach: 2.4, arc: 30, cooldown: 1.1, anim: 'thrust' },
       secondary: { reach: 2.2, arc: 360, cooldown: 2.0, cost: 30, anim: 'spin' },
     },
