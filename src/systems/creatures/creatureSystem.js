@@ -67,6 +67,8 @@ const GIVE_UP_SECONDS = 3;
 const WALLED_GIVE_UP_SECONDS = 12;
 const RISE_RATE = 2.2;
 const FALL_RATE = 6;
+const SLOPE_MAX = 0.6;
+const SLOPE_FOLLOW = 8;
 const SLIDE_ANGLES = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, Math.PI / 2, -Math.PI / 2];
 const NEIGHBOURS_8 = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -324,7 +326,7 @@ export default class CreatureSystem {
     let rig = null;
     if (type.rig) {
       try {
-        rig = type.rig.build(solid[0], skeleton);
+        rig = type.rig.build(solid[0], skeleton, instance.animationGroups);
       } catch (error) {
         console.warn(`[creature] Procedurální rig selhal pro ${type.label}: ${error && error.message ? error.message : error}`);
       }
@@ -371,6 +373,8 @@ export default class CreatureSystem {
       rig,
       marker,
       markHeight,
+      bodyLength: creatureLength(type) * creatureScale(type, tier),
+      renderPitch: 0,
       pickProxy,
       pickHeight: Math.max(0.35, (bounds.max.y - bounds.min.y) * scale * 0.5),
       markTimer: 0,
@@ -429,7 +433,22 @@ export default class CreatureSystem {
       : 0;
     creature.holder.position.set(creature.renderX, creature.renderY + bob - bury + jump, creature.renderZ);
     creature.holder.rotation.y = creature.renderFacing + (creature.type.yawOffset || 0);
+    const tilt = Number.isFinite(creature.type.slopeTilt) ? creature.type.slopeTilt : 1;
+    if (tilt) this.tiltToSlope(creature, tilt, seconds);
     this.placePickProxy(creature);
+  }
+
+  tiltToSlope(creature, tilt, seconds) {
+    const half = creature.bodyLength / 2;
+    const dx = Math.sin(creature.renderFacing) * half;
+    const dz = Math.cos(creature.renderFacing) * half;
+    const front = this.groundAt(creature.renderX + dx, creature.renderZ + dz, creature.level, creature.y);
+    const back = this.groundAt(creature.renderX - dx, creature.renderZ - dz, creature.level, creature.y);
+    const goal = Math.max(-SLOPE_MAX, Math.min(SLOPE_MAX, Math.atan2(front - back, half * 2) * tilt));
+    const follow = seconds > 0 ? Math.min(1, SLOPE_FOLLOW * seconds) : 1;
+    creature.renderPitch += (goal - creature.renderPitch) * follow;
+    const nose = Math.cos(creature.type.yawOffset || 0) < 0 ? 1 : -1;
+    creature.holder.rotation.x = nose * creature.renderPitch;
   }
 
   placePickProxy(creature) {
@@ -991,10 +1010,7 @@ export default class CreatureSystem {
 
     if (creature.mode === 'alert') {
       if (!canAggro) {
-        creature.mode = 'roam';
-        creature.targetX = creature.homeX;
-        creature.targetZ = creature.homeZ;
-        creature.timer = randomBetween(4, 8);
+        this.beginSearch(creature, false);
         return;
       }
       if (gap > 0.001) {
@@ -1011,10 +1027,7 @@ export default class CreatureSystem {
           return;
         }
         creature.giveUpUntil = this.now + (type.confusedSeconds || 1.4) + GIVE_UP_SECONDS;
-        creature.mode = 'roam';
-        creature.targetX = creature.homeX;
-        creature.targetZ = creature.homeZ;
-        creature.timer = randomBetween(4, 8);
+        this.beginSearch(creature, false);
       }
       return;
     }
@@ -1083,13 +1096,18 @@ export default class CreatureSystem {
       return;
     }
 
-    if (creature.timer <= 0) {
+    if (creature.timer <= 0 && !this.idleBusy(creature)) {
       const target = this.roamTarget(creature);
       creature.targetX = target.x;
       creature.targetZ = target.z;
       creature.mode = 'roam';
       creature.timer = randomBetween(5, 9);
     }
+  }
+
+  idleBusy(creature) {
+    const rig = creature.type.rig;
+    return Boolean(rig && rig.busy && creature.rig && rig.busy(creature.rig));
   }
 
   seesPlayerNow(creature) {
@@ -1293,6 +1311,7 @@ export default class CreatureSystem {
           buried: creature.buried,
           emergeProgress: creature.emergeProgress,
           turning,
+          leaving: creature.mode === 'idle' && creature.timer <= 0,
           engaged: Boolean(creature.engaged),
           hit: Boolean(creature.hitPulse),
         })

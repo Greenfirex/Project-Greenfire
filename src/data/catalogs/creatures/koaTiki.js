@@ -646,6 +646,7 @@ export const KOA_TIKI = {
   scale: 0.8,
   yawOffset: Math.PI,
   walkSpeed: 1.4,
+  slopeTilt: 0,
   chaseBoost: 1.6,
   turnRate: 4.5,
   aggroRange: 6,

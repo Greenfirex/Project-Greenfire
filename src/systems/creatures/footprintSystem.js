@@ -13,6 +13,7 @@ const PRINT_STYLES = {
   human: { width: 0.26, length: 0.52, alpha: 0.44 },
   turtle: { width: 0.22, length: 0.38, alpha: 0.62 },
   sanddevil: { width: 0.11, length: 0.13, alpha: 0.66 },
+  gnaw_rat: { width: 0.09, length: 0.11, alpha: 0.6 },
 };
 const WET_ALPHA = 0.7;
 
@@ -70,6 +71,24 @@ function makeSandDevilTexture(scene) {
   return texture;
 }
 
+function makeGnawRatTexture(scene) {
+  const texture = new DynamicTexture('gnawRatFootprintTexture', 64, 64, scene, false);
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.fillStyle = 'rgba(58, 45, 28, 0.8)';
+  ctx.beginPath();
+  ctx.ellipse(32, 42, 11, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  for (const [x, y] of [[12, 30], [22, 16], [42, 16], [52, 30]]) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, 4, 6, (x - 32) * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  texture.hasAlpha = true;
+  texture.update(false);
+  return texture;
+}
+
 function makeMaterial(scene, name, texture, color) {
   const material = new StandardMaterial(name, scene);
   material.diffuseTexture = texture;
@@ -98,6 +117,7 @@ export default class FootprintSystem {
     this.materials.human = makeMaterial(this.s, 'footprintMaterial', makeHumanTexture(this.s), new Color3(0.16, 0.12, 0.08));
     this.materials.turtle = makeMaterial(this.s, 'turtleFootprintMaterial', makeTurtleTexture(this.s), new Color3(0.13, 0.12, 0.08));
     this.materials.sanddevil = makeMaterial(this.s, 'sandDevilFootprintMaterial', makeSandDevilTexture(this.s), new Color3(0.14, 0.12, 0.08));
+    this.materials.gnaw_rat = makeMaterial(this.s, 'gnawRatFootprintMaterial', makeGnawRatTexture(this.s), new Color3(0.14, 0.12, 0.08));
   }
 
   createItem(kind = 'human') {

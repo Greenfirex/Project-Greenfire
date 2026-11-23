@@ -436,13 +436,14 @@ blokované buňce bez valu, což v hře vypadalo jako neviditelná kolize u boč
 
 
 
-## prepareCrab.mjs, prepareRocks.mjs, prepareRoof.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
+## prepareCrab.mjs, prepareGnawRat.mjs, prepareRocks.mjs, prepareRoof.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
 
 Převedou stažené modely z `_sources/` do podoby pro hru. Kameny a zjednodušení potřebují Blender
 (cesta je nahoře v `prepareRocks.mjs`).
 
 ```
 node tools/prepareCrab.mjs      # krab do public/assets/nature/crab
+node tools/prepareGnawRat.mjs   # hryzokrysa do public/assets/creatures/gnaw_rat (kostra a animace zůstanou, textura 1024 px WebP, z animací pryč měřítko a posuny kostí mimo kořen)
 node tools/prepareRocks.mjs     # kameny do public/assets/nature/rocks
 node tools/prepareRoof.mjs      # došková střecha srubu do public/assets/props/cabin_roof
 node tools/prepareVines.mjs     # popínavky srubu (vine_wall, vine_hang) do public/assets/nature/plants

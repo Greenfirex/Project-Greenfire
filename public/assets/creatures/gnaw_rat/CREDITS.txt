@@ -1,0 +1,3 @@
+Model a animace Hryzokrysa — zdroj: Meshy AI (Meshy_AI_A_single_giant_cave_rat_monster_creature_20261122_animated_All_animation (1).glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.
+Upraveno: textura zmenšená na 1024 px (WebP), z animací odebrané stopy beze změny.

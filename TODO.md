@@ -68,6 +68,11 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Etapa 5 — dotažení potvor
 
+- [ ] Hryzokrysa: projít ve hře chůzi a běh (kloužou tlapky?), sednutí, útok a smrt; ověřit, jestli není v jeskyni moc tmavá.
+- [ ] Hryzokrysa: z modelu vyhodit nepoužité animace (`cat_idle2`, `wolf_idle1`, `fox_mon_xiaohuli_01_xiuwen`, `wolf_jump_*`, `wolf_walk_fight_forward`), pokud se nebudou hodit.
+- [ ] Hryzokrysa: zvuky (varování, syčení, kousnutí, zásah, smrt, čenichání) — prompty pro ElevenLabs, pak zapojit.
+- [ ] Hryzokrysa: smečka — když si jeden všimne hráče, přivolá ostatní poblíž (nové chování v systému tvorů).
+
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
 - [ ] Koa'tiki: běh v honičce (předklon, natažený krk, rovný ocas), tápání jako rychlé rozhlížení bez zobání.
 - [ ] README tvorů uvádí u Koa'tiki zrychlení v honičce 1,35, v datech je 1,6 — sjednotit.

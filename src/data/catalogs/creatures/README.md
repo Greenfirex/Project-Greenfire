@@ -10,6 +10,7 @@ src/data/catalogs/creatures/
   sandDevil.js        písečný běs — vzor (zahrabání, útok nohama, reakce na ránu)
   snappingTurtle.js   kajmanka — vzor pro model bez použitelných jmen kostí
   koaTiki.js          Koa'tiki — vzor pro dvounohého tvora s otevíratelnou čelistí
+  gnawRat.js          hryzokrysa (gnaw_rat) — vzor pro tvora s hotovými animacemi z Meshy smíchanými s pohybem z kódu
 src/systems/creatures/creatureSystem.js   obecné: spawn, stavy, ikony, obrysy, ukládání
 src/utils/creatureMarker.js     vykřičník a otazníky nad hlavou (společné všem)
 src/utils/proceduralRig.js      společné pomocníky pro rigy (kosti, osy, otáčení)
@@ -35,7 +36,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 |---|---|---|
 | `label` | jméno do konzole a do jmen uzlů | povinné |
 | `model` | cesta ke GLB | povinné |
-| `rig` | trojice `build` / `pose` / `summary`, nebo `null` | `null` = model bez animace |
+| `rig` | trojice `build` / `pose` / `summary` (a nepovinné `busy`), nebo `null` | `null` = model bez animace |
 | `sounds` | klíče zvuků (`alert`, `charge`, `bite`) | tvor je němý |
 | `length` | délka těla ve světových jednotkách (buňka = 2); model se na ni normalizuje | 1 |
 | `scale` | dodatečné měřítko nad `length` (1 = beze změny) | 1 |
@@ -58,6 +59,7 @@ Povinné je to, co systém čte bez náhrady. „Když chybí" říká, co se st
 | `biteRecover` | jak dlouho se po ráně zotavuje | povinné |
 | `confusedSeconds` | jak dlouho tápe, když tě ztratí | 1,4 |
 | `roamRadius` | jak daleko od domova se toulá | 0 = stojí na místě |
+| `slopeTilt` | jak moc se tělo nakloní podle svahu (1 = celý sklon pod hlavou a zadkem, max. asi 34°; 0 = vždy vodorovně, hodí se pro dvounohé) | 1 |
 | `footprint` | stopy v písku (viz níž) | jedna šmouha bez detailů |
 | `respawnDays` | po kolika herních dnech se obnoví | povinné |
 | `idleSeconds` | rozsah `[min, max]`, jak dlouho postává | povinné |
@@ -93,9 +95,12 @@ Tier je stáří tvora. Klíč tieru se ukládá do savu, takže přejmenování
 ## Rozhraní rigu
 
 ```js
-rig.build(mesh, skeleton)          // -> stav kostry, nebo null, když se rig nepovedl
+rig.build(mesh, skeleton, animace) // -> stav kostry, nebo null, když se rig nepovedl
+                                   //    (animace = hotové animace z modelu, smí se ignorovat)
 rig.pose(stav, dt, info)           // -> { bob }  (jen svislé zhoupnutí)
 rig.summary(stav)                  // -> řetězec do konzole („6 nohou, 2 chapadla“)
+rig.busy(stav)                     // nepovinné: true, dokud rig dodělává klidovou akci;
+                                   //    tvor do té doby neodejde na procházku
 ```
 
 `pose` se volá každý snímek s reálným `dt` (ne v tiku simulace). Dostává:
@@ -107,6 +112,7 @@ rig.summary(stav)                  // -> řetězec do konzole („6 nohou, 2 cha
 | `moved` | kolik metrů v tomto snímku ušel (0, když stojí) |
 | `turning` | `true`, když se právě otáčí (i na místě) |
 | `engaged` | `true`, když je v boji (honička, útok) |
+| `leaving` | `true`, když tvoru vypršel čas stání; rig už nemá začínat novou klidovou akci |
 | `hit` | `true` v jediném snímku, kdy dostal ránu |
 | `buried` | `true`, dokud je zarytý v zemi |
 | `emergeProgress` | 0 = úplně v zemi, 1 = venku; dorazí o snímek starší |
@@ -117,6 +123,41 @@ Módy, které rig musí snést: `buried`, `emerging`, `burying`, `windup`, `reco
 
 Rig nikdy nehýbe s pozicí ani otočením těla; to patří systému. Rig sahá jen na kosti
 a vrací jedno číslo — jak moc se má tělo zvednout.
+
+## Hotové animace z modelu (hryzokrysa)
+
+Model z Meshy může mít v sobě animace. Rig je nepouští sám od sebe (systém je při
+stavbě zastaví), ale čte je po snímcích přes `src/utils/clipSampler.js` a sám rozhoduje,
+kterou animaci v jaké síle smíchá: `extractClips` vytáhne vybrané animace podle jména,
+`blendPose` z nich složí polohu kostí a rig k ní pak přidá pohyby z kódu (otočení hlavy,
+ucuknutí, sednutí). Kosti, které rig ovládá z kódu, berou smíchanou polohu jako svůj základ.
+
+- **Chůze a běh podle ušlé cesty.** Fáze se posouvá o `ušlo / délka cyklu`; délku
+  cyklu (kolik tělo ujde za jedno opakování animace) je potřeba změřit z animace
+  (posun chodidla po zemi). Tak tlapky neklouzají při žádné rychlosti a chůze se
+  plynule mění v běh.
+- **Na místě (`inPlace`).** Animace, které tělo posouvají (skok leoparda, smrt), se
+  pouštějí bez vodorovného posunu kořenové kosti; dopředu tvora posouvá hra.
+- **Nadzvednutí (`raise`).** Animace dělané pro jiné zvíře mívají tělo níž, než model
+  stojí; tlapky pak zajíždějí do země. Malé zvednutí kořene to srovná — každé animaci zvlášť.
+- **Útok z dlouhé animace.** Napřažení a zotavení se mapuje na vybraný úsek (`ATTACK_CLIP`):
+  okamžik rány je v animaci nejlepší chvíle (vrchol skoku), konec úseku se utne před tím,
+  než animace začne dělat něco nechtěného (otočka), a zbytek se dolní vahou.
+- **Ocas psí animace utlumit.** Animace pro psy nesou ocas vysoko; krysa ho má táhnout,
+  proto se vliv animací na ocas bere jen zčásti.
+- **Klid hlavně z kódu.** Animace lišky nebo vlka stojí na špičkách; krysa šlape celou
+  tlapkou, takže ve stoji visí na drápech. Čenichání a rozhlížení má hryzokrysa v kódu;
+  vsedě k tomu kód přidá švihání ocasem. Čuchání jsou krátké série drobných cuknutí
+  hlavou (`SNIFF`) s pauzami, ve kterých krysa pootočí hlavu jinam. Sednutí je psí animace upravená pro krysu: tělo klesne jen o část (`dropShare`
+  — pes má delší nohy), přední nohy se po dobu sezení drží v jednom okamžiku animace
+  (`only` = vrstva jen pro vybrané kosti) a dorovnají se k zemi, hřbet se shrbí a ocas
+  z animace se nahradí vlastním položeným ocasem.
+- **Stoj.** Základní póza modelu z Meshy stojí na rovných nohách jako na chůdách. Hryzokrysa
+  proto pod všemi animacemi drží slabě přimíchané přikrčení z varovné animace (`STAND`).
+  Sednutí se uprostřed na pár vteřin zastaví (`clipTime`) a kód mezitím hýbe
+  hlavou a čumákem, takže trvá déle, než je dlouhá samotná animace.
+- Při přípravě modelu (`tools/prepareGnawRat.mjs`) se z animací vyhodí měřítko a posuny
+  kostí kromě kořene — nic nemění a zabírají místo.
 
 ## Jak najít kosti v modelu
 
@@ -288,7 +329,8 @@ ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
   dohledu (`aggroRange`) a mezi vámi nestojí skála (stejný paprsek, jakým hráč vidí tvory,
   `seesSpot` ve scéně). Ztratí tě, když zmizíš za skálou nebo dál než 1,8× dohled.
 - **Paměť:** když tě ztratí, dojde na místo, kde tě viděl naposledy, rozhlédne se tam
-  (`confusedSeconds`, otazníky nad hlavou) a teprve pak jde domů.
+  (`confusedSeconds`, otazníky nad hlavou) a teprve pak jde domů. Stejně tápe, když mu
+  utečeš během varování.
 - **Zásah rozhodují vlastnosti** (`attack` proti `defense`, ohraničeno 5–95 %); citlivý
   zásah se nevyplňuje, je odvozený z téhož porovnání.
 - **Kopírování modelu:** `LoadAssetContainerAsync` + `instantiateModelsToScene`;
@@ -302,16 +344,16 @@ ffmpeg -i vstup.wav -ar 44100 -ac 1 -c:a libvorbis -q:a 4 vystup.ogg
 
 Aby se vědělo, kde je vzor a kde mezera. Úkoly z toho plynoucí patří do `TODO.md`.
 
-| Vlastnost | Písečný běs | Kajmanka | Koa'tiki |
-|---|---|---|---|
-| reakce na ránu (`hit`) | ano | ano | ano |
-| nohy našlapou i při otáčení (`turning`) | ano | ano | ano |
-| prohýbání kolen při chůzi | ano | ano | ano |
-| zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí | ano (1,35) |
-| zahrabání a vylézání | ano | ne (žije u vody) | ne |
-| víc druhů útoku | ne | ne | ano (klovnutí, výskok se škrábnutím každou nohou) |
-| otevíratelná čelist | ne (kusadla) | ne | ano (kost čelisti + tmavá vložka) |
-| převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) |
-| stopy z reálných chodidel | ano (4 nohy; přední pár nese jako ruce) | odhad (4 nohy stejně) | chybí (jedna šmouha) |
-| varování před útokem (`noWarning`) | ne — rovnou útok | ano | ano |
-| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | ano (ElevenLabs; zvlášť klovnutí, drápy, volání a zobání) |
+| Vlastnost | Písečný běs | Kajmanka | Koa'tiki | Hryzokrysa |
+|---|---|---|---|---|
+| reakce na ránu (`hit`) | ano | ano | ano | ano |
+| nohy našlapou i při otáčení (`turning`) | ano | ano | ano | ano |
+| prohýbání kolen při chůzi | ano | ano | ano | ano |
+| zrychlení v boji (`chaseBoost`) | ano (1,2) | chybí | ano (1,35) | ano (2,3; chůze plynule přejde v běh) |
+| zahrabání a vylézání | ano | ne (žije u vody) | ne | ne |
+| víc druhů útoku | ne | ne | ano (klovnutí, výskok se škrábnutím každou nohou) | ne (skok na kořist z animace) |
+| otevíratelná čelist | ne (kusadla) | ne | ano (kost čelisti + tmavá vložka) | ne (model nemá kost čelisti) |
+| převrácení na záda při smrti (`deathRoll`) | ano | ne (padá na bok) | ne (padá na bok) | ne (`deathRoll: 0`, pád dělá animace) |
+| stopy z reálných chodidel | ano (4 nohy; přední pár nese jako ruce) | odhad (4 nohy stejně) | chybí (jedna šmouha) | ano (4 tlapky) |
+| varování před útokem (`noWarning`) | ne — rovnou útok | ano | ano | ano (přikrčí se, animace) |
+| vlastní doložené zvuky | ano (Darkworld Audio) | ano, ale zdroj chybí v CREDITS | ano (ElevenLabs; zvlášť klovnutí, drápy, volání a zobání) | chybí (zatím němý) |

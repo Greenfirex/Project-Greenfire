@@ -3,12 +3,14 @@
 import { SNAPPING_TURTLE } from './snappingTurtle.js';
 import { SAND_DEVIL } from './sandDevil.js';
 import { KOA_TIKI } from './koaTiki.js';
+import { GNAW_RAT } from './gnawRat.js';
 import { zeroResistances } from '../damage.js';
 
 export const CREATURE_TYPES = {
   snapping_turtle: SNAPPING_TURTLE,
   sand_devil: SAND_DEVIL,
   koa_tiki: KOA_TIKI,
+  gnaw_rat: GNAW_RAT,
 };
 
 export const CREATURE_KEYS = Object.keys(CREATURE_TYPES);

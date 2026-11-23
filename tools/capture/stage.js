@@ -71,7 +71,7 @@ function placeModel(type, tier, container) {
   );
   holder.rotation.y = type.yawOffset || 0;
   const skeleton = instance.skeletons && instance.skeletons[0] ? instance.skeletons[0] : null;
-  const rig = type.rig ? type.rig.build(solid[0], skeleton) : null;
+  const rig = type.rig ? type.rig.build(solid[0], skeleton, instance.animationGroups) : null;
   return {
     holder,
     body: solid.reduce((best, mesh) => (mesh.getTotalVertices() > best.getTotalVertices() ? mesh : best)),
