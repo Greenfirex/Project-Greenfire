@@ -940,7 +940,10 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   (`rollQuality`: zásah, kritický, škrábnutí, minutí); `rollStrike` zmizel. Během nápřahu
   je pod tvorem slabá červená výseč a v ní se od tvora k okraji vyplňuje sytější výseč;
   když dojde na konec, tvor kousne (`updateBiteArcs`, `biteView`, `AttackArc` s barvou
-  `DANGER_COLOR` a `progress`). Nápřahy a výseče: Koa'tiki 0,35 s a 100°, běs 0,4 s a 80°,
+  `DANGER_COLOR` a `progress`). Výseče hráče i tvorů jsou v rentgenu mezi vlastními modely
+  (`attackArcMeshes`, přidává je `GameScene.updateReveal`), jinak by se v jeskyni schovaly jako cizí
+  modely. Zařazení mezi překryvy (`OVERLAY_MATERIALS`) zkoušené a vrácené: grafická karta pak hlásila
+  „Two textures of different types use the same sampler location“. Nápřahy a výseče: Koa'tiki 0,35 s a 100°, běs 0,4 s a 80°,
   hryzokrysa 0,4 s a 80°, kajmanka 0,45 s a 60°. V posledních 0,15 s nápřahu tvor vyrazí vpřed (`biteLunge`:
   1 m / 0,8 m / 0,5 m, `lunge`; zastaví se, když se čumákem — půl délky těla od středu —
   dotkne okraje těla hráče, aby nezajel do postavy), takže chůzí se uhnout nedá,

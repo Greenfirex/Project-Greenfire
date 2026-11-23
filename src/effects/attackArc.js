@@ -86,6 +86,10 @@ export default class AttackArc {
     this.fill.scaling.set(share, share, 1);
   }
 
+  meshes() {
+    return [this.disc, this.fill].filter(Boolean);
+  }
+
   pulse() {
     this.flash = 1;
   }

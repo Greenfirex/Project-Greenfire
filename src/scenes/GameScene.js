@@ -1256,7 +1256,7 @@ export default class GameScene {
     } else if (under || this.revealSystem.isOpen()) {
       const viewer = { x: root.position.x, y: root.position.y, z: root.position.z, level };
       const seen = ({ x, y, z }, floor) => this.navigation.seesAcrossFloors(viewer, { x, y, z, level: floor });
-      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen)];
+      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen), ...this.attackArcMeshes()];
       for (const creature of this.creatureSystem.bodies()) {
         const floor = creature.level || 0;
         const y = this.creatureSystem.groundAt(creature.x, creature.z, floor, creature.y);

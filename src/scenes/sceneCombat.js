@@ -447,6 +447,11 @@ export default {
     this.attackArc.update(dt, { x, y, z, facing, reach: blow.reach, arc: blow.arc });
   },
 
+  attackArcMeshes() {
+    const arcs = [this.attackArc, ...(this.biteArcs ? this.biteArcs.values() : [])].filter(Boolean);
+    return arcs.flatMap((arc) => arc.meshes());
+  },
+
   updateBiteArcs(dt, active) {
     if (!this.biteArcs) this.biteArcs = new Map();
     const level = this.playerSystem.level || 0;
