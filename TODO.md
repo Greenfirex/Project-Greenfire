@@ -2,17 +2,10 @@
 
 Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie patří do gitu.
 
-### Odladit tvory přes patra (rozdělané, ve hře netestované)
-- [ ] Ověřit po sjednocení pravidel chůze (`navigationSystem.bodyFree`): krysa projde vchod bez zaseknutí oběma směry a vrátí se domů; mrtvoly v jeskyni nesvítí; hráč chodí jako dřív u vchodů, útesů, ve srubu a mezi kameny; tvorové u útesů a ve srubu; tvorové obcházejí kameny a nevjíždějí do sebe ani do hráče.
-- [ ] Tvor umístěný do jeskyně: drží se v podzemí? Správné značky a stav v editoru (`statusAt` zná jen povrch).
-
 ### Bestiář
 - [ ] Bestiář: doplnit obsah okna (popis tvora, kde žije, obrázek); kostra se seznamem a statistikami je hotová.
 - [ ] Doplnit tvorům skutečnou zbroj a odolnosti (dnes všude nula; pozor, zbroj se odečítá od každé rány a hráč dnes dává 1–5).
 - [ ] Až bude bestiář hotový, vypnout ladicí odemčení všech statistik (`SHOW_ALL_STATS` v `bestiarySystem.js`).
-
-### Život v jeskyni
-- [ ] Ověřit v praxi pokládání předmětů a táboráku v patře, zapálení a znovunačtení savu.
 
 ### Editor
 - [ ] Při kontrole editoru pater (`tools/checkConsole.cjs`) hlásí grafická karta občas „Two textures of different types use the same sampler location“ (4–9×). Bylo i před 23. 11. 2026; nejspíš značky editoru v podzemí (překryvy v rentgenu). Zjistit, který materiál to je.
@@ -68,7 +61,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 - [ ] Hryzokrysa: projít ve hře chůzi a běh (kloužou tlapky?), sednutí, útok a smrt; ověřit, jestli není v jeskyni moc tmavá.
 - [ ] Hryzokrysa: z modelu vyhodit nepoužité animace (`cat_idle2`, `wolf_idle1`, `fox_mon_xiaohuli_01_xiuwen`, `wolf_jump_*`, `wolf_walk_fight_forward`), pokud se nebudou hodit.
-- [ ] Hryzokrysa: smečka — když si jeden všimne hráče, přivolá ostatní poblíž (nové chování v systému tvorů).
+- [ ] Smečka (volba v editoru): vyzkoušet ve hře, že zavolaní přiběhnou k vůdci a zaútočí s ním; doladit dosah zavolání (10 m), jak dlouho vůdce čeká na ostatní (3 s) a jak dlouho zůstanou rozzuření (8 s).
 
 - [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
 - [ ] Koa'tiki: běh v honičce (předklon, natažený krk, rovný ocas), tápání jako rychlé rozhlížení bez zobání.

@@ -13,6 +13,7 @@ const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
 const ROTATION_OPTION = { key: 'rotation', label: 'Natočení', kind: 'range', min: 0, max: 7, step: 1, display: 'angle' };
 const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
+const PACK_OPTION = { key: 'pack', label: 'Smečka: svolá ostatní a přijde na zavolání', default: false };
 const LIGHT_ROCKS = [
   'rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall',
   'rock_pair', 'rock_jagged', 'rock_pebbles',
@@ -75,6 +76,7 @@ function creatureBrush(kind) {
     style: type.defaultTier,
     styles: tierKeys,
     styleLabels: Object.fromEntries(tierKeys.map((key) => [key, type.tiers[key].label])),
+    options: [PACK_OPTION],
   };
 }
 
@@ -100,6 +102,13 @@ const ERASER_BRUSHES = {
 
 export const BRUSHES = {
   ...CREATURE_BRUSHES,
+  creature_settings: {
+    label: 'Nastavit tvory',
+    note: 'Táhni přes tvory, kteří už na mapě stojí, a změň jim nastavení. Levé tlačítko použije zaškrtnutí, pravé smečku vypne.',
+    shape: 'blob',
+    creatureSettings: true,
+    options: [PACK_OPTION],
+  },
   forest_exact: {
     label: 'Les',
     note: 'Nasadí hustý les ze všech druhů stromů.',
@@ -551,7 +560,7 @@ export function brushPaintParts(brushKey) {
   if (brush.erase === 'creatures') return [PAINT_CREATURES, PAINT_FISH, PAINT_CRABS];
   if (brush.erase === 'all') return [PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS];
   if (brush.erase) return PAINT_DECO_ONLY;
-  if (brush.creature) return PAINT_CREATURE_ONLY;
+  if (brush.creature || brush.creatureSettings) return PAINT_CREATURE_ONLY;
   if (brush.fish) return PAINT_FISH_ONLY;
   if (brush.crabs) return PAINT_CRABS_ONLY;
   if (brush.height || brush.heights || brush.cliff || brush.join || brush.bridge || brush.surface || brush.surfaceOnly) return PAINT_ALL;
@@ -561,7 +570,7 @@ export function brushPaintParts(brushKey) {
 export function brushOptions(brush) {
   if (!brush) return [];
   const list = [...(Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))];
-  if (brush.join || brush.bridge || brush.creature || brush.spawn || brush.lake || brush.river) return list;
+  if (brush.join || brush.bridge || brush.creature || brush.creatureSettings || brush.spawn || brush.lake || brush.river) return list;
   if (brush.rotate) list.push(ROTATION_OPTION);
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];

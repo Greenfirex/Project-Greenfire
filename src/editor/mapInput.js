@@ -133,7 +133,7 @@ export default {
     else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
     else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
     else if (this.mode.isRiverBrush) this.startRiver(cell);
-    else if (!this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
+    else if (!this.mode.isCreatureSettingsBrush && !this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
     else this.mode.beginDraftDrag(cell.cx, cell.cz);
   },
 

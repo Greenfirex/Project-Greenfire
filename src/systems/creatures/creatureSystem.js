@@ -8,6 +8,7 @@ import '@babylonjs/core/Materials/PBR/pbrMaterial';
 import '@babylonjs/core/Materials/Textures/texture';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -21,6 +22,7 @@ import {
   creatureStat,
   creatureScale,
   tierTint,
+  PACK_CALL_RANGE,
 } from '../../data/catalogs/creatures/index.js';
 import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../../utils/gridMath.js';
 import { DOOR_FRAME_DEPTH } from '../../data/maps/areaShape.js';
@@ -89,6 +91,11 @@ const OUTLINE_COMBAT_SCALE = 1.35;
 const COMBAT_MARK_SECONDS = 1;
 const ALERT_SECONDS = [5, 6];
 const ALERT_CALL_SHARE = 0.5;
+const PACK_ANGER_SECONDS = 8;
+const PACK_ANSWER_MODES = ['idle', 'roam', 'confused', 'buried'];
+const PACK_GATHER_REACH = 1.2;
+const PACK_RALLY_SECONDS = 10;
+const PACK_WAIT_SECONDS = 3;
 const MARK_HEIGHT = 0.22;
 const MARK_BOB = 0.02;
 const MARK_PULSE = 0.06;
@@ -107,6 +114,7 @@ const CORPSE_GROUND_MARGIN = 0.02;
 const CORPSE_GROUND_SAMPLE = 0.35;
 const CORPSE_OUTLINE_COLOR = new Color3(0.95, 0.95, 0.92);
 const CORPSE_OUTLINE_WIDTH = 0.03;
+const OUTLINE_MEASURE_FRAMES = 3;
 const CORPSE_OUTLINE_REACH = 5;
 
 function slotKeyOf(kind, tierKey, cx, cz, level = 0) {
@@ -119,6 +127,30 @@ function turnToward(current, target, maxDelta) {
   while (diff < -Math.PI) diff += Math.PI * 2;
   if (Math.abs(diff) <= maxDelta) return target;
   return current + Math.sign(diff) * maxDelta;
+}
+
+function outlineUnit(mesh) {
+  const positions = mesh.getVerticesData ? mesh.getVerticesData('position') : null;
+  if (!positions || positions.length < 6) return 1;
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (let index = 0; index < positions.length; index += 3) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      const value = positions[index + axis];
+      if (value < min[axis]) min[axis] = value;
+      if (value > max[axis]) max[axis] = value;
+    }
+  }
+  const raw = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+  mesh.computeWorldMatrix(true);
+  const before = mesh.getBoundingInfo();
+  const keptMin = before.minimum.clone();
+  const keptMax = before.maximum.clone();
+  mesh.refreshBoundingInfo({ applySkeleton: true });
+  const box = mesh.getBoundingInfo().boundingBox;
+  const world = Vector3.Distance(box.vectorsWorld[0], box.vectorsWorld[1]);
+  mesh.getBoundingInfo().reConstruct(keptMin, keptMax, mesh.getWorldMatrix());
+  return raw > 0 && world > 0.001 ? raw / world : null;
 }
 
 function randomBetween(min, max) {
@@ -214,7 +246,12 @@ export default class CreatureSystem {
       if (!wanted.has(slot.key)) this.dropSlot(slot);
     }
     for (const [key, want] of wanted) {
-      if (this.slots.has(key)) continue;
+      const slot = this.slots.get(key);
+      if (slot) {
+        slot.entry = { ...want.entry, tier: want.tierKey };
+        if (slot.creature) slot.creature.pack = Boolean(want.entry.pack);
+        continue;
+      }
       await this.fillSlot(key, want, saved);
     }
     return this.creatures;
@@ -376,6 +413,8 @@ export default class CreatureSystem {
     console.info(`[creature] ${type.label} (${tier.label}) na ${spot.x.toFixed(1)}, ${spot.z.toFixed(1)} — ${boneSummary}`);
     const creature = {
       kind: entry.kind,
+      pack: Boolean(entry.pack),
+      packCalled: false,
       level: spawnLevel,
       homeLevel: spawnLevel,
       type,
@@ -895,9 +934,97 @@ export default class CreatureSystem {
     for (const creature of this.creatures) {
       this.think(creature, dt, player);
       this.regenerate(creature, dt);
+      this.packWatch(creature, player);
     }
     this.keepApart(dt, player);
     this.respawnDue(this.now, player);
+  }
+
+  packWatch(creature, player) {
+    if (!creature.pack) return;
+    if (creature.mode === 'idle' || creature.mode === 'roam') {
+      creature.packCalled = false;
+      return;
+    }
+    if (creature.packCalled || !player || !HOSTILE_MODES.includes(creature.mode)) return;
+    creature.packCalled = true;
+    this.callPack(creature);
+  }
+
+  callPack(caller) {
+    for (const mate of this.creatures) {
+      if (mate === caller || !mate.pack || mate.health <= 0 || mate.level !== caller.level) continue;
+      if (!PACK_ANSWER_MODES.includes(mate.mode) || (mate.mode === 'confused' && mate.searching)) continue;
+      if (Math.hypot(mate.x - caller.x, mate.z - caller.z) > PACK_CALL_RANGE) continue;
+      mate.giveUpUntil = 0;
+      mate.rallyLeader = caller;
+      if (mate.mode === 'buried') {
+        mate.mode = 'emerging';
+        mate.timer = mate.emergeSeconds;
+        this.playSound(mate, 'dig');
+        if (this.onDig) this.onDig(mate);
+        continue;
+      }
+      this.beginRally(mate, caller);
+    }
+  }
+
+  beginRally(mate, leader) {
+    mate.engaged = false;
+    mate.searching = false;
+    mate.mode = 'rally';
+    mate.rallyLeader = leader;
+    mate.rallyArrived = false;
+    mate.timer = PACK_RALLY_SECONDS;
+    mate.pathClock = 0;
+  }
+
+  rally(creature, dt, player, gap) {
+    const leader = creature.rallyLeader;
+    if (leader && leader.health <= 0) {
+      this.joinAttack(creature, player);
+      return;
+    }
+    if (!leader || !this.creatures.includes(leader) || !['alert', 'emerging', ...ATTACK_MODES].includes(leader.mode) || creature.timer <= 0) {
+      this.beginSearch(creature, false);
+      return;
+    }
+    if (ATTACK_MODES.includes(leader.mode) || (player && gap <= creature.type.chargeRange)) {
+      this.joinAttack(creature, player);
+      return;
+    }
+    const toLeader = Math.hypot(leader.x - creature.x, leader.z - creature.z);
+    if (toLeader > PACK_GATHER_REACH && !creature.rallyArrived) {
+      const boost = Number.isFinite(creature.type.chaseBoost) ? creature.type.chaseBoost : 1;
+      this.moveTo(creature, leader.x, leader.z, creature.type.walkSpeed * creature.tier.speed * boost, dt, leader.level);
+      return;
+    }
+    if (!creature.rallyArrived) {
+      creature.rallyArrived = true;
+      this.playSound(creature, 'alert');
+    }
+    if (player && gap > 0.001) {
+      creature.facing = turnToward(creature.facing, Math.atan2(player.x - creature.x, player.z - creature.z), creature.type.turnRate * dt * 0.7);
+    }
+  }
+
+  joinAttack(creature, player) {
+    if (player) {
+      creature.lastSeenX = player.x;
+      creature.lastSeenZ = player.z;
+      creature.lastSeenLevel = this.playerLevel ? this.playerLevel() : 0;
+    }
+    creature.provokedUntil = Math.max(creature.provokedUntil || 0, this.now + PACK_ANGER_SECONDS);
+    this.beginCharge(creature);
+  }
+
+  packGathering(leader) {
+    return this.creatures.some((mate) => mate.rallyLeader === leader
+      && ((mate.mode === 'rally' && !mate.rallyArrived) || mate.mode === 'emerging'));
+  }
+
+  shownMode(creature) {
+    return creature.mode === 'rally' && creature.rallyArrived ? 'alert' : creature.mode;
   }
 
   spacingOf(creature) {
@@ -1047,8 +1174,14 @@ export default class CreatureSystem {
       if (creature.timer <= 0) {
         creature.buried = false;
         creature.emergeProgress = 1;
-        this.beginAggro(creature, alertSeconds);
+        if (creature.rallyLeader) this.beginRally(creature, creature.rallyLeader);
+        else this.beginAggro(creature, alertSeconds);
       }
+      return;
+    }
+
+    if (creature.mode === 'rally') {
+      this.rally(creature, dt, player, gap);
       return;
     }
 
@@ -1117,11 +1250,13 @@ export default class CreatureSystem {
         creature.alertCallAt = 0;
         this.playSound(creature, 'alert');
       }
-      if ((gap <= type.chargeRange || creature.timer <= 0) && this.canGetTo(creature, player, playerFloor, heightGap, aggro)) {
+      const waiting = creature.timer <= 0 && creature.timer > -PACK_WAIT_SECONDS && this.packGathering(creature);
+      const due = creature.timer <= 0 && !waiting;
+      if ((gap <= type.chargeRange || due) && this.canGetTo(creature, player, playerFloor, heightGap, aggro)) {
         this.beginCharge(creature);
         return;
       }
-      if (creature.timer <= 0) {
+      if (due) {
         if (this.walledOff(creature, player)) {
           this.giveUpConfused(creature);
           return;
@@ -1219,6 +1354,7 @@ export default class CreatureSystem {
   }
 
   beginSearch(creature, search) {
+    creature.rallyLeader = null;
     creature.engaged = false;
     creature.mode = 'confused';
     creature.timer = creature.type.confusedSeconds || 1.4;
@@ -1260,6 +1396,7 @@ export default class CreatureSystem {
   }
 
   beginCharge(creature) {
+    creature.rallyLeader = null;
     if (!creature.engaged) {
       creature.engaged = true;
       creature.markTimer = COMBAT_MARK_SECONDS;
@@ -1403,7 +1540,7 @@ export default class CreatureSystem {
       creature.poseZ = creature.z;
       const pose = creature.type.rig
         ? creature.type.rig.pose(creature.rig, seconds, {
-          mode: creature.mode,
+          mode: this.shownMode(creature),
           moving: creature.walking,
           moved,
           buried: creature.buried,
@@ -1423,9 +1560,10 @@ export default class CreatureSystem {
       }
       const bob = pose && Number.isFinite(pose.bob) ? pose.bob : 0;
       this.placeHolder(creature, bob, seconds);
+      this.measureOutline(creature);
       const rising = creature.mode === 'emerging';
       const hidden = creature.buried && !rising;
-      const alert = creature.mode === 'alert';
+      const alert = creature.mode === 'alert' || creature.mode === 'rally';
       const combat = rising || ATTACK_MODES.includes(creature.mode);
       const hovered = creature === this.hovered;
       const selected = creature === this.selected;
@@ -1514,6 +1652,24 @@ export default class CreatureSystem {
     this.hoveredCorpse = null;
   }
 
+  measureOutline(creature) {
+    if (creature.outlineUnits || creature.unseen || creature.buried) return;
+    creature.outlineFrames = (creature.outlineFrames || 0) + 1;
+    if (creature.outlineFrames < OUTLINE_MEASURE_FRAMES) return;
+    const units = new Map();
+    for (const mesh of creature.meshes || []) {
+      const unit = outlineUnit(mesh);
+      if (unit === null) return;
+      units.set(mesh, unit);
+    }
+    creature.outlineUnits = units;
+  }
+
+  outlineUnitOf(creature, mesh) {
+    const unit = creature.outlineUnits ? creature.outlineUnits.get(mesh) : null;
+    return Number.isFinite(unit) ? unit : 1;
+  }
+
   applyOutline(creature, color, widthScale, pulseSpeed) {
     if (!creature || !creature.meshes) return;
     const level = creature.outlineLevel;
@@ -1524,7 +1680,7 @@ export default class CreatureSystem {
       mesh.renderOutline = on;
       if (!on) continue;
       mesh.outlineColor = color;
-      mesh.outlineWidth = (OUTLINE_WIDTH + OUTLINE_PULSE * pulse * level) * widthScale;
+      mesh.outlineWidth = (OUTLINE_WIDTH + OUTLINE_PULSE * pulse * level) * widthScale * this.outlineUnitOf(creature, mesh);
     }
   }
 
@@ -1538,7 +1694,7 @@ export default class CreatureSystem {
     }
     creature.markTimer = Math.max(0, creature.markTimer - seconds);
     const doubt = creature.mode === 'confused';
-    const alert = creature.mode === 'alert';
+    const alert = creature.mode === 'alert' || creature.mode === 'rally';
     const show = doubt || alert || rising || creature.markTimer > 0;
     marker.setEnabled(show);
     if (!show) return;
@@ -1654,7 +1810,7 @@ export default class CreatureSystem {
         mesh.renderOutline = near;
         if (!near) continue;
         mesh.outlineColor = CORPSE_OUTLINE_COLOR;
-        mesh.outlineWidth = CORPSE_OUTLINE_WIDTH;
+        mesh.outlineWidth = CORPSE_OUTLINE_WIDTH * this.outlineUnitOf(creature, mesh);
       }
       if (entry.age < entry.sinkAt) {
         holder.position.y = groundY;

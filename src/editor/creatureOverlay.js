@@ -1,7 +1,8 @@
 // Zvýraznění spawních míst tvorů v editoru — kruhy toulání, čtverečky buněk
 // a spojnice od spawního místa k živému tvorovi. U hnízd kruh, odkud se berou hlídači,
 // a spojnice k živým hlídačům (k mrtvým slabší spojnice k místu, kde se znovu objeví);
-// hnízdo bez hlídačů má jinou barvu.
+// hnízdo bez hlídačů má jinou barvu. Tvorové ve smečce mají fialovou značku a fialové
+// spojnice ke členům smečky, na které dovolají.
 import '@babylonjs/core/Meshes/Builders/groundBuilder';
 import '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
@@ -9,6 +10,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../utils/gridMath.js';
+import { PACK_CALL_RANGE } from '../data/catalogs/creatures/index.js';
 
 const RING_STEPS = 64;
 const RING_LIFT = 0.1;
@@ -35,6 +37,8 @@ const NEST_RING_ALPHA = 0.8;
 const NEST_LINK_ALPHA = 0.85;
 const NEST_WAITING_ALPHA = 0.35;
 const NEST_CORE = CELL_SIZE * 0.3;
+const PACK_COLOR = new Color3(0.78, 0.45, 1);
+const PACK_LINK_ALPHA = 0.75;
 
 function circlePoints() {
   const points = [];
@@ -73,7 +77,9 @@ export default class CreatureOverlay {
     this.nestRings = [];
     this.nestCores = [];
     this.nestLinks = [];
+    this.packLinks = [];
     this.squareMaterial = null;
+    this.packMaterial = null;
   }
 
   linesFrom(pool, index, name, points, updatable = false) {
@@ -193,15 +199,38 @@ export default class CreatureOverlay {
     link.setEnabled(true);
   }
 
-  material() {
-    if (this.squareMaterial) return this.squareMaterial;
-    const material = new StandardMaterial('creatureMarkSquareMat', this.s);
-    material.diffuseColor = SQUARE_COLOR;
-    material.emissiveColor = SQUARE_COLOR;
+  material(pack = false) {
+    const field = pack ? 'packMaterial' : 'squareMaterial';
+    if (this[field]) return this[field];
+    const color = pack ? PACK_COLOR : SQUARE_COLOR;
+    const material = new StandardMaterial(pack ? 'creatureMarkPackMat' : 'creatureMarkSquareMat', this.s);
+    material.diffuseColor = color;
+    material.emissiveColor = color;
     material.disableLighting = true;
     material.alpha = SQUARE_ALPHA;
-    this.squareMaterial = material;
+    this[field] = material;
     return material;
+  }
+
+  showPackLinks(marks, surfaceAt) {
+    const pack = marks.filter((mark) => mark.pack);
+    let used = 0;
+    for (let i = 0; i < pack.length; i += 1) {
+      for (let j = i + 1; j < pack.length; j += 1) {
+        const fromX = pack[i].cx * CELL_SIZE;
+        const fromZ = pack[i].cz * CELL_SIZE;
+        const toX = pack[j].cx * CELL_SIZE;
+        const toZ = pack[j].cz * CELL_SIZE;
+        if (Math.hypot(toX - fromX, toZ - fromZ) > PACK_CALL_RANGE) continue;
+        const link = this.linesFrom(this.packLinks, used, 'creaturePackLink', straightPoints(), true);
+        MeshBuilder.CreateLines(link.name, { points: this.groundLine(fromX, fromZ, toX, toZ, surfaceAt), instance: link }, this.s);
+        link.color = PACK_COLOR;
+        link.alpha = PACK_LINK_ALPHA;
+        link.setEnabled(true);
+        used += 1;
+      }
+    }
+    for (let i = used; i < this.packLinks.length; i += 1) this.packLinks[i].setEnabled(false);
   }
 
   show(marks, surfaceAt) {
@@ -229,6 +258,7 @@ export default class CreatureOverlay {
       }
       const square = this.squareAt(used);
       const outline = this.outlineAt(used);
+      square.material = this.material(Boolean(mark.pack));
       if (state === 'alive') {
         square.position = new Vector3(x, y + SQUARE_LIFT, z);
         square.setEnabled(true);
@@ -240,7 +270,7 @@ export default class CreatureOverlay {
       } else {
         square.setEnabled(false);
         outline.position = new Vector3(x, y + SQUARE_LIFT, z);
-        outline.color = state === 'waiting' ? WAITING_COLOR : NEW_COLOR;
+        outline.color = mark.pack ? PACK_COLOR : state === 'waiting' ? WAITING_COLOR : NEW_COLOR;
         outline.alpha = state === 'waiting' ? RING_ALPHA : NEW_ALPHA;
         outline.setEnabled(true);
       }
@@ -248,11 +278,13 @@ export default class CreatureOverlay {
     }
     this.hideFrom(used);
     this.hideLinksFrom(linked);
+    this.showPackLinks(list, surfaceAt);
   }
 
   clear() {
     this.hideFrom(0);
     this.hideLinksFrom(0);
+    this.showPackLinks([], () => 0);
     this.showNests([], () => 0);
   }
 

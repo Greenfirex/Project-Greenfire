@@ -77,7 +77,7 @@ export const HUD_TABS = [
     sections: [
       { label: 'Na souši', brushes: [...CREATURE_BRUSHES, 'koa_nest', 'crabs'] },
       { label: 'Ve vodě', brushes: ['fish'] },
-      { brushes: ['erase_creatures'] },
+      { brushes: ['creature_settings', 'erase_creatures'] },
     ],
   },
 ];

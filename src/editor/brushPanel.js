@@ -341,14 +341,15 @@ export default class BrushPanel {
     if (!this.root || !this.count) return;
     const n = this.countValue || 0;
     const brush = getBrush(this.brushKey);
-    const creatureBrush = Boolean(brush && brush.creature);
+    const settingsBrush = Boolean(brush && brush.creatureSettings);
+    const creatureBrush = Boolean(brush && (brush.creature || settingsBrush));
     const word = creatureBrush ? creatureWord(n) : cellWord(n);
     const heightOnly = Boolean(brush && (Number.isFinite(brush.height) || brush.heights));
     const surfaceOnly = Boolean(brush && brush.surfaceOnly);
     const surfaceBrush = Boolean(brush && brush.surface);
     const cliffBrush = Boolean(brush && brush.cliff);
     const prefix = this.draftMode === 'remove'
-      ? (cliffBrush ? 'Zruší se' : surfaceBrush ? 'Vrátí se' : heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
+      ? (settingsBrush ? 'Bez smečky' : cliffBrush ? 'Zruší se' : surfaceBrush ? 'Vrátí se' : heightOnly ? 'Srovná se' : surfaceOnly ? 'Na trávu' : 'Ke smazání')
       : 'Vybráno';
     let text = `${prefix}: ${n} ${word}`;
     if (this.slopeCount > 0) text += ` · svah ${this.slopeCount}`;

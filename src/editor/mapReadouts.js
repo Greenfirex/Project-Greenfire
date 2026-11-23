@@ -50,7 +50,7 @@ export default {
     if (surface) parts.push(surface);
     for (const item of info.decorations || []) parts.push(item.name);
     const beast = info.creature;
-    if (beast) parts.push(beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label);
+    if (beast) parts.push(`${beast.tier ? `${beast.type.label} (${beast.tier.label})` : beast.type.label}${beast.entry.pack ? ', smečka' : ''}`);
     const water = this.s.waterBodyAtCell(cell.cx, cell.cz);
     if (water) parts.push(`${water.kind === 'river' ? 'Řeka' : 'Jezero'} ${formatMeters(water.level)}`);
     const lift = Math.round((Number(info.liftY) || 0) * 100) / 100;

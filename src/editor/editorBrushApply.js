@@ -186,6 +186,7 @@ export default {
     if (brush.join) return () => this.applyJoin();
     if (brush.cliff) return () => this.applyCliffMarks(zone, mode, this.styleFor(brushKey), this.brushOptionValue(brushKey, 'foot'));
     if (brush.creature) return () => this.applyCreatureBrush(brushKey, brush, zone, mode);
+    if (brush.creatureSettings) return () => this.applyCreatureSettings(brushKey, zone, mode);
     if (brush.fish) return () => this.applyFishBrush(brushKey, brush, zone, mode);
     if (brush.crabs) return () => this.applyCrabBrush(zone, mode);
     if (brush.spawn) return () => this.applySpawnCell(zone);
@@ -417,7 +418,22 @@ export default {
       }
       const placed = { kind, tier, cx, cz };
       if (level) placed.level = level;
+      if (this.brushOptionValue(brushKey, 'pack')) placed.pack = true;
       this.layout.creatures.push(placed);
+      changed += 1;
+    }
+    return changed;
+  },
+
+  applyCreatureSettings(brushKey, zone, mode) {
+    const pack = mode !== 'remove' && Boolean(this.brushOptionValue(brushKey, 'pack'));
+    const cells = new Set(zone.map(({ cx, cz }) => cellKey(cx, cz)));
+    let changed = 0;
+    for (const entry of this.layout.creatures || []) {
+      if (!entry || levelOfEntry(entry) !== this.paintLevel || !cells.has(cellKey(entry.cx, entry.cz))) continue;
+      if (Boolean(entry.pack) === pack) continue;
+      if (pack) entry.pack = true;
+      else delete entry.pack;
       changed += 1;
     }
     return changed;

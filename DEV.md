@@ -101,7 +101,13 @@ s kořistí a první předmět na hlavu.
 Tvorové: kajmanka, písečný běs a Koa'tiki — toulání, dvě zóny pozornosti,
 honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chodí a vidí
 podle stejných pravidel jako hráč (schod, skála v cestě pohledu), jen na kratší
-dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Panel tvora (vpravo
+dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Tvor s volbou smečky
+(`pack` u záznamu v mapě) při přechodu do varování nebo útoku svolá ostatní tvory se smečkou
+na stejném patře (`callPack`, `PACK_CALL_RANGE` v registru tvorů). Zavolaní přejdou do režimu
+`rally`: běží k vůdci, u něj se postaví do varování a zaútočí, až zaútočí on (nebo když k nim
+hráč přijde moc blízko, zasáhne je nebo vůdce zemře). Vůdce s útokem počká nejvýš
+`PACK_WAIT_SECONDS`, než ostatní doběhnou. Kdo zaútočí, má na chvíli dohled bez omezení
+vzdálenosti (`provokedUntil`, stejně jako u vykradeného hnízda). Panel tvora (vpravo
 uprostřed, hodiny jsou vpravo nahoře) ukazuje statistiky odemčené počtem zabití
 (`bestiarySystem.js`, prahy `UNLOCKS`): životy, útok, obranu, poškození, zbroj, odolnosti,
 dohled a rychlost. Pro ladění je zatím odemčené všechno (`SHOW_ALL_STATS`). Okno bestiáře

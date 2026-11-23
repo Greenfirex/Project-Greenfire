@@ -15,6 +15,8 @@ export const CREATURE_TYPES = {
 
 export const CREATURE_KEYS = Object.keys(CREATURE_TYPES);
 
+export const PACK_CALL_RANGE = 10;
+
 export function getCreatureType(key) {
   return CREATURE_TYPES[key] || null;
 }

@@ -92,6 +92,15 @@ k buňce, takže vedle sebe může být holý trs bez koberce a koberec bez trs�
 se volí stáří. Na jedné buňce zůstane vždy jen jeden tvor; nový starý nahradí.
 V režimu Mazat se tvor odebere.
 
+Zaškrtávátko **Smečka** udělá z tvora člena smečky: když si všimne hráče, svolá
+ostatní tvory se smečkou do 10 m (i jiného druhu). Ti k němu přiběhnou a zaútočí
+spolu s ním. Sám přijde, když zavolá jiný.
+Štětec **Nastavit tvory** mění smečku tvorům, kteří už na mapě stojí: tahem
+(začít jde kdekoli) označíš obdélník, vyberou se jen buňky s tvorem, a Enterem
+nebo Aplikovat potvrdíš. Levé tlačítko použije zaškrtnutí, pravé smečku vypne.
+Tvor ve smečce má fialovou značku a fialové spojnice vedou ke členům smečky,
+na které dovolá. Popisek pod myší u něj ukazuje „smečka“.
+
 V podzemním patře jsou zašedlé štětce, které umí zapisovat jen na povrch
 (`brushAboveGroundOnly` v katalogu štětců): Tráva, Cesta, Kopec, Prohlubeň, Pláž,
 Útes, Spojnice, Most, Ryby a Start hráče. Po přepnutí do podzemí se takový štětec

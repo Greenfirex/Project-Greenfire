@@ -474,7 +474,7 @@ export default class MapEditor {
 
   announceBrushFloor() {
     const brush = BRUSHES[this.mode.brushKey];
-    if (this.mode.paintLevel < 0 && !(brush && (brush.deco || brush.creature))) this.hud.setReadout('V podzemí jdou tímhle panelem kreslit jen předměty a tvorové');
+    if (this.mode.paintLevel < 0 && !(brush && (brush.deco || brush.creature || brush.creatureSettings))) this.hud.setReadout('V podzemí jdou tímhle panelem kreslit jen předměty a tvorové');
   }
 
   openBrushPanel(brushKey) {
@@ -506,8 +506,11 @@ export default class MapEditor {
     const bridgeBrush = this.mode.isBridgeBrush;
     const joinBrush = this.mode.isJoinBrush;
     const creatureBrush = this.mode.isCreatureBrush;
+    const settingsBrush = this.mode.isCreatureSettingsBrush;
     const count = this.mode.applyDraft();
-    if (count && bridgeBrush) {
+    if (count && settingsBrush) {
+      this.hud.setReadout(`Nastavení změněno: ${count} ${creatureWord(count)}`);
+    } else if (count && bridgeBrush) {
       this.hud.setReadout(removing ? `Most odstraněn: ${count}` : 'Most postaven');
     } else if (count && cliffBrush) {
       this.hud.setReadout(removing

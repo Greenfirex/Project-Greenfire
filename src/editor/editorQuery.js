@@ -106,6 +106,7 @@ export default {
         radiusKind: range.radiusKind,
         kind: entry.kind,
         tierKey,
+        pack: Boolean(entry.pack),
       });
     }
     return marks;

@@ -408,7 +408,12 @@ export default class EditorMode {
 
   get isCreatureBrush() {
     const brush = BRUSHES[this.brushKey];
-    return Boolean(brush && brush.creature);
+    return Boolean(brush && (brush.creature || brush.creatureSettings));
+  }
+
+  get isCreatureSettingsBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return Boolean(brush && brush.creatureSettings);
   }
 
   get isSpawnBrush() {
@@ -493,6 +498,8 @@ export default class EditorMode {
 
   canDraftCell(cx, cz) {
     if (!this.draft) return false;
+    const drafted = BRUSHES[this.draft.brushKey];
+    if (drafted && drafted.creatureSettings) return this.creatureAt(cx, cz) !== null;
     if (this.paintLevel < 0) {
       const painting = BRUSHES[this.draft.brushKey];
       if (!painting || !(painting.deco || painting.creature || painting.surfaceOnly)) return false;
