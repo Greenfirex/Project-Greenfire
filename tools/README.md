@@ -17,7 +17,9 @@ node tools/capture.cjs sand_devil walk --tier young --zoom 2.5
 ```
 
 Scény: `idle`, `walk`, `attack` (`--attack peck|jump` vynutí druh útoku), `hit`, `death`,
-`peck` (zobání Koa'tiki, snímky kolem každého ťuknutí). Pohledy: `side`, `side2` (z druhé strany) a `front`
+`peck` (zobání Koa'tiki, snímky kolem každého ťuknutí), `tracks` (tvor jde po písku a dělá
+stopy stejně jako ve hře; nejlépe s `--view top`, v popisku počet stop a nohou; umí i `player`,
+s `--run 1` běží). Pohledy: `side`, `side2` (z druhé strany) a `front`
 (s červenou čarou země), `diag`, `top`. Dál `--frames`, `--seconds`, `--tier`, `--zoom`
 (výška záběru v metrech).
 

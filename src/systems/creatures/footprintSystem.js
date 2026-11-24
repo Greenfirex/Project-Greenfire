@@ -10,27 +10,28 @@ const DRY_SECONDS = 12;
 const WET_SECONDS = 3.5;
 const FADE_SECONDS = 2;
 const PRINT_STYLES = {
-  human: { width: 0.24, length: 0.38, alpha: 0.44 },
+  human: { width: 0.24, length: 0.38, alpha: 0.28 },
   turtle: { width: 0.22, length: 0.38, alpha: 0.62 },
   sanddevil: { width: 0.11, length: 0.13, alpha: 0.66 },
   gnaw_rat: { width: 0.09, length: 0.11, alpha: 0.6 },
+  bird: { width: 0.26, length: 0.3, alpha: 0.62 },
 };
 const WET_ALPHA = 0.7;
+const TEXTURE_YAW = Math.PI;
 
 function makeHumanTexture(scene) {
   const texture = new DynamicTexture('footprintTexture', 64, 64, scene, false);
   const ctx = texture.getContext();
   ctx.clearRect(0, 0, 64, 64);
-  ctx.fillStyle = 'rgba(82, 60, 36, 0.62)';
-  ctx.beginPath();
-  ctx.ellipse(32, 41, 12, 19, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(32, 15, 8, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(32, 55, 8, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = 'rgb(82, 60, 36)';
+  for (const [x, y, rx, ry] of [
+    [32, 51, 9, 10], [34, 37, 7, 12], [32, 24, 12, 9],
+    [24, 10, 5, 6], [32, 8, 3.2, 3.8], [38, 9, 2.8, 3.3], [43, 11, 2.5, 3], [47, 15, 2.2, 2.6],
+  ]) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   texture.hasAlpha = true;
   texture.update(false);
   return texture;
@@ -89,6 +90,28 @@ function makeGnawRatTexture(scene) {
   return texture;
 }
 
+function makeBirdTexture(scene) {
+  const texture = new DynamicTexture('birdFootprintTexture', 64, 64, scene, false);
+  const ctx = texture.getContext();
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.strokeStyle = 'rgba(58, 45, 28, 0.8)';
+  ctx.fillStyle = 'rgba(58, 45, 28, 0.8)';
+  ctx.lineCap = 'round';
+  for (const [x, y, width] of [[32, 5, 7], [11, 13, 6], [53, 13, 6], [32, 58, 5]]) {
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(32, 38);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.ellipse(32, 37, 8, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  texture.hasAlpha = true;
+  texture.update(false);
+  return texture;
+}
+
 function makeMaterial(scene, name, texture, color) {
   const material = new StandardMaterial(name, scene);
   material.diffuseTexture = texture;
@@ -118,6 +141,7 @@ export default class FootprintSystem {
     this.materials.turtle = makeMaterial(this.s, 'turtleFootprintMaterial', makeTurtleTexture(this.s), new Color3(0.13, 0.12, 0.08));
     this.materials.sanddevil = makeMaterial(this.s, 'sandDevilFootprintMaterial', makeSandDevilTexture(this.s), new Color3(0.14, 0.12, 0.08));
     this.materials.gnaw_rat = makeMaterial(this.s, 'gnawRatFootprintMaterial', makeGnawRatTexture(this.s), new Color3(0.14, 0.12, 0.08));
+    this.materials.bird = makeMaterial(this.s, 'birdFootprintMaterial', makeBirdTexture(this.s), new Color3(0.14, 0.12, 0.08));
   }
 
   createItem(kind = 'human') {
@@ -133,7 +157,7 @@ export default class FootprintSystem {
     return item;
   }
 
-  spawn({ x, y, z, angle = 0, scale = 1, kind = 'human', wet = false }) {
+  spawn({ x, y, z, angle = 0, scale = 1, kind = 'human', wet = false, mirror = false }) {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
     let item = this.items.find((entry) => entry.life <= 0);
     if (!item) {
@@ -148,8 +172,8 @@ export default class FootprintSystem {
     item.alpha = wet ? style.alpha * WET_ALPHA : style.alpha;
     item.mesh.visibility = item.alpha;
     item.mesh.position.set(x, y, z);
-    item.mesh.rotation.y = angle;
-    item.mesh.scaling.set(style.width * scale, 1, style.length * scale);
+    item.mesh.rotation.y = angle + TEXTURE_YAW;
+    item.mesh.scaling.set(style.width * scale * (mirror ? -1 : 1), 1, style.length * scale);
   }
 
   update(dt) {

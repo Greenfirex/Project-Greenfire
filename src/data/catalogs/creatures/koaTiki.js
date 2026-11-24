@@ -672,6 +672,10 @@ export const KOA_TIKI = {
   confusedSeconds: 1.2,
   roamRadius: 2,
   entersCaves: true,
+  footprint: {
+    kind: 'bird',
+    scale: 1,
+  },
   respawnDays: 6,
   idleSeconds: [16, 30],
   idleCallSeconds: [8, 20],

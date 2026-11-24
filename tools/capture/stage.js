@@ -20,6 +20,8 @@ import {
   getCreatureType, getCreatureTier, creatureLength, creatureScale,
 } from '../../src/data/catalogs/creatures/index.js';
 import { runPlayer } from './stagePlayer.js';
+import FootprintSystem from '../../src/systems/creatures/footprintSystem.js';
+import { FOOT_PLANT_RATIO, footTrack, trackFoot } from '../../src/utils/footContact.js';
 
 const TICK = 1 / 120;
 const FRONT_SHARE = 0.25;
@@ -32,6 +34,8 @@ const VIEWS = {
   portrait: { alpha: Math.PI / 3, beta: 1.2 },
 };
 const PORTRAIT_CLEAR = new Color4(0, 0, 0, 0);
+const TRACKS_START = -1.6;
+const SAND = new Color3(0.42, 0.36, 0.26);
 
 const canvas = document.getElementById('stage');
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
@@ -105,9 +109,9 @@ function rounded(value, digits) {
 function timeline(type, rig, options) {
   const scenario = options.scene;
   const idle = { mode: 'idle', moving: false, engaged: false };
-  if (scenario === 'walk') {
+  if (scenario === 'walk' || scenario === 'tracks') {
     const speed = type.walkSpeed * 0.6;
-    return { seconds: options.seconds || 1.2, info: () => ({ mode: 'roam', moving: true, moved: speed * TICK }) };
+    return { speed, seconds: options.seconds || (scenario === 'tracks' ? 3 : 1.2), info: () => ({ mode: 'roam', moving: true, moved: speed * TICK }) };
   }
   if (scenario === 'attack') {
     const windup = type.biteWindup || 0.35;
@@ -154,6 +158,38 @@ function shotTimes(rig, options, seconds) {
   return Array.from({ length: count }, (_, index) => ({ time: (seconds * index) / Math.max(1, count - 1), label: '' }));
 }
 
+function freshPosition(node) {
+  const chain = [];
+  for (let item = node; item; item = item.parent) chain.unshift(item);
+  for (const item of chain) item.computeWorldMatrix(true);
+  return node.getAbsolutePosition();
+}
+
+function makeTracks(type, tier, model) {
+  const feet = model.rig && Array.isArray(model.rig.feet) ? model.rig.feet : [];
+  const footprint = type.footprint || {};
+  const scale = (Number.isFinite(footprint.scale) ? footprint.scale : 0.85) * (Number.isFinite(tier.scale) ? tier.scale : 1);
+  const prints = new FootprintSystem(scene);
+  const tracks = feet.map(() => footTrack());
+  let count = 0;
+  groundMaterial.diffuseColor = SAND;
+  model.holder.position.z = TRACKS_START;
+  return {
+    feet: feet.length,
+    get count() { return count; },
+    step(speed) {
+      model.holder.position.z += speed * TICK;
+      feet.forEach((node, index) => {
+        const spot = freshPosition(node);
+        const print = trackFoot(tracks[index], { x: spot.x, z: spot.z }, TICK, speed * FOOT_PLANT_RATIO);
+        if (!print) return;
+        count += 1;
+        prints.spawn({ x: print.x, y: 0.01, z: print.z, angle: 0, scale, kind: footprint.kind || 'turtle' });
+      });
+    },
+  };
+}
+
 function aimCamera(model, options) {
   const view = VIEWS[options.view] || VIEWS.side;
   camera.alpha = view.alpha;
@@ -181,7 +217,7 @@ function groundLine() {
 }
 
 async function run(options) {
-  if (options.kind === 'player') return runPlayer(options, { scene, canvas, camera, aimCamera });
+  if (options.kind === 'player') return runPlayer(options, { scene, canvas, camera, aimCamera, sand: () => { groundMaterial.diffuseColor = SAND; } });
   const type = getCreatureType(options.kind);
   if (!type) return { error: `neznámý tvor: ${options.kind}` };
   const tier = getCreatureTier(type, options.tier);
@@ -204,6 +240,7 @@ async function run(options) {
     if (problem) return { error: problem };
   }
   const plan = timeline(type, rig, options);
+  const tracks = options.scene === 'tracks' ? makeTracks(type, tier, model) : null;
   const shots = options.portrait ? [{ time: 1, label: '' }] : shotTimes(rig, options, plan.seconds);
   const frames = [];
   let clock = 0;
@@ -213,6 +250,7 @@ async function run(options) {
       if (plan.after) plan.after(clock);
       clock += TICK;
       model.holder.position.y = posed && Number.isFinite(posed.bob) ? posed.bob : 0;
+      if (tracks) tracks.step(plan.speed);
     }
   };
   for (const shot of shots) {
@@ -224,11 +262,12 @@ async function run(options) {
     } else {
       stepTo(shot.time);
     }
+    if (tracks) await scene.whenReadyAsync();
     scene.render();
     const low = lowestPoints(model.body, model.length * FRONT_SHARE);
     frames.push({
       time: Number(shot.time.toFixed(2)),
-      label: shot.label,
+      label: tracks ? `${shot.label}stopy ${tracks.count} (nohy ${tracks.feet})` : shot.label,
       lowest: rounded(low.all && low.all.y, 3),
       lowestAt: rounded(low.all && low.all.z, 2),
       front: rounded(low.front && low.front.y, 3),

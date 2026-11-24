@@ -45,9 +45,9 @@ export default {
     this.sandBursts.burst(creature.x, y, creature.z, tierScale, creature.emergeSeconds);
   },
 
-  footfall(x, z, angle, scale, kind, strength = 1) {
+  footfall(x, z, angle, scale, kind, strength = 1, mirror = false) {
     this.stepSplash(x, z, strength);
-    this.spawnFootprint(x, z, angle, scale, kind);
+    this.spawnFootprint(x, z, angle, scale, kind, mirror);
   },
 
   stepSplash(x, z, strength) {
@@ -57,7 +57,7 @@ export default {
     this.waterSystem.splash(x, z, strength);
   },
 
-  spawnFootprint(x, z, angle, scale, kind = 'human') {
+  spawnFootprint(x, z, angle, scale, kind = 'human', mirror = false) {
     if (!Number.isFinite(x) || !Number.isFinite(z)) return;
     if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null) return;
     const cx = worldToCell(x);
@@ -67,6 +67,6 @@ export default {
     const depth = this.waterDepthNowAt(x, z);
     if (depth > FOOTPRINT_WATER_DEPTH) return;
     const y = this.terrainSystem.walkHeightAt(x, z) + 0.025;
-    this.footprintSystem.spawn({ x, y, z, angle, scale, kind, wet: depth > WATER_STEP_DEPTH });
+    this.footprintSystem.spawn({ x, y, z, angle, scale, kind, mirror, wet: depth > WATER_STEP_DEPTH });
   },
 };

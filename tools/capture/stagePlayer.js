@@ -1,14 +1,16 @@
 // Fotoateliér pro hratelnou postavu: stejná postava i úchop nástroje jako ve hře, jen v prázdné scéně.
 // Spouští ho stage.js, když se místo tvora zadá "player"; ke snímkům změří, kam míří nástroj v ruce.
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import PlayerSystem from '../../src/systems/player/playerSystem.js';
+import PlayerSystem, { WALK_SPEED, MOVE_SPEED } from '../../src/systems/player/playerSystem.js';
+import FootprintSystem from '../../src/systems/creatures/footprintSystem.js';
 import { TOOL_TYPES, ITEM_TYPES } from '../../src/data/catalogs/items.js';
 
 const STEP = 1 / 60;
 const TOOL_WAIT_MS = 15000;
 const LID_AHEAD = 0.65;
 const HIP_LENGTH = 0.8;
-const SCENES = ['idle', 'walk', 'run', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway', 'eat', 'use'];
+const TRACKS_START = -1.6;
+const SCENES = ['idle', 'walk', 'run', 'tracks', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway', 'eat', 'use'];
 const EAT_LENGTH = 1.6;
 const USE_LENGTH = 0.7;
 const HIP_SCENES = ['draw', 'sheath', 'grab', 'putaway'];
@@ -53,7 +55,30 @@ function sheathGap(player, node) {
   return { ahead: rounded(Vector3.Dot(gap, forward), 3), up: rounded(gap.y, 3), total: rounded(gap.length(), 3) };
 }
 
-export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
+function walkTracks(player, scene, run, sand) {
+  const prints = new FootprintSystem(scene);
+  const speed = run ? MOVE_SPEED : WALK_SPEED;
+  let count = 0;
+  sand();
+  player.play(run ? 'run' : 'walk', true);
+  player.facing = 0;
+  player.bodyFacing = 0;
+  player.root.rotation.y = 0;
+  player.root.position.z = TRACKS_START;
+  player.onFootPlant = (x, z, facing, side) => {
+    count += 1;
+    prints.spawn({ x, y: 0.01, z, angle: facing, kind: 'human', mirror: side === 'left' });
+  };
+  return {
+    get count() { return count; },
+    step() {
+      player.root.position.z += speed * STEP;
+      player.updateFootprints(STEP, run);
+    },
+  };
+}
+
+export async function runPlayer(options, { scene, canvas, camera, aimCamera, sand }) {
   const scenario = SCENES.includes(options.scene) ? options.scene : 'idle';
   const toolKey = options.tool || null;
   if (toolKey && !TOOL_TYPES[toolKey]) return { error: `neznámý nástroj: ${toolKey}` };
@@ -182,6 +207,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
   }
   if (scenario === 'walk' || scenario === 'run') player.play(scenario, true);
   const moving = scenario === 'walk' || scenario === 'run';
+  const tracks = scenario === 'tracks' ? walkTracks(player, scene, Boolean(options.run), sand) : null;
 
   const count = Math.max(1, options.frames || 8);
   const shots = Array.from({ length: count }, (_, index) => (seconds * index) / Math.max(1, count - 1));
@@ -201,19 +227,21 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera }) {
         started = true;
       }
       player.kneeling = Boolean(options.kneel) && clock < lead + options.kneel;
-      if (!moving) player.update(STEP);
+      if (tracks) tracks.step();
+      else if (!moving) player.update(STEP);
       aimFocus();
       scene.render();
       clock += STEP;
       stepped = true;
     }
-    if (!stepped) {
+    if (tracks) await scene.whenReadyAsync();
+    if (!stepped || tracks) {
       aimFocus();
       scene.render();
     }
     frames.push({
       time: Number(time.toFixed(2)),
-      label: player.currentKey || '',
+      label: tracks ? `${player.currentKey || ''} stopy ${tracks.count}` : player.currentKey || '',
       tool: toolReport(player),
       hand: player.handSlot ? rounded(player.handSlot.getAbsolutePosition().y, 2) : null,
       image: canvas.toDataURL('image/png'),

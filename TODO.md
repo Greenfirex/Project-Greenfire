@@ -46,7 +46,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Etapa 3 — kořist
 
 - [ ] Doladit množství kořisti podle stáří tvora a rozhodnout, jestli má část padat na zem.
-- [ ] Koa'tiki: stopy ze skutečných chodidel místo jedné šmouhy.
 - [ ] Koa'tiki: u jednoho ze tří tvorů se nepovedla kalibrace čelisti (v konzoli „dolů o -0,187") — čelist se mu neotevře. Zjistit proč a opravit výpočet.
 
 ### Etapa 4 — doladění boje
@@ -62,7 +61,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Hryzokrysa: z modelu vyhodit nepoužité animace (`cat_idle2`, `wolf_idle1`, `fox_mon_xiaohuli_01_xiuwen`, `wolf_jump_*`, `wolf_walk_fight_forward`), pokud se nebudou hodit.
 - [ ] Smečka (volba v editoru): vyzkoušet ve hře, že zavolaní přiběhnou k vůdci a zaútočí s ním; doladit dosah zavolání (10 m), jak dlouho vůdce čeká na ostatní (3 s) a jak dlouho zůstanou rozzuření (8 s).
 
-- [ ] Kajmanka: stopy spočítat z reálných chodidel místo odhadu.
 - [ ] Koa'tiki: běh v honičce (předklon, natažený krk, rovný ocas), tápání jako rychlé rozhlížení bez zobání.
 - [ ] README tvorů uvádí u Koa'tiki zrychlení v honičce 1,35, v datech je 1,6 — sjednotit.
 - [ ] Ověřit licenční podmínky balíčku Darkworld (License Agreement.pdf) a případně upravit CREDITS.
