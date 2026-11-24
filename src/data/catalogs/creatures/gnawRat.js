@@ -239,6 +239,8 @@ function build(mesh, skeleton, animationGroups) {
       { sway: UP_AXIS, lift: SIDE_AXIS },
     ),
     legs,
+    feet: LEGS.map((spec) => findBone(bones, spec.toe)).filter(Boolean)
+      .map((bone) => bone.getTransformNode()).filter(Boolean),
     frontNodes: new Set(LEGS.filter((spec) => spec.front)
       .flatMap((spec) => [spec.upper, spec.mid, spec.low, spec.paw, spec.toe])
       .map((name) => findBone(bones, name)).filter(Boolean).map((bone) => bone.getTransformNode()).filter(Boolean)),
@@ -524,14 +526,6 @@ export const GNAW_RAT = {
   footprint: {
     kind: 'gnaw_rat',
     scale: 0.85,
-    stepDistance: 0.085,
-    feet: [
-      { side: -0.071, forward: 0.387 },
-      { side: 0.068, forward: 0.387 },
-      { side: -0.079, forward: 0.088 },
-      { side: 0.073, forward: 0.088 },
-    ],
-    order: [0, 3, 1, 2],
   },
   respawnDays: 3,
   idleSeconds: [6, 14],

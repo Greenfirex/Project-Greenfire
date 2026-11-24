@@ -265,24 +265,15 @@ a vynásobením měřítkem modelu — z toho vyjde tabulka chodidel pro stopy a
 footprint: {
   kind: 'sanddevil',         // který obrázek stopy a jak je velká
   scale: 1,                  // násobek velikosti stopy
-  stepDistance: 0.113,       // po kolika metrech udělá další stopu (jedno došlápnutí)
-  feet: [{ side, forward }], // kde má chodidla (side = do strany, forward = dopředu)
-  order: [0, 1, 2, 3, 4, 5], // v jakém pořadí nohy našlapují, jedna po druhé
 }
 ```
 
-- `feet` se počítá z reálných špiček nohou v modelu vynásobených měřítkem modelu;
-  odhad „všechny nohy stejně“ je vidět jako stopy mimo tělo.
-- `forward` je nepovinné. Když chybí, položí se stopa přímo na cestu vedle těla.
-  U zvířete, jehož přední a zadní nohy jsou od sebe blíž než jeho krok, by se
-  stopy jinak kupily na jednom místě (zadní by došlápla na stopu přední).
-- `order` musí odpovídat fázím v rigu — jedna noha po druhé, v pořadí, v jakém je
-  animace zvedá. Čtyřnohý tvor jde laterálním krokem (přední levá, zadní levá,
-  přední pravá, zadní pravá), šestinohý našlapuje po trojicích. Když se to rozejde,
-  tvor našlapuje proti animaci.
-- `stepDistance` je vzdálenost mezi dvěma došlápnutími, ne celý cyklus nohou.
-  Musí sedět s tempem animace: vzdálenost = rychlost chůze × doba mezi dvěma
-  došlápnutími. Když je moc malá, sype stopy hustěji, než našlapuje.
+- Kde a kdy stopa vznikne, určují skutečné nohy: rig vrátí z `build` pole `feet`
+  s uzly kostí chodidel (špičky nebo prsty). Systém tvorů je sleduje a stopu
+  otiskne tam, kde chodidlo při chůzi stálo nejklidněji na zemi.
+- Noha, která se nese ve vzduchu spolu s tělem (zvednutá klepeta), stopu nedělá,
+  protože se vůči zemi hýbe stejně rychle jako tvor.
+- Rig bez `feet` stopy nedělá.
 
 ## Zvuky
 

@@ -400,8 +400,11 @@ function build(mesh, skeleton) {
   const signs = (leg) => `${leg.forward > 0 ? '+' : '-'}${leg.kneeUp > 0 ? '+' : '-'}${leg.toeUp > 0 ? '+' : '-'}`;
   console.info(`[koa-tiki] nohy: ${legs.map((leg) => `${leg.id}(${signs(leg)}, rozkmit ${leg.amplitude.toFixed(2)})`).join(', ')}; krok ${stride.toFixed(2)} m; ocas: ${tail.length}; krk: ${neck.length}; ${head ? 'lebka' : 'bez lebky'}${jawNote}${mouth ? ', tlama' : ''}`);
 
+  const feet = LEGS.map((spec) => findBone(bones, spec.toe) || findBone(bones, spec.foot)).filter(Boolean)
+    .map((bone) => bone.getTransformNode()).filter(Boolean);
   return {
     legs,
+    feet,
     body,
     neck,
     tail,

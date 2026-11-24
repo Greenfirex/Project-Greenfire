@@ -186,8 +186,11 @@ function build(mesh, skeleton) {
   const tailBone = findBone(bones, TAIL_BONE);
   const tail = tailBone ? axisEntry(tailBone, { sway: UP_AXIS }) : null;
   console.info(`[sand-devil] nohy: ${legs.map((leg) => `${leg.id}(${leg.length.toFixed(2)}, krok ${leg.amplitude.toFixed(2)})`).join(', ')}; telo: ${body.length}, chapadla: ${tentacles.length}, kusadla: ${jaws.length}${tail ? ', ocas' : ''}`);
+  const feet = LEG_SPECS.map((spec) => findBone(bones, spec.tip)).filter(Boolean)
+    .map((bone) => bone.getTransformNode()).filter(Boolean);
   return {
     legs,
+    feet,
     tapLeg,
     body,
     tentacles,
@@ -384,14 +387,6 @@ export const SAND_DEVIL = {
   footprint: {
     kind: 'sanddevil',
     scale: 1,
-    stepDistance: STRIDE_LENGTH / 4,
-    feet: [
-      { side: -0.377, forward: 0.002 },
-      { side: 0.273, forward: -0.206 },
-      { side: 0.377, forward: 0.002 },
-      { side: -0.288, forward: -0.156 },
-    ],
-    order: [0, 1, 2, 3],
   },
   respawnDays: 5,
   idleSeconds: [3, 7],

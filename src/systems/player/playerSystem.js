@@ -7,6 +7,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords, cellToWorldCoords } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { FOOT_PLANT_RATIO, footTrack, trackFoot, releaseFoot } from '../../utils/footContact.js';
 import { TOOL_TYPES } from '../../data/catalogs/items.js';
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
 import {
@@ -119,20 +120,13 @@ const FLINCH_PLAY = 0.5;
 const DEATH_OVERLAY_FALLBACK = 0.8;
 const STEP_DISTANCE = 1.5;
 const FOOT_SIDES = ['left', 'right'];
-const FOOT_PLANT_RATIO = 0.5;
 const FOOT_PLANT_SPEED = 0.2;
-const FOOT_PLANT_MIN = 0.05;
-const FOOT_PLANT_HOLD = 0.25;
 const FOOT_SOLE_CENTER = 0.55;
 const FOOT_TURN_MIN = 0.03;
 const FOOT_TURN_MAX = 0.25;
 const FOOT_FALLBACK = { walk: 1.25, sprint: 1.0 };
 const FOOT_SIDE_OFFSET = 0.1;
 const START_LYING = false;
-
-function emptyFootTrack() {
-  return { prev: null, time: 0, best: null, bestSpeed: Infinity, done: false };
-}
 const TOOL_SCALE = 0.95;
 const TOOL_POSITION = new Vector3(-0.12, 0.12, 0.04);
 const TOOL_ROTATION = new Vector3(0, 0, -0.45);
@@ -303,7 +297,7 @@ export default class PlayerSystem {
     this.footBones = { left: null, right: null };
     this.toeBones = { left: null, right: null };
     this.stepSide = 1;
-    this.footTrack = { left: emptyFootTrack(), right: emptyFootTrack() };
+    this.footTrack = { left: footTrack(), right: footTrack() };
     this.footIdle = { left: 0, right: 0 };
     this.footRoot = null;
     this.footInitialized = false;
@@ -1968,38 +1962,16 @@ export default class PlayerSystem {
   trackFootContact(side, seconds, body, sprint) {
     const sample = this.soleSample(side);
     if (!sample) return;
-    const track = this.footTrack[side];
-    const prev = track.prev;
-    track.prev = sample;
-    if (!prev) return;
-    const speed = Math.hypot(sample.x - prev.x, sample.z - prev.z) / seconds;
-    if (speed > Math.max(FOOT_PLANT_SPEED, body * FOOT_PLANT_RATIO)) {
-      this.releaseFoot(side, sprint);
-      return;
-    }
-    track.time += seconds;
-    if (speed < track.bestSpeed) {
-      track.bestSpeed = speed;
-      track.best = sample;
-    }
-    if (!track.done && track.time >= FOOT_PLANT_HOLD) {
-      track.done = true;
-      this.plantFoot(side, track.best, sprint);
-    }
-  }
-
-  releaseFoot(side, sprint) {
-    const track = this.footTrack[side];
-    if (!track.done && track.best && track.time >= FOOT_PLANT_MIN) this.plantFoot(side, track.best, sprint);
-    track.time = 0;
-    track.best = null;
-    track.bestSpeed = Infinity;
-    track.done = false;
+    const print = trackFoot(this.footTrack[side], sample, seconds, Math.max(FOOT_PLANT_SPEED, body * FOOT_PLANT_RATIO));
+    if (print) this.plantFoot(side, print, sprint);
   }
 
   flushFootprints() {
     if (!this.footInitialized || !this.onFootPlant) return;
-    for (const side of FOOT_SIDES) this.releaseFoot(side, this.footSprint);
+    for (const side of FOOT_SIDES) {
+      const print = releaseFoot(this.footTrack[side]);
+      if (print) this.plantFoot(side, print, this.footSprint);
+    }
   }
 
   soleSample(side) {
@@ -2032,7 +2004,7 @@ export default class PlayerSystem {
   resetFootTracking() {
     this.footRoot = null;
     for (const side of FOOT_SIDES) {
-      this.footTrack[side] = emptyFootTrack();
+      this.footTrack[side] = footTrack();
       this.footIdle[side] = 0;
     }
   }

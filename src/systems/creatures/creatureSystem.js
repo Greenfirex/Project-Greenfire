@@ -29,11 +29,14 @@ import { DOOR_FRAME_DEPTH } from '../../data/maps/areaShape.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { findCellPath } from '../../utils/gridPath.js';
 import { OUTLINE_GOLD, OUTLINE_CALM, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
+import { FOOT_PLANT_RATIO, footTrack, trackFoot, releaseFoot } from '../../utils/footContact.js';
 
 const TURN_SPEED = 7;
 const EMERGE_TURN_SPEED = 18;
 const TURN_STEP_GAP = 0.12;
 const RENDER_SMOOTHING = 0.001;
+const FOOT_BODY_MIN = 0.05;
+const FOOT_HIDDEN_MODES = ['buried', 'emerging', 'burying'];
 const SPOT_STEP = 0.5;
 const SPOT_REACH = 12;
 const PATH_SAMPLE = 0.3;
@@ -181,7 +184,7 @@ export default class CreatureSystem {
     this.pathCells = new Map();
     this.playerAt = null;
     this.defenseAt = null;
-    this.onStep = null;
+    this.onFootPlant = null;
     this.onDig = null;
     this.onBite = null;
     this.onBiteMiss = null;
@@ -456,8 +459,8 @@ export default class CreatureSystem {
       cooldown: 0,
       walking: false,
       blockedTime: 0,
-      stepTravelled: 0,
-      stepIndex: 0,
+      footTracks: null,
+      footRoot: null,
       path: null,
       pathIndex: 0,
       pathClock: 0,
@@ -1481,8 +1484,6 @@ export default class CreatureSystem {
   }
 
   walkTo(creature, targetX, targetZ, speed, dt) {
-    const startX = creature.x;
-    const startZ = creature.z;
     const dx = targetX - creature.x;
     const dz = targetZ - creature.z;
     const distance = Math.hypot(dx, dz);
@@ -1509,15 +1510,6 @@ export default class CreatureSystem {
     creature.stuckTime = 0;
     creature.walking = true;
     creature.facing = turnToward(creature.facing, Math.atan2(dirX, dirZ), creature.type.turnRate * dt);
-    creature.stepTravelled += Math.hypot(creature.x - startX, creature.z - startZ);
-    const stepDistance = creature.type.footprint && Number.isFinite(creature.type.footprint.stepDistance)
-      ? creature.type.footprint.stepDistance
-      : Math.max(0.6, creatureLength(creature.type) * 0.7);
-    if (creature.stepTravelled >= stepDistance) {
-      creature.stepTravelled = 0;
-      creature.stepIndex += 1;
-      if (this.onStep) this.onStep(creature, creature.stepIndex);
-    }
     return false;
   }
 
@@ -1535,9 +1527,9 @@ export default class CreatureSystem {
       while (faceGap > Math.PI) faceGap -= Math.PI * 2;
       while (faceGap < -Math.PI) faceGap += Math.PI * 2;
       const turning = Math.abs(faceGap) > TURN_STEP_GAP;
-      const moved = Math.hypot(creature.x - creature.poseX, creature.z - creature.poseZ);
-      creature.poseX = creature.x;
-      creature.poseZ = creature.z;
+      const moved = Math.hypot(creature.renderX - creature.poseX, creature.renderZ - creature.poseZ);
+      creature.poseX = creature.renderX;
+      creature.poseZ = creature.renderZ;
       const pose = creature.type.rig
         ? creature.type.rig.pose(creature.rig, seconds, {
           mode: this.shownMode(creature),
@@ -1560,6 +1552,7 @@ export default class CreatureSystem {
       }
       const bob = pose && Number.isFinite(pose.bob) ? pose.bob : 0;
       this.placeHolder(creature, bob, seconds);
+      this.trackFeet(creature, seconds);
       this.measureOutline(creature);
       const rising = creature.mode === 'emerging';
       const hidden = creature.buried && !rising;
@@ -1578,6 +1571,30 @@ export default class CreatureSystem {
       this.updateMarker(creature, seconds);
     }
     this.updateCorpses(seconds);
+  }
+
+  trackFeet(creature, seconds) {
+    const feet = creature.rig && creature.rig.feet;
+    if (!this.onFootPlant || !Array.isArray(feet) || !feet.length || !(seconds > 0)) return;
+    if (!creature.footTracks) creature.footTracks = feet.map(() => footTrack());
+    const last = creature.footRoot;
+    creature.footRoot = { x: creature.renderX, z: creature.renderZ };
+    const body = last ? Math.hypot(creature.renderX - last.x, creature.renderZ - last.z) / seconds : 0;
+    const hidden = creature.buried || creature.unseen || FOOT_HIDDEN_MODES.includes(creature.mode);
+    if (hidden || body < FOOT_BODY_MIN) {
+      for (const track of creature.footTracks) {
+        const print = releaseFoot(track);
+        track.prev = null;
+        if (print && !hidden) this.onFootPlant(creature, print.x, print.z);
+      }
+      return;
+    }
+    feet.forEach((node, index) => {
+      if (!node || node.isDisposed()) return;
+      const spot = node.getAbsolutePosition();
+      const print = trackFoot(creature.footTracks[index], { x: spot.x, z: spot.z }, seconds, body * FOOT_PLANT_RATIO);
+      if (print) this.onFootPlant(creature, print.x, print.z);
+    });
   }
 
   setSeen(creature, seen) {

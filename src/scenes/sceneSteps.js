@@ -29,34 +29,13 @@ export default {
     return buildingKey || pathKey || floorKey || '';
   },
 
-  onCreatureStep(creature, step) {
+  onCreatureFoot(creature, x, z) {
     if (!creature || !creature.type) return;
     const footprint = creature.type.footprint || {};
     const tierScale = creature.tier && Number.isFinite(creature.tier.scale) ? creature.tier.scale : 1;
     const scale = (Number.isFinite(footprint.scale) ? footprint.scale : 0.85) * tierScale;
-    const angle = creature.holder && Number.isFinite(creature.holder.rotation.y)
-      ? creature.holder.rotation.y
-      : (Number.isFinite(creature.renderFacing) ? creature.renderFacing : (Number.isFinite(creature.facing) ? creature.facing : 0)) + (creature.type.yawOffset || 0);
-    const kind = footprint.kind || 'turtle';
-    const feet = Array.isArray(footprint.feet) ? footprint.feet : null;
-    if (feet && feet.length) {
-      const order = Array.isArray(footprint.order) && footprint.order.length
-        ? footprint.order
-        : feet.map((_, index) => index);
-      const foot = feet[order[step % order.length]];
-      if (!foot) return;
-      const lateral = (Number(foot.side) || 0) * tierScale;
-      const forward = (Number(foot.forward) || 0) * tierScale;
-      const x = creature.x + Math.cos(angle) * lateral + Math.sin(angle) * forward;
-      const z = creature.z - Math.sin(angle) * lateral + Math.cos(angle) * forward;
-      this.footfall(x, z, angle, scale, kind, 0.45 + scale);
-      return;
-    }
-    const offset = Number.isFinite(footprint.offset) ? footprint.offset : 0.22;
-    const direction = step % 2 === 0 ? 1 : -1;
-    const x = creature.x + Math.cos(angle + Math.PI / 2) * offset * tierScale * direction;
-    const z = creature.z + Math.sin(angle + Math.PI / 2) * offset * tierScale * direction;
-    this.footfall(x, z, angle, scale, kind, 0.45 + scale);
+    const angle = Number.isFinite(creature.renderFacing) ? creature.renderFacing : (Number.isFinite(creature.facing) ? creature.facing : 0);
+    this.footfall(x, z, angle, scale, footprint.kind || 'turtle', 0.45 + scale);
   },
 
   onCreatureDig(creature) {

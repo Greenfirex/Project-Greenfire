@@ -88,6 +88,7 @@ function legEntry(key, list, sweep) {
     key,
     entry,
     joint,
+    foot: foot.bone.getTransformNode() || null,
     side: root.x < 0 ? -1 : 1,
     forward: reach.y < 0 ? -1 : 1,
     offset: LEG_PHASES[key],
@@ -143,6 +144,7 @@ function build(mesh, skeleton) {
   const headItem = head.length ? head.reduce((best, item) => (item.z < best.z ? item : best)) : null;
   return {
     legs: legEntries,
+    feet: legEntries.map((leg) => leg.foot).filter(Boolean),
     head: headItem ? headEntry(headItem.bone) : null,
     tail: tailChain(skeleton, tail),
     phase: Math.random(),
@@ -265,14 +267,6 @@ export const SNAPPING_TURTLE = {
   footprint: {
     kind: 'turtle',
     scale: 0.33,
-    stepDistance: STRIDE_LENGTH / 4,
-    feet: [
-      { side: 0.2 },
-      { side: -0.157 },
-      { side: 0.204 },
-      { side: -0.178 },
-    ],
-    order: [1, 3, 0, 2],
   },
   respawnDays: 3,
   idleSeconds: [2.5, 6],
