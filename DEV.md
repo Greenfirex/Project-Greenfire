@@ -134,11 +134,13 @@ ukazuje seznam receptů a tlačítko Vyrobit, co jde vyrobit z batohu, počítá
 do ceny nepočítá. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
 Rozpracované a plánované věci jsou v `TODO.md`.
 
-Dolní lišta (`src/ui/dock.js`, `dockArea`) má tři části: vlevo nápověda myši
-(`mouseHint.js`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní ji
-`refreshMouseHint` ve scéně podle toho, na co se míří, `pointerAction`), uprostřed
-ukazatele zdraví a výdrže nad lištou nástrojů a vpravo malá tlačítka oken
-(`DockButton` s písmenem klávesy; skládají se do dvou řad a další přibývají doprava).
+Dolní lišta (`src/ui/dock.js`, `dockArea`) má uprostřed ukazatele zdraví a výdrže nad
+lištou nástrojů a vpravo malá tlačítka oken (`DockButton` s písmenem klávesy; skládají
+se do dvou řad a další přibývají doprava); vlevo je prázdné místo stejné šířky, aby
+lišta zůstala uprostřed. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
+na co se míří (`show`; doplněk rozdělený ` · ` jde na samostatné řádky), pod čarou
+nápověda myši (`setMouse`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní
+ji `refreshMouseHint` ve scéně podle `pointerAction`).
 
 Velikost rozhraní (volba `uiScale`, 80–140 %) zvětšuje celou vrstvu `#hud-layer` přes CSS `zoom`
 (proměnná `--ui-scale`). Věci umístěné podle bodu na obrazovce (plovoucí čísla, ukazatele nad

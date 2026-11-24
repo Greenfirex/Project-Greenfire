@@ -5,6 +5,8 @@ import { itemIconElement } from './itemIcons.js';
 import { HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 import { dockArea } from './dock.js';
 
+const slotKey = (index) => String((index + 1) % 10);
+
 export default class Hotbar {
 
   constructor() {
@@ -28,7 +30,7 @@ export default class Hotbar {
     const dock = dockArea('center');
     const root = document.createElement('div');
     root.className = 'hotbar';
-    root.innerHTML = `<div class="hotbar__slots"></div><div class="hotbar__hint"><span class="hud-key">1</span>–<span class="hud-key">${HOTBAR_SLOTS}</span> výběr · pravý klik v batohu sem dá nástroj, jídlo sem přetáhni</div>`;
+    root.innerHTML = '<div class="hotbar__slots"></div>';
     this.slotsEl = root.querySelector('.hotbar__slots');
     for (let index = 0; index < HOTBAR_SLOTS; index += 1) this.slotEls.push(this.createSlot(index));
     dock.appendChild(root);
@@ -124,22 +126,21 @@ export default class Hotbar {
       btn.classList.toggle('is-active', Boolean(tool) && key === this.heldKey);
       if (!tool) {
         btn.title = 'Prázdný slot — přetáhni sem věc z batohu';
-        btn.innerHTML = `<span class="hotbar__key">${index + 1}</span><span class="hotbar__icon">·</span><span class="hotbar__name">—</span>`;
+        btn.innerHTML = `<span class="hotbar__key">${slotKey(index)}</span><span class="hotbar__icon">·</span><span class="hotbar__name">—</span>`;
         return;
       }
       const action = tool.food ? 'klik sní' : 'klik vezme do ruky';
       btn.title = locked
         ? `${tool.displayName} — zatím nemáš (pravé tlačítko odebere)`
-        : `${tool.displayName} (${index + 1}) — ${action}, pravé tlačítko odebere z lišty`;
+        : `${tool.displayName} (${slotKey(index)}) — ${action}, pravé tlačítko odebere z lišty`;
       const keyLabel = document.createElement('span');
       keyLabel.className = 'hotbar__key';
-      keyLabel.textContent = String(index + 1);
+      keyLabel.textContent = slotKey(index);
       const icon = itemIconElement(tool.item, 'hotbar__icon');
       const name = document.createElement('span');
       name.className = 'hotbar__name';
       name.textContent = tool.shortName;
       btn.replaceChildren(keyLabel, icon, name);
     });
-    this.root.classList.toggle('is-armed', Boolean(this.heldKey));
   }
 }

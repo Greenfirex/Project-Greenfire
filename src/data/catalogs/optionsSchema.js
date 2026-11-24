@@ -17,6 +17,7 @@ export const OPTION_DEFAULTS = {
   combatDetails: false,
   uiScale: 100,
   playerBars: 'dock',
+  panelTransparency: 100,
   sfxVolume: 70,
   ambientVolume: 25,
   musicVolume: 40,

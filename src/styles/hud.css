@@ -67,15 +67,13 @@
   filter: brightness(1.18);
 }
 
-.dock-panel,
-.hotbar__slot {
+.dock-panel {
   border: none;
   background: var(--ui-slot) center / 100% 100% no-repeat;
   text-shadow: 0 1px 2px #000;
 }
 
-.dock-panel.is-active,
-.hotbar__slot.is-active {
+.dock-panel.is-active {
   filter: brightness(1.15) drop-shadow(0 0 6px rgba(63, 212, 131, 0.75));
 }
 
@@ -182,14 +180,14 @@
   pointer-events: none;
 }
 
-.hud-dock__hint,
+.hud-dock::before,
 .hud-dock__buttons {
   flex: 0 0 170px;
   display: flex;
 }
 
-.hud-dock__hint {
-  justify-content: flex-end;
+.hud-dock::before {
+  content: '';
 }
 
 .hud-dock__center {
@@ -222,7 +220,7 @@
 
 .hotbar__slots {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Malá tlačítka oken — ikona a písmeno klávesy v rohu, jméno při najetí. */
@@ -261,28 +259,7 @@
   opacity: 0.8;
 }
 
-/* Nápověda myši — malá myš s rozsvícenou půlkou a co tlačítko udělá. */
-.mouse-hint {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 150px;
-  padding: 6px 8px;
-  background: rgba(10, 18, 13, 0.72);
-  border: 1px solid rgba(201, 162, 94, 0.45);
-  border-radius: 6px;
-  color: var(--text-main);
-  font-size: 11px;
-  line-height: 1.3;
-  text-shadow: 0 1px 2px #000;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.mouse-hint.is-hidden {
-  visibility: hidden;
-}
-
+/* Nápověda myši v panelu vpravo dole — malá myš s rozsvícenou půlkou a co tlačítko udělá. */
 .mouse-hint__row {
   display: flex;
   align-items: center;
@@ -298,8 +275,8 @@
 .mouse-hint__icon {
   position: relative;
   flex: 0 0 auto;
-  width: 11px;
-  height: 16px;
+  width: 13px;
+  height: 19px;
   border: 1.5px solid var(--text-dim);
   border-radius: 6px 6px 6px 6px;
   overflow: hidden;
@@ -334,23 +311,14 @@
 .mouse-hint__keys {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px 8px;
-  margin-top: 2px;
+  gap: 4px 10px;
+  margin-top: 4px;
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .mouse-hint__key-item .hud-key {
-  font-size: 9px;
-}
-
-.hotbar__hint {
-  margin-top: 6px;
-  text-align: center;
-  font-size: 10px;
-  color: var(--text-dim);
-  line-height: 1.4;
-  pointer-events: none;
+  font-size: 11px;
 }
 
 .hotbar__slot {
@@ -358,16 +326,29 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  width: 64px;
-  padding: 8px 4px 6px;
+  justify-content: center;
+  gap: 3px;
+  width: 54px;
+  height: 54px;
+  padding: 10px 2px 3px;
+  background: #070807;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
   color: var(--text-dim);
-  font-size: 10px;
+  font-family: inherit;
+  font-size: 9px;
+  text-shadow: 0 1px 2px #000;
   cursor: pointer;
 }
 
-.hotbar__slot:hover,
+.hotbar__slot:hover {
+  border-color: rgba(201, 162, 94, 0.55);
+  color: var(--text-main);
+}
+
 .hotbar__slot.is-active {
+  border-color: rgba(63, 212, 131, 0.85);
+  box-shadow: 0 0 6px rgba(63, 212, 131, 0.6), inset 0 0 8px rgba(63, 212, 131, 0.25);
   color: var(--text-main);
 }
 
@@ -375,17 +356,22 @@
 .hotbar__slot.is-empty:hover,
 .hotbar__slot.is-locked,
 .hotbar__slot.is-locked:hover {
+  background: #050505;
+  border-color: rgba(255, 255, 255, 0.04);
   color: rgba(166, 157, 134, 0.45);
-  opacity: 0.55;
   cursor: default;
+}
+
+.hotbar__slot.is-locked .hotbar__icon {
+  opacity: 0.45;
 }
 
 .hotbar__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   font-size: 18px;
   line-height: 1;
 }
@@ -399,8 +385,8 @@
 
 .hotbar__key {
   position: absolute;
-  top: 5px;
-  left: 8px;
+  top: 2px;
+  left: 4px;
   font-size: 9px;
   font-weight: 600;
   color: var(--glow-warm);
@@ -408,20 +394,10 @@
 }
 
 .hotbar__name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.hotbar__hint {
-  margin-top: 6px;
-  text-align: center;
-  font-size: 10px;
-  color: var(--text-dim);
-  line-height: 1.4;
-  pointer-events: none;
-}
-
-.hotbar.is-armed .hotbar__hint {
-  color: var(--glow-accent);
 }
 
 .hud-panel h2 {
@@ -495,18 +471,81 @@
 
 /* Log vlevo dole — poslední události ve hře, nejnovější nahoře. */
 .hud-log {
+  display: flex;
+  flex-direction: column;
   bottom: 12px;
   left: 12px;
   width: 300px;
   max-width: 300px;
-  padding: 4px 8px;
+}
+
+.hud-log h2 {
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  margin-bottom: 2px;
+}
+
+.log-filters {
+  display: flex;
+  gap: 12px;
+}
+
+.log-filter {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  text-shadow: 0 1px 2px #000;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.log-filter:hover,
+.log-filter.is-active {
+  color: var(--text-main);
+  opacity: 1;
+}
+
+.log-filters,
+.hud-tooltip__target {
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(201, 162, 94, 0.35);
+}
+
+/* Log a panel vpravo dole mají stejnou výšku, aby nadpisy seděly v jedné řadě, a rámeček s pozadím zvlášť pod textem,
+   aby šly zprůhlednit (volba panelTransparency). */
+.hud-log,
+.hud-tooltip {
+  height: 210px;
+  padding: 8px 12px;
+  border-image: none;
+  background: none;
+}
+
+.hud-log::before,
+.hud-tooltip::before {
+  content: '';
+  position: absolute;
+  inset: -15px;
+  z-index: -1;
+  border: 15px solid transparent;
+  border-image: var(--ui-frame) 170 / 32px stretch;
+  background: var(--ui-fill) center / cover padding-box;
+  opacity: var(--panel-backdrop, 1);
+  pointer-events: none;
 }
 
 .log-list {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  height: 186px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -516,6 +555,10 @@
 
 .log-list > * {
   flex-shrink: 0;
+}
+
+.log-list > :first-child {
+  margin-top: auto;
 }
 
 .log-row {
@@ -881,8 +924,8 @@
 }
 
 .hotbar__slot.is-drop {
-  opacity: 1;
-  filter: brightness(1.2) drop-shadow(0 0 6px rgba(201, 162, 94, 0.85));
+  background: rgba(201, 162, 94, 0.14);
+  border-color: rgba(201, 162, 94, 0.9);
 }
 
 .equip-slot__icon {
@@ -2041,15 +2084,34 @@
   display: none;
   right: 12px;
   bottom: 12px;
-  min-width: 290px;
-  text-align: right;
+  width: 290px;
+  height: auto;
+  min-height: 210px;
   pointer-events: none;
 }
 
 .hud-tooltip.is-open {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+}
+
+.hud-tooltip__target {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-tooltip__mouse {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.hud-tooltip__target.is-hidden,
+.hud-tooltip__mouse.is-hidden {
+  display: none;
 }
 
 #hud-layer > .hud-tooltip {

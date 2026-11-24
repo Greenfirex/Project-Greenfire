@@ -274,8 +274,8 @@ export default {
   recordKill(creature) {
     const entry = this.bestiary.record(creature.kind);
     const name = this.creatureName(creature);
-    if (entry.first) this.log.add(`${name} — nový zápis v bestiáři`, 'gain');
-    else if (entry.unlocked.length) this.log.add(`${name} — doplněný zápis v bestiáři`, 'gain');
+    if (entry.first) this.log.combat(`${name} — nový zápis v bestiáři`, 'gain');
+    else if (entry.unlocked.length) this.log.combat(`${name} — doplněný zápis v bestiáři`, 'gain');
     if (this.bestiaryWindow.open) this.refreshBestiaryWindow();
   },
 
@@ -526,7 +526,7 @@ export default {
     const label = creature.type ? creature.type.label : 'Tvor';
     this.showFloatingDamage(creature, amount, crit, graze, absorbed);
     if (killed) {
-      this.log.add(`Porazil jsi: ${label} (poslední rána ${Math.round(amount)})`, 'warn', this.damageDetailText(detail));
+      this.log.combat(`Porazil jsi: ${label} (poslední rána ${Math.round(amount)})`, 'warn', this.damageDetailText(detail));
       this.recordKill(creature);
       return true;
     }
@@ -534,7 +534,7 @@ export default {
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const suffix = total === null ? '' : ` (${left} / ${total})`;
     const critText = crit ? ' kriticky' : graze ? ' (škrábnutí)' : '';
-    this.log.add(`${label} — ${Math.round(amount)} poškození${critText}${this.absorbedText(absorbed)}${suffix}`, 'action', this.damageDetailText(detail));
+    this.log.combat(`${label} — ${Math.round(amount)} poškození${critText}${this.absorbedText(absorbed)}${suffix}`, 'action', this.damageDetailText(detail));
     return false;
   },
 
@@ -570,7 +570,7 @@ export default {
     if (!creature) return;
     this.audioSystem.play('miss');
     const label = creature.type ? creature.type.label : 'Tvor';
-    this.log.add(`Minul jsi: ${label}`, 'action');
+    this.log.combat(`Minul jsi: ${label}`, 'action');
     const ground = this.creatureGroundAt(creature.renderX, creature.renderZ, creature.level || 0, creature.y);
     this.spawnFloatingText('Minul', creature.renderX, ground + creature.markHeight, creature.renderZ, 'miss');
   },
@@ -741,7 +741,7 @@ export default {
     const dealt = this.hurtPlayer(damage, crit, behind, damageType);
     if (!dealt) return;
     const blocked = Math.round(damage) - dealt;
-    this.log.add(`${who} — ${Math.round(dealt)} poškození${critText}${this.absorbedText(blocked)}`, 'hurt',this.damageDetailText(this.playerStats.lastHit));
+    this.log.combat(`${who} — ${Math.round(dealt)} poškození${critText}${this.absorbedText(blocked)}`, 'hurt',this.damageDetailText(this.playerStats.lastHit));
     this.showFloatingOverPlayer(dealt, crit, blocked, graze);
   },
 
@@ -749,7 +749,7 @@ export default {
     if (!this.creatureAlive(this.combatFocus)) this.focusCreature(creature);
     const who = creature && creature.type ? creature.type.label : 'Útok';
     this.audioSystem.play('miss');
-    this.log.add(dodged ? `${who} — uhnul jsi` : `${who} — útok minul`, 'info');
+    this.log.combat(dodged ? `${who} — uhnul jsi` : `${who} — útok minul`, 'info');
     this.showFloatingTextOverPlayer(dodged ? 'Uhnul' : 'Minul', 'miss');
   },
 
@@ -776,7 +776,7 @@ export default {
     this.deathTimer -= dt;
     if (this.deathTimer > 0) return;
     this.deathShown = true;
-    this.log.add('Zemřel jsi', 'warn');
+    this.log.combat('Zemřel jsi', 'warn');
     this.deathScreen.show();
   },
 
@@ -794,6 +794,6 @@ export default {
     this.audioSystem.play('wakeUp');
     this.simSystem.setHalted(false);
     this.simSystem.resetAccumulator();
-    this.log.add('Probral ses na pláži', 'warn');
+    this.log.combat('Probral ses na pláži', 'warn');
   },
 };

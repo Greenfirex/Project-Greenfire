@@ -65,6 +65,7 @@ const ITEMS = [
   { kind: 'volume', key: 'musicVolume', tab: 'sound', label: 'Hudba', note: 'Ostrovní hudba na pozadí. Skladby se střídají náhodně.' },
   { kind: 'choice', key: 'uiScale', tab: 'game', label: 'Velikost rozhraní', note: 'Zvětší nebo zmenší okna, lištu, log a nápisy. Na malé obrazovce se při velkém rozhraní nemusí vejít okna.', options: UI_SCALE_OPTIONS, numeric: true },
   { kind: 'choice', key: 'playerBars', tab: 'game', label: 'Zdraví a výdrž', note: 'Kde se ukazují proužky zdraví a výdrže tvé postavy.', options: PLAYER_BAR_PLACES },
+  { kind: 'volume', key: 'panelTransparency', tab: 'game', label: 'Průhlednost logu a panelu vpravo dole', note: 'Jak moc je vidět hra skrz pozadí a rámeček. Text zůstává plně čitelný.' },
   { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Obrys pod myší', note: 'Světlý obrys věci, na kterou míříš myší (strom, houba, truhla…).' },
   { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
   { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když tě tvor zasáhne kriticky.' },

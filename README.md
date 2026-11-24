@@ -24,7 +24,7 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **W A S D / šipky** | Pohyb postavy (vzhledem ke kameře), Shift = běh. V editoru posouvají pohled po mapě, Shift zrychlí |
 | **Tažení pravým tlačítkem** | Rotace kamery (i v editoru); v editoru pravé kliknutí bez tažení odebírá buňku |
 | **Kolečko** | Zoom (v editoru jde oddálit víc než ve hře) |
-| **1–5** | Výběr předmětu v ruce z lišty dole, jídlo na liště sní; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
+| **1–9, 0** | Výběr předmětu v ruce z lišty dole, jídlo na liště sní; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
 | **Pravý klik nebo dvojklik v batohu** | Chytré použití: výbavu nasadí (místo ní vrátí do batohu to, co bylo nasazené), nástroj dá na lištu dole, nebo z ní sundá, jídlo sní (u jídla je v detailu i tlačítko Použít); na nasazené věci ji sundá do batohu |
 | **I / C / B / J / V** | Postava a batoh (obojí I i C) / bestiář / deník / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také malými tlačítky vpravo od lišty); deník a výroba jsou zatím prázdné. Vlevo od lišty je nápověda, co teď udělá levé, pravé a prostřední tlačítko myši |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
@@ -56,7 +56,7 @@ pochodeň nebo táborák je jediné světlo.
 
 **Sběr.** Rukou se sbírají houby, kokosy, klacky a mušle na pláži; klikneš na věc
 pod kurzorem, držené tlačítko akci opakuje. Do ruky si bereš věci z lišty dole
-(klávesy 1–5): klacek, kterým se dá bít, nebo pochodeň, kterou najdeš v truhle.
+(klávesy 1–9 a 0): klacek, kterým se dá bít, nebo pochodeň, kterou najdeš v truhle.
 Sekera a krumpáč na kácení a těžení přibudou později. Nasbírané věci se ukládají
 do batohu (I), kde si je můžeš přeskládat, a postava má vlastní okno se staty (C).
 

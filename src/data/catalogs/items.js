@@ -281,7 +281,7 @@ export const TOOL_TYPES = {
   },
 };
 
-export const HOTBAR_SLOTS = 5;
+export const HOTBAR_SLOTS = 10;
 export const INVENTORY_SLOTS = 30;
 
 export function getTool(toolKey) {

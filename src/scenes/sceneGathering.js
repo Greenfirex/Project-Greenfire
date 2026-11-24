@@ -288,7 +288,7 @@ export default {
   },
 
   onEggTaken(cell) {
-    if (this.creatureSystem.provoke(cell.cx, cell.cz)) this.log.add("Koa'tiki si všimli, že jim bereš vejce!", 'warn');
+    if (this.creatureSystem.provoke(cell.cx, cell.cz)) this.log.combat("Koa'tiki si všimli, že jim bereš vejce!", 'warn');
   },
 
   syncHarvest() {

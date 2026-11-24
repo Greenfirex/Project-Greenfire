@@ -1,4 +1,4 @@
-// Co má hráč právě v ruce a co má rozložené na liště dole (klávesy 1–5): nástroje a jídlo. Zbraně na lištu nepatří, ty jsou ve výbavě.
+// Co má hráč právě v ruce a co má rozložené na liště dole (klávesy 1–9 a 0): nástroje a jídlo. Zbraně na lištu nepatří, ty jsou ve výbavě.
 // Drží jen klíče nástrojů a umí se uložit, ať po obnovení stránky zůstane stejná věc v ruce i na liště.
 import { getTool, hotbarTool, barItem, HOTBAR_SLOTS } from '../../data/catalogs/items.js';
 

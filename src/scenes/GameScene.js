@@ -70,7 +70,6 @@ import CreaturePanel from '../ui/creaturePanel.js';
 import BestiaryWindow from '../ui/bestiaryWindow.js';
 import CraftingWindow from '../ui/craftingWindow.js';
 import JournalWindow from '../ui/journalWindow.js';
-import MouseHint from '../ui/mouseHint.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
@@ -249,7 +248,6 @@ export default class GameScene {
     this.journalWindow = new JournalWindow();
     this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
-    this.mouseHint = new MouseHint();
     this.log = new LogPanel();
     this.characterPanel = new CharacterPanel();
     this.portraitSystem = new PortraitSystem(scene);
@@ -664,7 +662,7 @@ export default class GameScene {
 
   refreshMouseHint() {
     if (!this.loaded || this.editor.active || this.dying || this.paused) {
-      this.mouseHint.update(null);
+      this.tooltipPanel.setMouse(null);
       return;
     }
     const action = this.pointerAction || null;
@@ -676,7 +674,7 @@ export default class GameScene {
         const cost = attack.blow(kind).cost;
         return { text: `${name} · ${Math.round(cost)} výdrže`, off: !this.playerStats.canSpend(cost) };
       };
-      this.mouseHint.update({
+      this.tooltipPanel.setMouse({
         left: blow('primary', 'Rána'),
         right: blow('secondary', 'Silná rána'),
         middle: pin,
@@ -688,7 +686,7 @@ export default class GameScene {
       : action.kind === 'creature' ? { text: 'Útok' }
         : action.left ? { text: action.left } : null;
     const armed = Boolean(this.equipmentSystem.get('weapon'));
-    this.mouseHint.update({
+    this.tooltipPanel.setMouse({
       left,
       right: null,
       middle: pin,
@@ -711,8 +709,7 @@ export default class GameScene {
     this.creatureTooltipOn = true;
     const total = creature.tier && Number.isFinite(creature.tier.health) ? Math.round(creature.tier.health) : null;
     const left = Number.isFinite(creature.health) ? Math.max(0, Math.round(creature.health)) : null;
-    const more = ' · prostřední tlačítko — připnout';
-    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total}${more}` : '';
+    const detail = total !== null && left !== null ? `Zdraví ${left} / ${total}` : '';
     this.tooltipPanel.show(`${creature.type.label} (${creature.tier.label})`, detail);
   }
 
@@ -729,7 +726,7 @@ export default class GameScene {
     const names = loot
       .filter(([, amount]) => Number.isFinite(amount) && amount > 0)
       .map(([key]) => (ITEM_TYPES[key] ? ITEM_TYPES[key].displayName : key));
-    const detail = names.length ? `Levé tlačítko — sebrat ${names.join(' a ')}` : 'Mrtvý tvor';
+    const detail = names.length ? `Kořist: ${names.join(' a ')}` : 'Mrtvý tvor';
     this.tooltipPanel.show(`${corpse.type.label} (mrtvá)`, detail);
   }
 
@@ -1141,6 +1138,7 @@ export default class GameScene {
     this.decoHighlight.setVisible(this.options.highlights);
     this.crabSystem.setOutlineVisible(this.options.highlights);
     document.documentElement.style.setProperty('--ui-scale', String((Number(this.options.uiScale) || 100) / 100));
+    document.documentElement.style.setProperty('--panel-backdrop', String(1 - (Number(this.options.panelTransparency) || 0) / 100));
     this.vitalsBar.setVisible(this.options.playerBars !== 'head');
     this.gameCursor.setEnabled(this.options.customCursor);
     const densityChanged = this.floraSystem.density !== this.options.grass;
@@ -1394,7 +1392,6 @@ export default class GameScene {
     this.journalButton.onClick = () => this.toggleJournalWindow();
     this.craftButton.onClick = () => this.toggleCraftingWindow();
     this.craftingWindow.onCraft = (key) => this.craftRecipe(key);
-    this.mouseHint.mount();
     this.bagButton.mount();
     this.bestiaryButton.mount();
     this.journalButton.mount();
@@ -1533,11 +1530,10 @@ export default class GameScene {
   }
 
   logGain(yields) {
-    const parts = yields.map(({ itemKey, amount }) => {
+    for (const { itemKey, amount } of yields) {
       const def = ITEM_TYPES[itemKey];
-      return `+${amount} ${itemIcon(itemKey)} ${def ? def.displayName : itemKey}`;
-    });
-    if (parts.length) this.log.add(parts.join('   '), 'gain');
+      this.log.add(`+${amount} ${itemIcon(itemKey)} ${def ? def.displayName : itemKey}`, 'gain');
+    }
   }
 
   ownsTool(key) {
@@ -1832,9 +1828,9 @@ export default class GameScene {
       evt.preventDefault();
       return;
     }
-    if (/^[1-5]$/.test(evt.key)) {
+    if (/^[0-9]$/.test(evt.key)) {
       if (evt.ctrlKey || evt.metaKey || evt.altKey || typing) return;
-      const key = this.heldItemSystem.bar[Number(evt.key) - 1];
+      const key = this.heldItemSystem.bar[(Number(evt.key) + 9) % 10];
       if (!key) return;
       evt.preventDefault();
       if (this.heldItemSystem.key === key) this.heldItemSystem.set(null);
