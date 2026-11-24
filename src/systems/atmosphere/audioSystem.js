@@ -216,7 +216,7 @@ const LIFE_CALLS = [
 ];
 const LIFE_PAN = 0.7;
 
-const MUSIC_TRACKS = ['music/island_bamboo', 'music/island_drift', 'music/island_journey'];
+const MUSIC_TRACKS = ['music/island_bamboo', 'music/island_drift', 'music/island_journey', 'music/island_ceremony', 'music/island_story'];
 const MUSIC_FADE_SECONDS = 3;
 const MUSIC_LEVEL = 0.9;
 
@@ -540,8 +540,17 @@ export default class AudioSystem {
   }
 
   setMusicVolume(value) {
+    const before = this.musicLevel();
     this.musicVolume = Math.max(0, Math.min(1, value));
+    this.snapMusic(before);
     if (this.musicVolume > 0 && !this.music) this.startMusic();
+  }
+
+  snapMusic(before) {
+    const element = this.music;
+    if (!element || this.musicMix < before - 0.002) return;
+    this.musicMix = this.musicLevel();
+    element.volume = Math.max(0, Math.min(1, this.musicMix));
   }
 
   updateMusic(dt) {
@@ -557,8 +566,10 @@ export default class AudioSystem {
   }
 
   setMasterVolume(value) {
+    const before = this.musicLevel();
     this.masterVolume = Math.max(0, Math.min(1, value));
     if (this.master) this.master.gain.value = this.masterVolume;
+    this.snapMusic(before);
   }
 
   setAmbientVolume(value) {

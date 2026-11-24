@@ -87,6 +87,7 @@ export default class OptionsPanel {
     this.values = { ...OPTION_DEFAULTS };
     this.onChange = null;
     this.onToggle = null;
+    this.onVolumeSet = null;
     this.tab = TABS[0].key;
   }
 
@@ -236,6 +237,7 @@ export default class OptionsPanel {
     `;
     const input = row.querySelector('input');
     input.addEventListener('input', () => this.patch({ [item.key]: Number(input.value) }));
+    input.addEventListener('change', () => { if (this.onVolumeSet) this.onVolumeSet(item.key); });
     host.appendChild(row);
   }
 

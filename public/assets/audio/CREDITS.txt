@@ -58,3 +58,13 @@ License" — zdarma i pro komerční použití, uvedení autora není povinné:
   island_drift.ogg   — "Rainforest Drift", autor u_98673jp944
   island_journey.ogg — "Tropical Ambient Journey", autor u_98673jp944
 Originální mp3 soubory jsou v _sources, do ogg je převedl ffmpeg (libvorbis q4).
+
+Další hudba na pozadí, také z Pixabay Music (licence "Pixabay Content License"):
+  island_ceremony.ogg — "Jungle Ceremony", autor u_98673jp944
+                        (u_98673jp944-jungle-ceremony-478010.mp3)
+  island_story.ogg    — "Jungle Story", autor phantasticbeats
+                        (phantasticbeats-jungle-story-168459.mp3)
+Originály jsou v _sources jako "song do hry 3.mp3" a "song do hry 4.mp3".
+Do ogg je převedl Blender (vorbis 128 kb/s) a hlasitost srovnal s ostatní
+hudbou (průměrná hlasitost −16 dB; Jungle Story zesílena o 4,2 dB s jemným
+omezením špiček).

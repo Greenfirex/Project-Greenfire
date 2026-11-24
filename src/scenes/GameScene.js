@@ -1098,6 +1098,7 @@ export default class GameScene {
       this.applyOptions();
     };
     this.optionsPanel.onToggle = (open) => this.holdGameForOptions(open);
+    this.optionsPanel.onVolumeSet = (key) => { if (key === 'sfxVolume') this.audioSystem.play('miss'); };
     window.addEventListener('beforeunload', (event) => {
       if (!this.editor.mapDirty) return;
       event.preventDefault();
