@@ -24,6 +24,7 @@ import CliffDressSystem from '../systems/terrain/cliffDressSystem.js';
 import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
 import LootSystem from '../systems/world/lootSystem.js';
+import PickupSparkleSystem from '../systems/world/pickupSparkleSystem.js';
 import EquipmentSystem from '../systems/player/equipmentSystem.js';
 import DayNightSystem from '../systems/atmosphere/dayNightSystem.js';
 import LightingSystem from '../systems/atmosphere/lightingSystem.js';
@@ -182,6 +183,12 @@ export default class GameScene {
     this.meal = null;
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
+    this.decoHighlight.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
+    this.decoHighlight.isEmptied = (cx, cz, level) => {
+      const box = this.lootSystem.at(cx, cz, level);
+      return Boolean(box) && this.lootSystem.isEmpty(box);
+    };
+    this.pickupSparkles = new PickupSparkleSystem(scene);
     this.dayNightSystem = new DayNightSystem(scene);
     this.lighting = new LightingSystem(scene);
     this.fireLights = new FireLightSystem(scene);
@@ -401,6 +408,7 @@ export default class GameScene {
       this.setDecorShaping(this.editor.shapesTerrain());
       if (this.paused || this.decorShaping) {
         if (this.editor.active) {
+          this.pickupSparkles.clear();
           this.updateEditorCamera(dt);
           this.waterSystem.update(dt);
           this.updateWaveSpray();
@@ -1137,6 +1145,7 @@ export default class GameScene {
     this.refreshShadowReach(true);
     this.decoHighlight.setVisible(this.options.highlights);
     this.crabSystem.setOutlineVisible(this.options.highlights);
+    this.pickupSparkles.setEnabled(this.options.pickupSparkles);
     document.documentElement.style.setProperty('--ui-scale', String((Number(this.options.uiScale) || 100) / 100));
     document.documentElement.style.setProperty('--panel-backdrop', String(1 - (Number(this.options.panelTransparency) || 0) / 100));
     this.vitalsBar.setVisible(this.options.playerBars !== 'head');

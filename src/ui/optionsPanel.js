@@ -67,6 +67,7 @@ const ITEMS = [
   { kind: 'choice', key: 'playerBars', tab: 'game', label: 'Zdraví a výdrž', note: 'Kde se ukazují proužky zdraví a výdrže tvé postavy.', options: PLAYER_BAR_PLACES },
   { kind: 'volume', key: 'panelTransparency', tab: 'game', label: 'Průhlednost logu a panelu vpravo dole', note: 'Jak moc je vidět hra skrz pozadí a rámeček. Text zůstává plně čitelný.' },
   { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Obrys pod myší', note: 'Světlý obrys věci, na kterou míříš myší (strom, houba, truhla…).' },
+  { kind: 'toggle', key: 'pickupSparkles', tab: 'game', label: 'Třpyt věcí k sebrání', note: 'Nad věcmi, které jde poblíž sebrat rukou (mušle, klacek, truhla, mrtvola…), se třpytí jiskřičky.' },
   { kind: 'toggle', key: 'customCursor', tab: 'game', label: 'Vlastní kurzor', note: 'Fantasy ruka a nástroje místo systémové šipky. Vypnutím vrátíš šipku Windows.' },
   { kind: 'toggle', key: 'cameraShake', tab: 'game', label: 'Třes kamery', note: 'Kamera se otřese, když tě tvor zasáhne kriticky.' },
   { kind: 'toggle', key: 'damageFlash', tab: 'game', label: 'Červené bliknutí', note: 'Záblesk po okrajích obrazovky při zásahu.' },

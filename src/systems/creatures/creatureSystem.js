@@ -28,7 +28,7 @@ import { cellToWorldCoords, worldToCell, CELL_SIZE } from '../../utils/gridMath.
 import { DOOR_FRAME_DEPTH } from '../../data/maps/areaShape.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { findCellPath } from '../../utils/gridPath.js';
-import { OUTLINE_GOLD, OUTLINE_CALM, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED } from '../../utils/outlineStyle.js';
+import { OUTLINE_GOLD, OUTLINE_CALM, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED, PICKUP_REACH } from '../../utils/outlineStyle.js';
 import { FOOT_PLANT_RATIO, footTrack, trackFoot, releaseFoot } from '../../utils/footContact.js';
 
 const TURN_SPEED = 7;
@@ -115,10 +115,7 @@ const CORPSE_LOOT_SINK_DELAY = 1.4;
 const CORPSE_TILT = Math.PI / 2;
 const CORPSE_GROUND_MARGIN = 0.02;
 const CORPSE_GROUND_SAMPLE = 0.35;
-const CORPSE_OUTLINE_COLOR = new Color3(0.95, 0.95, 0.92);
-const CORPSE_OUTLINE_WIDTH = 0.03;
 const OUTLINE_MEASURE_FRAMES = 3;
-const CORPSE_OUTLINE_REACH = 5;
 
 function slotKeyOf(kind, tierKey, cx, cz, level = 0) {
   return level ? `${kind}|${tierKey}|${cx}|${cz}|${level}` : `${kind}|${tierKey}|${cx}|${cz}`;
@@ -196,6 +193,7 @@ export default class CreatureSystem {
     this.hovered = null;
     this.selected = null;
     this.hoveredCorpse = null;
+    this.cues = [];
     this.hoverTime = 0;
     this.now = 0;
     this.daySeconds = 0;
@@ -1793,6 +1791,7 @@ export default class CreatureSystem {
   }
 
   updateCorpses(seconds) {
+    this.cues = [];
     if (!this.corpses.length) return;
     const player = this.playerAt ? this.playerAt() : null;
     for (const entry of [...this.corpses]) {
@@ -1819,15 +1818,25 @@ export default class CreatureSystem {
       const ground = this.corpseGroundAt(creature);
       const offset = bounds ? bounds.min.y - holder.position.y : 0;
       const groundY = ground + CORPSE_GROUND_MARGIN - offset;
-      const near = Boolean(player)
-        && !entry.looted
-        && entry.age < entry.sinkAt
-        && Math.hypot(player.x - creature.x, player.z - creature.z) <= CORPSE_OUTLINE_REACH;
+      const full = !entry.looted && entry.age < entry.sinkAt;
+      const near = full && Boolean(player)
+        && Math.hypot(player.x - creature.x, player.z - creature.z) <= PICKUP_REACH;
+      const hovered = full && this.hoveredCorpse === creature;
+      const pulse = 0.5 + 0.5 * Math.sin(this.hoverTime * OUTLINE_PULSE_SPEED);
       for (const mesh of creature.meshes || []) {
-        mesh.renderOutline = near;
-        if (!near) continue;
-        mesh.outlineColor = CORPSE_OUTLINE_COLOR;
-        mesh.outlineWidth = CORPSE_OUTLINE_WIDTH * this.outlineUnitOf(creature, mesh);
+        mesh.renderOutline = hovered;
+        if (!hovered) continue;
+        mesh.outlineColor = OUTLINE_GOLD;
+        mesh.outlineWidth = (OUTLINE_WIDTH + OUTLINE_PULSE * pulse) * this.outlineUnitOf(creature, mesh);
+      }
+      if (near) {
+        this.cues.push({
+          x: (bounds.min.x + bounds.max.x) / 2,
+          y: ground,
+          z: (bounds.min.z + bounds.max.z) / 2,
+          width: Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z),
+          height: bounds.max.y - bounds.min.y,
+        });
       }
       if (entry.age < entry.sinkAt) {
         holder.position.y = groundY;
@@ -1865,6 +1874,10 @@ export default class CreatureSystem {
     if (this.hoveredCorpse === creature) this.hoveredCorpse = null;
     if (creature) this.despawn(creature);
     if (this.onRosterChange) this.onRosterChange();
+  }
+
+  corpseCues() {
+    return this.corpses.length ? this.cues : [];
   }
 
   corpseAt(x, y) {

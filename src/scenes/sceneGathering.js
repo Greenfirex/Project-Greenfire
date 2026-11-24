@@ -20,6 +20,7 @@ export default {
     this.updateLootWindow();
     this.playerSystem.kneeling = Boolean(this.lootSource) && this.lootWindow.open;
     this.hotbar.setPrompt(this.gatherPrompt());
+    this.pickupSparkles.update([...this.decoHighlight.pickupCues(), ...this.creatureSystem.corpseCues()]);
   },
 
   gatherPrompt() {

@@ -7,6 +7,7 @@ export const OPTION_DEFAULTS = {
   sight: 'full',
   fpsCap: 60,
   highlights: true,
+  pickupSparkles: true,
   customCursor: true,
   autoTune: false,
   grass: 'high',
