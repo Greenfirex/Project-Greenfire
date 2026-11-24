@@ -144,6 +144,9 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera, san
   const focusOn = { hand: () => player.handSlot, left: () => player.leftSlot, head: () => player.idleNodes && player.idleNodes.head, hip: () => player.sheathSlot }[options.focus];
 
   const tool = TOOL_TYPES[toolKey];
+  const foodDef = ITEM_TYPES[options.food || 'mushroom'];
+  if (scenario === 'eat' && !(foodDef && foodDef.food)) return { error: `neznámé jídlo: ${options.food}` };
+  const mealHold = foodDef && foodDef.food ? foodDef.food.hold || null : null;
   const weaponAnim = tool && tool.weapon && tool.weapon.primary ? tool.weapon.primary.anim : undefined;
   const anim = options.anim || (Array.isArray(weaponAnim) ? weaponAnim[0] : weaponAnim);
   const actions = {
@@ -154,7 +157,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera, san
     },
     pickup: () => player.pickUp(),
     eat: () => {
-      player.eat(ITEM_TYPES.mushroom.food.hold);
+      player.eat(mealHold);
       return EAT_LENGTH;
     },
     use: () => {
@@ -190,7 +193,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera, san
     scene.render();
     player.setOffHandTool(null, true);
   }
-  if (scenario === 'eat') await player.prefetchMeal(ITEM_TYPES.mushroom.food.hold);
+  if (scenario === 'eat') await player.prefetchMeal(mealHold);
   const action = actions[scenario] || null;
   const lead = action ? options.lead || 0 : 0;
   let seconds = options.seconds || 2;

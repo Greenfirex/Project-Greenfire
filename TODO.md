@@ -81,6 +81,8 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Vstup do vody (šplouchnutí, ne jen kroky ve vodě).
 - [ ] Rozhraní: zapojit „nejde to" (`ui/denied.ogg` je připravený), až bude kde.
 - [ ] Pochodeň v ruce nemá zvuk; `fire/torch_loop.ogg` je volný — použít, nebo smazat.
+- [ ] Vaření: prskání masa na ohni při Upéct (dnes hraje obecný zvuk výroby `craft`).
+- [ ] Jídlo: kousnutí a žvýkání při jedení (dnes je jedení úplně tiché, platí pro houbu i pečené jídlo).
 
 ## Rozhraní
 
@@ -88,6 +90,13 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Projít novou dolní lištu (nápověda myši, ukazatele nad lištou, malá tlačítka oken) a doladit velikosti.
 
 ## Výroba a svět
+
+### Výroba a vaření (chybějící obrázky a modely)
+- [ ] Ikony `cooked_egg.png`, `twine.png` a `rope.png` do `public/assets/ui/items/` (256 × 256, průhledné pozadí, jako ostatní; doplnit do `CREDITS.txt`) a pak přidat `image` k předmětům v `items.js`. Dnes se ukazují jen emoji 🥚, 🧵 a 🪢.
+- [ ] Pečené maso v ruce: vyzkoušet velikost (`scale: 0.18` u `cooked_meat`) a jak ho pěst drží.
+- [ ] Další polotovary po jednom (plán: ostrý kámen ze 2 kamenů a občas při těžbě, násada, prkénko, miska z kokosu, bylinková pasta), pak recepty z nich a záložky v okně Výroby.
+- [ ] Pečené vejce: vlastní model (opečená skořápka) místo dnešního syrového vejce v ruce; zkontrolovat velikost v ruce (`scale: 0.6`).
+- [ ] Vyzkoušet ve hře okno Vaření (klik na hořící táborák) a doladit léčení: maso 20 zdraví po 2 za sekundu, vejce 12 po 1,5.
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
 - [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; dál chůze dovnitř po krocích (zdi pro postavu hotové jako pokus — ověřit průchod z pavlače na −21,11; schovávání patra a střechy hotové; seříznutí stěn ke kameře hotové; průhled ke kameře hotový; tvorové v přízemí hotoví; tvorové v patře hotoví; dveře hotové; nábytek a knihovna na páku před tajným vchodem hotové jako pokus — ověřit ve hře — `DEV.md`, etapa 3), rozbité okenice, zvuk odsouvání knihovny a vybavení z Meshy (chodba −21,12 se dá v editoru prodloužit).

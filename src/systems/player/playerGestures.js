@@ -1,7 +1,7 @@
 // Část hratelné postavy: drobné pohyby rukou nad animací. Jídlo: levá ruka donese jídlo k puse
 // a zase ho spustí, i za chůze (pochodeň se na tu chvíli schová). Použití věci: pravá ruka máchne před sebe.
 // Patří k PlayerSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
-import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { getDecoration } from '../../data/catalogs/decorations.js';
 import { loadModel, instantiateModel } from '../../utils/assetLoader.js';
 
@@ -15,11 +15,28 @@ const EAT_ELBOW_OUT = 0.7;
 const EAT_CURL = -0.6;
 const MEAL_UPRIGHT = 0.5;
 const MEAL_GRIP = 0.3;
+const PALM_AT = 0.5;
+const FIST_AT = 0.85;
+const WRAP_CURL = -1.4;
+const MEAL_THICKNESS = 0.012;
+const PALM_DEPTH = 0.02;
+const FINGER_JOINTS = 3;
+const FINGER_PAD = 0.01;
+const FINGER_TIP = 0.9;
+const FINGER_STEPS = 8;
 const USE_SECONDS = 0.6;
 const USE_REACH = 0.98;
 const USE_DROP = 0.04;
 const USE_ELBOW_OUT = 0.5;
 const USE_CURL = 0.35;
+
+function mealModel(hold) {
+  if (!hold) return null;
+  const grip = Number.isFinite(hold.grip) ? hold.grip : MEAL_GRIP;
+  if (hold.model) return { model: hold.model, scale: hold.scale || 1, grip };
+  const deco = getDecoration(hold.decoration);
+  return deco && deco.model ? { model: deco.model, scale: (deco.scale || 1) * (hold.scale || 1), grip } : null;
+}
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value));
@@ -32,6 +49,12 @@ export default {
     if (this.dodgeTimer > 0 || this.flinchTimer > 0 || this.eatTimer > 0) return 0;
     this.eatTimer = EAT_SECONDS;
     this.eatClock = 0;
+    this.mealCurl = !hold ? EAT_CURL : Number.isFinite(hold.curl) ? hold.curl : WRAP_CURL;
+    this.mealThickness = hold && Number.isFinite(hold.thickness) ? hold.thickness : MEAL_THICKNESS;
+    this.mealInPalm = Boolean(hold && hold.palm);
+    this.mealTurn = hold && Number.isFinite(hold.turn) ? hold.turn : 0;
+    this.mealPalmAt = hold && Number.isFinite(hold.at) ? hold.at : PALM_AT;
+    this.mealThumbward = hold && Number.isFinite(hold.thumbward) ? hold.thumbward : 0;
     this.showMeal(hold);
     return EAT_BITE_AT;
   },
@@ -54,23 +77,23 @@ export default {
   },
 
   prefetchMeal(hold) {
-    const deco = hold ? getDecoration(hold.decoration) : null;
-    if (!deco || !deco.model) return Promise.resolve(null);
+    const meal = mealModel(hold);
+    if (!meal) return Promise.resolve(null);
     if (!this.mealTemplates) this.mealTemplates = new Map();
-    if (this.mealTemplates.has(deco.model)) return Promise.resolve(this.mealTemplates.get(deco.model));
-    return loadModel(this.s, deco.model).then(async (template) => {
+    if (this.mealTemplates.has(meal.model)) return Promise.resolve(this.mealTemplates.get(meal.model));
+    return loadModel(this.s, meal.model).then(async (template) => {
       const meshes = template ? template.getChildMeshes().filter((mesh) => mesh.material) : [];
       await Promise.all(meshes.map((mesh) => mesh.material.forceCompilationAsync(mesh).catch(() => null)));
-      this.mealTemplates.set(deco.model, template);
+      this.mealTemplates.set(meal.model, template);
       return template;
     });
   },
 
   showMeal(hold) {
     this.dropMeal();
-    const deco = hold ? getDecoration(hold.decoration) : null;
-    if (!deco || !deco.model) return;
-    const factor = (deco.scale || 1) * (hold.scale || 1);
+    const meal = mealModel(hold);
+    if (!meal) return;
+    const factor = meal.scale;
     const token = {};
     this.mealToken = token;
     const build = (template) => {
@@ -79,11 +102,20 @@ export default {
       if (!node) return;
       node.scaling.scaleInPlace(factor);
       const bounds = node.getHierarchyBoundingVectors(true);
-      node.metadata = { lift: (0.5 - MEAL_GRIP) * (bounds.max.y - bounds.min.y) };
+      const size = bounds.max.subtract(bounds.min);
+      const local = 1 / (node.scaling.x || 1);
+      node.metadata = {
+        lift: (0.5 - meal.grip) * size.y,
+        below: meal.grip * size.y,
+        above: (1 - meal.grip) * size.y,
+        radius: Math.min(size.x, size.y, size.z) * 0.5,
+        center: bounds.min.add(bounds.max).scale(0.5 * local),
+        half: size.scale(0.5 * local),
+      };
       node.setEnabled(false);
       this.mealNode = node;
     };
-    const ready = this.mealTemplates ? this.mealTemplates.get(deco.model) : undefined;
+    const ready = this.mealTemplates ? this.mealTemplates.get(meal.model) : undefined;
     if (ready !== undefined) build(ready);
     else this.prefetchMeal(hold).then(build);
   },
@@ -128,8 +160,30 @@ export default {
       .add(ahead.scale(size * MOUTH_AHEAD));
     const fist = mouth.add(ahead.scale(size * HAND_AHEAD));
     const pole = Vector3.Down().add(this.weaponSideOut(forward).scale(-EAT_ELBOW_OUT));
-    this.reachPoint(this.leftArm, fist, pole, { curl: EAT_CURL }, null, this.eatBlend);
+    this.reachPoint(this.leftArm, fist, pole, { curl: this.mealCurl ?? EAT_CURL }, null, this.eatBlend);
+    this.aimMealFist(mouth, this.eatBlend);
     this.placeMeal(eating && this.eatClock < EAT_BITE_AT ? mouth : null);
+  },
+
+  mealToward(mouth) {
+    const fist = this.fistCenter(this.leftArm);
+    return mouth.subtract(fist).normalize().add(Vector3.Up().scale(MEAL_UPRIGHT)).normalize();
+  },
+
+  mealAxis(mouth) {
+    const arm = this.leftArm;
+    return arm.gripFront && arm.gripBack ? this.gripAxis({}, arm) : this.mealToward(mouth);
+  },
+
+  aimMealFist(mouth, weight) {
+    const arm = this.leftArm;
+    if (!arm.gripFront || !arm.gripBack) return;
+    const now = this.gripAxis({}, arm);
+    const wanted = this.mealToward(mouth);
+    const axis = Vector3.Cross(now, wanted);
+    if (axis.lengthSquared() < 1e-8) return;
+    const angle = Math.acos(Math.max(-1, Math.min(1, Vector3.Dot(now, wanted))));
+    this.turnBone(arm.hand, axis.normalize(), angle * weight);
   },
 
   placeMeal(mouth) {
@@ -139,12 +193,111 @@ export default {
       node.setEnabled(false);
       return;
     }
-    const fist = this.fistCenter(this.leftArm);
-    const toward = mouth.subtract(fist).normalize().add(Vector3.Up().scale(MEAL_UPRIGHT)).normalize();
+    const hand = this.palmFrame();
+    if (!hand) return;
     if (!node.rotationQuaternion) node.rotationQuaternion = Quaternion.Identity();
-    Quaternion.FromUnitVectorsToRef(Vector3.Up(), toward, node.rotationQuaternion);
-    node.setAbsolutePosition(fist.add(toward.scale(node.metadata ? node.metadata.lift : 0)));
+    if (this.mealInPalm) this.placeInPalm(node, hand);
+    else this.placeInFist(node, hand, mouth);
     node.setEnabled(true);
+  },
+
+  palmFrame() {
+    const arm = this.leftArm;
+    this.fistCenter(arm);
+    const [knuckleNode, tipNode] = arm.fist;
+    const wrist = arm.hand.getAbsolutePosition();
+    const knuckle = knuckleNode.getAbsolutePosition();
+    const fingers = knuckle.subtract(wrist).normalize();
+    const palm = tipNode.getAbsolutePosition().subtract(knuckle);
+    palm.subtractInPlace(fingers.scale(Vector3.Dot(palm, fingers)));
+    if (palm.lengthSquared() < 1e-8) return null;
+    palm.normalize();
+    const thumbward = Vector3.Cross(palm, fingers).normalize();
+    if (arm.thumb && Vector3.Dot(arm.thumb.getAbsolutePosition().subtract(knuckle), thumbward) < 0) thumbward.scaleInPlace(-1);
+    return { wrist, knuckle, fingers, palm, thumbward };
+  },
+
+  placeInFist(node, hand, mouth) {
+    const along = this.mealAxis(mouth);
+    const channel = Vector3.Lerp(hand.wrist, hand.knuckle, FIST_AT).add(hand.palm.scale(this.mealThickness + PALM_DEPTH));
+    const face = mouth.subtract(channel);
+    face.subtractInPlace(along.scale(Vector3.Dot(face, along)));
+    if (face.lengthSquared() < 1e-8) Quaternion.FromUnitVectorsToRef(Vector3.Up(), along, node.rotationQuaternion);
+    else {
+      face.normalize();
+      Quaternion.RotationQuaternionFromAxisToRef(Vector3.Cross(along, face), along, face, node.rotationQuaternion);
+    }
+    node.setAbsolutePosition(channel.add(along.scale(node.metadata ? node.metadata.lift : 0)));
+    const reach = this.mealThickness + FINGER_PAD;
+    const shape = node.metadata || {};
+    this.wrapFingers((point) => {
+      const offset = point.subtract(channel);
+      const height = Vector3.Dot(offset, along);
+      if (height < -(shape.below ?? Infinity) || height > (shape.above ?? Infinity)) return false;
+      return offset.subtract(along.scale(height)).length() < reach;
+    });
+  },
+
+  placeInPalm(node, hand) {
+    const shape = node.metadata || {};
+    const half = shape.half || Vector3.One();
+    const [long, mid, short] = ['x', 'y', 'z'].sort((a, b) => half[b] - half[a]);
+    const turn = this.mealTurn || 0;
+    const lengthwise = hand.fingers.scale(Math.cos(turn)).add(hand.thumbward.scale(Math.sin(turn)));
+    const axes = { [long]: lengthwise, [short]: hand.palm, [mid]: Vector3.Cross(hand.palm, lengthwise) };
+    if (Vector3.Dot(axes.x, Vector3.Cross(axes.y, axes.z)) < 0) axes[mid] = axes[mid].scale(-1);
+    Quaternion.RotationQuaternionFromAxisToRef(axes.x, axes.y, axes.z, node.rotationQuaternion);
+    const target = Vector3.Lerp(hand.wrist, hand.knuckle, this.mealPalmAt ?? PALM_AT)
+      .add(hand.palm.scale((shape.radius || 0) + PALM_DEPTH))
+      .add(hand.thumbward.scale(this.mealThumbward || 0));
+    node.setAbsolutePosition(target);
+    if (shape.center) {
+      node.computeWorldMatrix(true);
+      const offset = Vector3.TransformCoordinates(shape.center, node.getWorldMatrix()).subtract(target);
+      node.setAbsolutePosition(target.subtract(offset));
+    }
+    if (!shape.half) return;
+    node.computeWorldMatrix(true);
+    const toLocal = Matrix.Invert(node.getWorldMatrix());
+    const pad = FINGER_PAD / (node.scaling.x || 1);
+    this.wrapFingers((point) => {
+      const local = Vector3.TransformCoordinates(point, toLocal).subtract(shape.center);
+      return (local.x / (half.x + pad)) ** 2 + (local.y / (half.y + pad)) ** 2 + (local.z / (half.z + pad)) ** 2 < 1;
+    });
+  },
+
+  wrapFingers(touches) {
+    const arm = this.leftArm;
+    if (arm.fingers.length % FINGER_JOINTS) return;
+    const side = Vector3.TransformNormal(Vector3.Right(), arm.hand.getWorldMatrix()).normalize();
+    const curl = (this.mealCurl ?? EAT_CURL) * (arm.curlSign || 1) * this.eatBlend;
+    for (let start = 0; start < arm.fingers.length; start += FINGER_JOINTS) {
+      const bones = arm.fingers.slice(start, start + FINGER_JOINTS);
+      const pose = (share) => {
+        for (const bone of bones) {
+          const rest = arm.fingerRest.get(bone);
+          if (rest) bone.rotationQuaternion.copyFrom(rest);
+          this.turnBone(bone, side, curl * share);
+          bone.computeWorldMatrix(true);
+        }
+      };
+      const blocked = (share) => {
+        pose(share);
+        const joints = bones.map((bone) => bone.getAbsolutePosition());
+        const last = joints[joints.length - 1];
+        const tip = last.add(last.subtract(joints[joints.length - 2]).scale(FINGER_TIP));
+        return [...joints.slice(1), tip].some(touches);
+      };
+      if (!blocked(1)) continue;
+      let open = 0;
+      let shut = 1;
+      for (let step = 0; step < FINGER_STEPS; step++) {
+        const mid = (open + shut) / 2;
+        if (blocked(mid)) shut = mid;
+        else open = mid;
+      }
+      pose(open);
+    }
   },
 
   useToward(x, z) {

@@ -56,6 +56,7 @@ export const PLAYER_GRIP_LINE_BONES = { front: 'RightHandIndex1', back: 'RightHa
 export const PLAYER_LEFT_FINGER_BONES = PLAYER_FINGER_BONES.map((name) => name.replace('Right', 'Left'));
 export const PLAYER_LEFT_FIST_BONES = PLAYER_FIST_BONES.map((name) => name.replace('Right', 'Left'));
 export const PLAYER_LEFT_THUMB_BONES = PLAYER_THUMB_BONES.map((name) => name.replace('Right', 'Left'));
+export const PLAYER_LEFT_GRIP_LINE_BONES = { front: PLAYER_GRIP_LINE_BONES.front.replace('Right', 'Left'), back: PLAYER_GRIP_LINE_BONES.back.replace('Right', 'Left') };
 export const PLAYER_HEAD_BONES = ['Head', 'mixamorig:Head'];
 export const PLAYER_HEAD_TOP = ['head_end', 'HeadTop_End', 'mixamorig:HeadTop_End'];
 export const PLAYER_HEAD_FRONT = ['headfront'];

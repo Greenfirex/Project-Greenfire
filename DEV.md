@@ -131,7 +131,11 @@ Výroba: recept (`RECIPES` v seznamu předmětů) drží jen cenu; jeho klíč j
 předmětu, název a ikona se berou z předmětu. Okno Výroba (`craftingWindow.js`, klávesa V)
 ukazuje seznam receptů a tlačítko Vyrobit, co jde vyrobit z batohu, počítá a vyrábí
 `sceneCrafting.js` (`inventorySystem.craft`). Vyrábí se kdekoli, výbava na postavě se
-do ceny nepočítá. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
+do ceny nepočítá. Recept se `station` (místa v `RECIPE_STATIONS`: nadpis okna, slovo na tlačítku
+a v logu) do Výroby nepatří a má vlastní okno. `fire` = Vaření (`cookingWindow`, stejná třída
+`CraftingWindow`): otevře ho klik na hořící táborák na dosah (`campfireSystem.burning`) a zavře
+se, když hráč od ohně odejde (`updateCraftingStations` v `sceneCrafting.js`). Tak se peče maso
+a vejce Koa'tiki. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
 Rozpracované a plánované věci jsou v `TODO.md`.
 
 Dolní lišta (`src/ui/dock.js`, `dockArea`) má uprostřed ukazatele zdraví a energie nad
@@ -595,9 +599,11 @@ batohu, pravým klikem, dvojklikem nebo z lišty. Detail ukazuje oddíl Efekt. J
 (`playerGestures.js`, část PlayerSystem): levá ruka donese jídlo k puse (bod spočítaný z kosti
 hlavy a `headTop`) a zase klesne. Ve chvíli, kdy je u pusy (`EAT_BITE_AT`), jídlo z ruky zmizí,
 kus se odebere a začne léčení v čase (`playerStats.healOverTime`). Jíst jde i za chůze, běh se
-při jídle vypne. V ruce je model dekorace z `food.hold` (`decoration`, `scale`), pěst drží jeho
-spodní část (`MEAL_GRIP`). Model i jeho materiál se připraví předem (`prefetchMeal`, když je jídlo
-na liště), jinak by se první jídlo nevykreslilo. Levá ruka zavírá prsty záporným `EAT_CURL`;
+při jídle vypne. V ruce je model z `food.hold`: buď dekorace (`decoration`, `scale`
+se násobí s měřítkem dekorace), nebo vlastní model jídla (`model`, `scale`; pečené maso
+z `public/assets/props/meat`, připravuje `tools/prepareMeat.mjs`). Osa Y modelu míří k puse, pěst drží podíl délky `grip` od spodku (výchozí
+`MEAL_GRIP`; maso má 0, pěst drží konec kosti). Jídlo v pěsti leží v ose pěsti (`gripAxis` levé ruky, kosti `PLAYER_LEFT_GRIP_LINE_BONES`) ve žlábku dlaně (`placeInFist`: u kořenů prstů `FIST_AT`, odsazené o `thickness` + `PALM_DEPTH`), ruka se natočí osou k puse (`aimMealFist`) a plochou stranou míří jídlo k obličeji; prsty se kolem třeně nebo kosti zavřou po válec o poloměru `thickness` jen v délce jídla. `curl` u `food.hold` mění sevření prstů (výchozí `EAT_CURL`). `palm: true` položí jídlo do dlaně místo do osy pěsti (`placeInPalm`: mezi zápěstí a kořen prostředníku, `PALM_AT`, odsazené o polovinu nejmenšího rozměru ke dlani); nejdelší rozměr jídla vede podél prstů (`turn` ho natočí k palci), nejtenčí z dlaně; `at` je místo mezi zápěstím a kořenem prstů, `thumbward` posun k palci. Prsty se pak ohýbají každý zvlášť jen po povrch jídla (`wrapFingers`, jídlo jako elipsoid podle jeho rozměrů) — tak se drží vejce. Model i jeho materiál se připraví předem (`prefetchMeal`, modely všech jídel
+při startu hry v `prepareGame`), jinak by se první jídlo nevykreslilo. Levá ruka zavírá prsty záporným `EAT_CURL`;
 kladný ohne prsty dozadu. Pochodeň v levé ruce se na dobu jídla schová. Úder, úskok, sebrání věci nebo zásah jídlo přeruší; před
 kousnutím se pak nic nesní. Léčení v čase se neukládá (trvá pár sekund, jako ochrana po
 úskoku); po smrti a po načtení se zahodí.

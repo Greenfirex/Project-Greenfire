@@ -1,17 +1,19 @@
-// Okno výroby — seznam receptů s cenou v surovinách a tlačítkem Vyrobit.
-// Otevírá se tlačítkem Výroba v dolní liště nebo klávesou V; co se vyrobí, řeší scéna přes onCraft.
+// Okno s recepty — seznam receptů s cenou v surovinách a tlačítkem na výrobu.
+// Stejné okno slouží pro Výrobu (klávesa V) i pro Vaření u ohně; liší se jen nadpisem a slovem na tlačítku.
+// Co se vyrobí, řeší scéna přes onCraft.
 import WindowFrame from './windowFrame.js';
 import { itemIconElement } from './itemIcons.js';
 
 export default class CraftingWindow {
 
-  constructor() {
+  constructor({ id = 'hud-crafting', title = 'Výroba', closeTitle = 'Zavřít (V)', verb = 'Vyrobit' } = {}) {
     this.frame = new WindowFrame({
-      id: 'hud-crafting',
+      id,
       className: 'craft-window',
-      title: 'Výroba',
-      closeTitle: 'Zavřít (V)',
+      title,
+      closeTitle,
     });
+    this.verb = verb;
     this.recipes = [];
     this.onClose = null;
     this.onCraft = null;
@@ -75,7 +77,7 @@ export default class CraftingWindow {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'craft-recipe__make';
-    button.textContent = 'Vyrobit';
+    button.textContent = this.verb;
     button.disabled = !recipe.ready;
     button.addEventListener('click', () => {
       if (recipe.ready && this.onCraft) this.onCraft(recipe.key);

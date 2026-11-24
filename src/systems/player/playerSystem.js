@@ -36,6 +36,7 @@ import {
   PLAYER_LEFT_FINGER_BONES,
   PLAYER_LEFT_FIST_BONES,
   PLAYER_LEFT_THUMB_BONES,
+  PLAYER_LEFT_GRIP_LINE_BONES,
   PLAYER_HEAD_BONES,
   PLAYER_FOOT_BONES,
   PLAYER_TOE_BONES,
@@ -312,6 +313,12 @@ export default class PlayerSystem {
     this.eatBlend = 0;
     this.mealNode = null;
     this.mealToken = null;
+    this.mealCurl = null;
+    this.mealInPalm = false;
+    this.mealThickness = 0;
+    this.mealTurn = 0;
+    this.mealThumbward = 0;
+    this.mealPalmAt = null;
     this.torchHidden = false;
     this.useTimer = 0;
     this.useAt = null;
@@ -442,6 +449,8 @@ export default class PlayerSystem {
         fingerRest: fingerRest(PLAYER_LEFT_FINGER_BONES),
         fist: PLAYER_LEFT_FIST_BONES.map((name) => boneNode([name])).filter(Boolean),
         thumb: boneNode(PLAYER_LEFT_THUMB_BONES),
+        gripFront: boneNode([PLAYER_LEFT_GRIP_LINE_BONES.front]),
+        gripBack: boneNode([PLAYER_LEFT_GRIP_LINE_BONES.back]),
         curlSign: LEFT_CURL_SIGN,
       };
       this.leftSlot = this.makeHandSlot('playerLeftHandSlot', leftHand);
@@ -944,11 +953,12 @@ export default class PlayerSystem {
     if (weight >= 1 && hand.rotationQuaternion) this.guardWrist = hand.rotationQuaternion.clone();
   }
 
-  gripAxis(grip) {
-    const { gripFront, gripBack } = this.armNodes;
+  gripAxis(grip, arm = this.armNodes) {
+    const { gripFront, gripBack } = arm;
     refreshChain(gripFront);
     refreshChain(gripBack);
     const through = gripFront.getAbsolutePosition().subtract(gripBack.getAbsolutePosition()).normalize();
+    if (!grip.tilt) return through;
     const fingers = Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()).normalize();
     return through.add(fingers.scale(grip.tilt || 0)).normalize();
   }

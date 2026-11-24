@@ -59,7 +59,7 @@ export const ITEM_TYPES = {
     stackSize: 100,
     weight: 0.1,
     kind: 'raw',
-    food: { heal: 5, perSecond: 1, hold: { decoration: 'mushroom_red', scale: 0.25 } },
+    food: { heal: 5, perSecond: 1, hold: { decoration: 'mushroom_red', scale: 0.25, grip: 0.2, thickness: 0.012 } },
     color: [0.78, 0.55, 0.42],
   },
   coconut: {
@@ -74,13 +74,31 @@ export const ITEM_TYPES = {
   },
   palm_leaf: {
     displayName: 'Palmový list',
-    description: 'Velký, lehký a zatím k ničemu. To se brzy změní.',
+    description: 'Velký, lehký a překvapivě pevný, když se stočí.',
     icon: '🌿',
     image: `${ASSET_DIRS.itemIcons}palm_leaf.png`,
     stackSize: 20,
     weight: 0.3,
     kind: 'raw',
     color: [0.56, 0.6, 0.3],
+  },
+  twine: {
+    displayName: 'Provázek',
+    description: 'Stočená vlákna z palmového listu. Drží víc, než by člověk čekal.',
+    icon: '🧵',
+    stackSize: 50,
+    weight: 0.1,
+    kind: 'product',
+    color: [0.62, 0.58, 0.36],
+  },
+  rope: {
+    displayName: 'Lano',
+    description: 'Tři provázky spletené dohromady. Na tohle se už dá spolehnout.',
+    icon: '🪢',
+    stackSize: 20,
+    weight: 0.4,
+    kind: 'product',
+    color: [0.58, 0.5, 0.32],
   },
   herb: {
     displayName: 'Léčivá bylina',
@@ -155,6 +173,27 @@ export const ITEM_TYPES = {
     kind: 'raw',
     color: [0.9, 0.88, 0.72],
   },
+  cooked_meat: {
+    displayName: 'Pečené maso',
+    description: 'Zvenku křupavé, uvnitř šťavnaté. Konečně něco, co nekouše zpátky.',
+    icon: '🍖',
+    image: `${ASSET_DIRS.itemIcons}cooked_meat.png`,
+    stackSize: 20,
+    weight: 0.4,
+    kind: 'product',
+    food: { heal: 20, perSecond: 2, hold: { model: `${ASSET_DIRS.props}meat/meat_cooked.glb`, scale: 0.11, grip: 0.0, thickness: 0.014 } },
+    color: [0.55, 0.3, 0.16],
+  },
+  cooked_egg: {
+    displayName: 'Pečené vejce',
+    description: 'Upečené ve skořápce, v popelu. Matka se to radši nedozví.',
+    icon: '🥚',
+    stackSize: 10,
+    weight: 0.35,
+    kind: 'product',
+    food: { heal: 12, perSecond: 1.5, hold: { decoration: 'koa_egg', scale: 0.27, palm: true, curl: -1.2, turn: 0.5, thumbward: 0.015, at: 0.72 } },
+    color: [0.78, 0.7, 0.5],
+  },
   turtle_shell: {
     displayName: 'Krunýř',
     description: 'Bývalý majitel už ho nepotřebuje.',
@@ -222,7 +261,15 @@ export const ITEM_TYPES = {
 export const ITEM_KEYS = Object.keys(ITEM_TYPES);
 
 export const RECIPES = {
+  twine: { cost: { palm_leaf: 2 } },
+  rope: { cost: { twine: 3 } },
   spear: { cost: { stick: 1, shell: 2 } },
+  cooked_meat: { cost: { meat: 1 }, station: 'fire' },
+  cooked_egg: { cost: { koa_egg: 1 }, station: 'fire' },
+};
+
+export const RECIPE_STATIONS = {
+  fire: { title: 'Vaření', verb: 'Upéct', done: 'Upečeno' },
 };
 
 export const RECIPE_KEYS = Object.keys(RECIPES).filter((key) => ITEM_TYPES[key]);

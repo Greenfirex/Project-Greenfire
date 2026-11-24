@@ -75,7 +75,7 @@ import JournalWindow from '../ui/journalWindow.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
-import { ITEM_TYPES, barEntry, getTool, itemFood, toolForItem } from '../data/catalogs/items.js';
+import { ITEM_KEYS, ITEM_TYPES, RECIPE_STATIONS, barEntry, getTool, itemFood, toolForItem } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
@@ -257,6 +257,7 @@ export default class GameScene {
     this.journalWindow = new JournalWindow();
     this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
+    this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', ...RECIPE_STATIONS.fire });
     this.log = new LogPanel();
     this.characterPanel = new CharacterPanel();
     this.portraitSystem = new PortraitSystem(scene);
@@ -301,7 +302,6 @@ export default class GameScene {
     this.heldItemSystem.onBarChange = (bar) => {
       this.hotbar.setSlots(bar);
       for (const key of bar) if (key) this.playerSystem.prefetchTool(key);
-      for (const key of bar) if (itemFood(key)) this.playerSystem.prefetchMeal(itemFood(key).hold);
     };
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
     this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1, side === 'left');
@@ -448,6 +448,7 @@ export default class GameScene {
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
+      this.updateCraftingStations();
       this.lootSystem.update(dt, root, this.playerSystem.level);
       this.buildingSystem.updateInteractive(dt);
       this.waterSystem.update(dt);
@@ -496,6 +497,7 @@ export default class GameScene {
     this.gainXp(350);
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
+    for (const key of ITEM_KEYS) if (itemFood(key)) this.playerSystem.prefetchMeal(itemFood(key).hold);
     await this.setupCreatures();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.grassModelList = await this.loadGrassModels();
@@ -806,11 +808,20 @@ export default class GameScene {
     this.interaction.register('campfire', {
       priority: 40,
       pick: ({ cell }) => {
+        if (!cell) return null;
+        const onCell = (fire) => fire && fire.cx === cell.cx && fire.cz === cell.cz;
+        const burning = this.campfireSystem.burning;
+        if (onCell(burning)) return { ref: burning.entry, cook: burning, detail: 'Levé tlačítko — vařit u Táboráku', inReach: true };
         const fire = this.campfireSystem.nearest;
-        if (!cell || !fire || fire.cx !== cell.cx || fire.cz !== cell.cz) return null;
+        if (!onCell(fire)) return null;
         return { ref: fire.entry, detail: 'Levé tlačítko — zapálit Táborák', inReach: true };
       },
-      act: (target) => this.campfireSystem.ignite(target.ref),
+      act: (target) => {
+        if (!target.cook) return this.campfireSystem.ignite(target.ref);
+        this.playerSystem.useToward(target.cook.x, target.cook.z);
+        this.openCookingWindow();
+        return true;
+      },
     });
     this.interaction.register('door', {
       priority: 44,
@@ -1407,6 +1418,8 @@ export default class GameScene {
     this.journalButton.onClick = () => this.toggleJournalWindow();
     this.craftButton.onClick = () => this.toggleCraftingWindow();
     this.craftingWindow.onCraft = (key) => this.craftRecipe(key);
+    this.cookingWindow.onCraft = (key) => this.craftRecipe(key);
+    this.cookingWindow.onClose = () => this.audioSystem.play('windowClose');
     this.bagButton.mount();
     this.bestiaryButton.mount();
     this.journalButton.mount();
@@ -1505,6 +1518,10 @@ export default class GameScene {
     }
     if (this.craftingWindow.open) {
       this.craftingWindow.close();
+      closed = true;
+    }
+    if (this.cookingWindow.open) {
+      this.cookingWindow.close();
       closed = true;
     }
     if (this.journalWindow.open) {

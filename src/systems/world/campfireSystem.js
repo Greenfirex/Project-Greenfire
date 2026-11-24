@@ -20,6 +20,7 @@ export default class CampfireSystem {
     this.fires = [];
     this.dayness = 1;
     this.nearest = null;
+    this.burning = null;
     this.onIgnite = null;
     this.pending = null;
     this.pendingSparks = false;
@@ -77,13 +78,14 @@ export default class CampfireSystem {
       this.light(item);
     }
     this.nearest = null;
+    this.burning = null;
   }
 
-  nearestUnlit(from, level = 0) {
+  nearestInReach(from, level, lit) {
     let best = null;
     let bestDist = REACH;
     for (const item of this.fires) {
-      if (item.lit || item.level !== level) continue;
+      if (item.lit !== lit || item.level !== level) continue;
       if (Math.abs(item.y - from.y) > REACH_HEIGHT) continue;
       const dist = Math.hypot(item.x - from.x, item.z - from.z);
       if (dist > bestDist) continue;
@@ -122,7 +124,8 @@ export default class CampfireSystem {
   }
 
   update(dt, root, level = 0) {
-    this.nearest = root && !this.pending ? this.nearestUnlit(root.position, level) : null;
+    this.nearest = root && !this.pending ? this.nearestInReach(root.position, level, false) : null;
+    this.burning = root ? this.nearestInReach(root.position, level, true) : null;
     this.updatePending(root);
     for (const item of this.fires) item.fire.update(dt);
   }
@@ -194,6 +197,7 @@ export default class CampfireSystem {
     for (const item of this.fires) this.dropFire(item);
     this.fires = [];
     this.nearest = null;
+    this.burning = null;
     this.pending = null;
     this.pendingSparks = false;
   }

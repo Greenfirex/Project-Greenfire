@@ -48,7 +48,7 @@ node tools/capture.cjs player idle --tool torch --view side2 --focus hand --zoom
 
 Scény: `idle`, `walk`, `run`, `strike` (úder první animací primární rány zbraně, jinak `--anim` s klíčem
 animace, např. `double1`, `triple3` nebo `smash`), `dodge` (kotoul dopředu),
-`pickup`, `draw` a `sheath` (tasení z boku a zandání, potřebují `--sheath club`;
+`pickup`, `eat` (jedení; `--food cooked_meat` vybere jídlo z katalogu, jinak houba), `draw` a `sheath` (tasení z boku a zandání, potřebují `--sheath club`;
 u `sheath` i `--tool club`), `grab` a `putaway` (vytažení pochodně do levé ruky
 s `--grab torch`, schování s `--offhand torch`). `--tool` je klíč z `TOOL_TYPES`, `--sheath` dá zbraň na bok. `--combat 1` postaví postavu do bojového
 postoje, `--lead 0.3` počká před úderem nebo sbíráním (vidět je pak i přechod tam a zpět),
@@ -442,7 +442,7 @@ blokované buňce bez valu, což v hře vypadalo jako neviditelná kolize u boč
 
 
 
-## prepareCrab.mjs, prepareGnawRat.mjs, prepareRocks.mjs, prepareRoof.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
+## prepareCrab.mjs, prepareGnawRat.mjs, prepareMeat.mjs, prepareRocks.mjs, prepareRoof.mjs, bl_rocks.py, bl_decimate.py — příprava modelů z Meshy
 
 Převedou stažené modely z `_sources/` do podoby pro hru. Kameny a zjednodušení potřebují Blender
 (cesta je nahoře v `prepareRocks.mjs`).
@@ -450,6 +450,7 @@ Převedou stažené modely z `_sources/` do podoby pro hru. Kameny a zjednoduše
 ```
 node tools/prepareCrab.mjs      # krab do public/assets/nature/crab
 node tools/prepareGnawRat.mjs   # hryzokrysa do public/assets/creatures/gnaw_rat (kostra a animace zůstanou, textura 1024 px WebP, z animací pryč měřítko a posuny kostí mimo kořen)
+node tools/prepareMeat.mjs      # syrové a pečené maso do public/assets/props/meat (stlačené na tloušťku steaku, kostí dolů, délka 1)
 node tools/prepareRocks.mjs     # kameny do public/assets/nature/rocks
 node tools/prepareRoof.mjs      # došková střecha srubu do public/assets/props/cabin_roof
 node tools/prepareVines.mjs     # popínavky srubu (vine_wall, vine_hang) do public/assets/nature/plants
