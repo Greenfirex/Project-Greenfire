@@ -4,12 +4,14 @@ import WindowFrame from './windowFrame.js';
 import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, itemFood, itemTags, itemWeapon, itemWeight, toolForItem } from '../data/catalogs/items.js';
 import { DAMAGE_GROUPS, DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
 import { PLAYER_STAT_INFO } from '../data/catalogs/statInfo.js';
+import { PLAYER_ATTRIBUTES, ATTRIBUTE_KEYS } from '../data/catalogs/player.js';
 import { damageText } from '../utils/combatRoll.js';
 import { weaponBlows } from '../utils/weaponBlows.js';
 import { fillIcon, fillItemIcon, itemIconElement } from './itemIcons.js';
 import { wearDragType, SLOT_DRAG_TYPE, BAG_DRAG_TYPE, HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';
 
 const COMPARED_STATS = ['attack', 'defense', 'armor', 'damage'];
+const COMBAT_ROWS = ['attack', 'defense', 'damage', 'armor'];
 const DETAIL_LINGER_MS = 450;
 
 function statScore(value) {
@@ -46,6 +48,11 @@ export default class CharacterPanel {
     this.healthValue = null;
     this.staminaFill = null;
     this.staminaValue = null;
+    this.xpLabel = null;
+    this.xpFill = null;
+    this.xpValue = null;
+    this.pointsEl = null;
+    this.plusButtons = [];
     this.valueEls = new Map();
     this.slotEls = new Map();
     this.portraitCanvas = null;
@@ -67,6 +74,7 @@ export default class CharacterPanel {
     this.onClearBar = null;
     this.onPreview = null;
     this.onGrab = null;
+    this.onSpendPoint = null;
     this.frame.onClose = () => {
       if (this.onClose) this.onClose();
     };
@@ -93,19 +101,26 @@ export default class CharacterPanel {
             <span class="stat-bar__value">—</span>
           </div>
           <div class="stat-bar stat-bar--stamina" data-stat="stamina">
-            <span class="stat-bar__label">Výdrž</span>
+            <span class="stat-bar__label">Energie</span>
+            <span class="stat-bar__track"><span class="stat-bar__fill"></span></span>
+            <span class="stat-bar__value">—</span>
+          </div>
+          <div class="stat-bar stat-bar--xp" data-stat="xp">
+            <span class="stat-bar__label">Úroveň</span>
             <span class="stat-bar__track"><span class="stat-bar__fill"></span></span>
             <span class="stat-bar__value">—</span>
           </div>
         </div>
         <div class="character-panel__section">
-          <span class="character-panel__heading">Boj</span>
-          <div class="character-panel__combat">
-            <span class="character-panel__chip" data-stat="defense"><span>Obrana</span><strong>—</strong></span>
-            <span class="character-panel__chip" data-stat="attack"><span>Útok</span><strong>—</strong></span>
-            <span class="character-panel__chip" data-stat="armor"><span>Zbroj</span><strong>—</strong></span>
-            <span class="character-panel__chip" data-stat="damage"><span>Rána</span><strong>—</strong></span>
+          <div class="character-panel__head">
+            <span class="character-panel__heading">Vlastnosti</span>
+            <span class="character-panel__points"></span>
           </div>
+          <div class="character-panel__rows" data-rows="attributes"></div>
+        </div>
+        <div class="character-panel__section">
+          <span class="character-panel__heading">Boj</span>
+          <div class="character-panel__rows" data-rows="combat"></div>
         </div>
         <div class="character-panel__section">
           <span class="character-panel__heading">Resisty</span>
@@ -139,6 +154,13 @@ export default class CharacterPanel {
     this.healthValue = layout.querySelector('.stat-bar--health .stat-bar__value');
     this.staminaFill = layout.querySelector('.stat-bar--stamina .stat-bar__fill');
     this.staminaValue = layout.querySelector('.stat-bar--stamina .stat-bar__value');
+    this.xpLabel = layout.querySelector('.stat-bar--xp .stat-bar__label');
+    this.xpFill = layout.querySelector('.stat-bar--xp .stat-bar__fill');
+    this.xpValue = layout.querySelector('.stat-bar--xp .stat-bar__value');
+    this.pointsEl = layout.querySelector('.character-panel__points');
+
+    this.fillRows(layout.querySelector('[data-rows="attributes"]'), ATTRIBUTE_KEYS, true);
+    this.fillRows(layout.querySelector('[data-rows="combat"]'), COMBAT_ROWS);
 
     for (const node of layout.querySelectorAll('[data-stat]')) {
       const target = node.querySelector('strong');
@@ -182,6 +204,32 @@ export default class CharacterPanel {
       if (this.hoverKey && !this.hoverWorn) this.clearDetail();
     });
     this.watchGridDrop(this.itemsEl);
+  }
+
+  fillRows(target, keys, raisable = false) {
+    for (const key of keys) {
+      const line = document.createElement('div');
+      line.className = 'character-panel__row';
+      line.dataset.stat = key;
+      const label = document.createElement('span');
+      label.textContent = PLAYER_STAT_INFO[key].label;
+      const value = document.createElement('strong');
+      value.textContent = '—';
+      line.append(label, value);
+      if (raisable) {
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.className = 'character-panel__plus';
+        plus.textContent = '+';
+        plus.title = `Přidat bod: ${PLAYER_STAT_INFO[key].label}`;
+        plus.addEventListener('click', () => {
+          if (this.onSpendPoint) this.onSpendPoint(key);
+        });
+        line.appendChild(plus);
+        this.plusButtons.push(plus);
+      }
+      target.appendChild(line);
+    }
   }
 
   slotColumn(slots) {
@@ -467,7 +515,7 @@ export default class CharacterPanel {
     this.detailRow('Dosah', `${decimal(blow.reach)} m`);
     this.detailRow('Úhel', `${Math.round(blow.arc)}°`);
     this.detailRow('Prodleva', `${decimal(blow.cooldown)} s`);
-    this.detailRow('Výdrž', String(Math.round(blow.cost)));
+    this.detailRow('Energie', String(Math.round(blow.cost)));
   }
 
   showStatDetail(key) {
@@ -499,10 +547,39 @@ export default class CharacterPanel {
     description.className = 'inv-detail__description';
     description.textContent = info.description || info.text || '';
     this.detailEl.append(icon, name, value, description);
+    const attribute = PLAYER_ATTRIBUTES.list.find((entry) => entry.key === key);
+    if (attribute) this.attributeRows(attribute);
+  }
+
+  attributeRows(attribute) {
+    const data = this.characterData || {};
+    const value = data.attributes && Number.isFinite(data.attributes[attribute.key]) ? data.attributes[attribute.key] : attribute.start;
+    const points = value - PLAYER_ATTRIBUTES.average;
+    const signed = (number, unit) => `${number > 0 ? '+' : ''}${decimal(number)}${unit || ''}`;
+    const effects = Object.entries(attribute.effects);
+    this.detailHeading(`Za každý bod nad ${PLAYER_ATTRIBUTES.average}`);
+    for (const [effect, perPoint] of effects) {
+      const info = PLAYER_STAT_INFO[effect];
+      this.detailRow(info.label, signed(perPoint, info.unit));
+    }
+    this.detailHeading('Teď dává');
+    for (const [effect, perPoint] of effects) {
+      const info = PLAYER_STAT_INFO[effect];
+      this.detailRow(info.label, signed(points * perPoint, info.unit));
+    }
   }
 
   statValueText(key) {
     const data = this.characterData || {};
+    if (ATTRIBUTE_KEYS.includes(key)) {
+      const value = data.attributes ? data.attributes[key] : undefined;
+      return Number.isFinite(value) ? String(value) : '—';
+    }
+    if (key === 'xp') {
+      const level = Number.isFinite(data.level) ? data.level : 1;
+      const xp = Number.isFinite(data.xp) ? Math.floor(data.xp) : 0;
+      return `Úroveň ${level} · ${xp} / ${data.xpNeeded ?? '—'}`;
+    }
     if (key === 'health' || key === 'stamina') {
       const maxKey = key === 'health' ? 'maxHealth' : 'maxStamina';
       const current = Number.isFinite(data[key]) ? Math.ceil(data[key]) : 0;
@@ -657,9 +734,12 @@ export default class CharacterPanel {
     this.characterData = source;
     const barValue = (value) => (Number.isFinite(value) ? Math.ceil(value) : value);
     const resistances = source.resistances || {};
+    const attributes = source.attributes || {};
     const signature = [
       barValue(source.health), source.maxHealth, barValue(source.stamina), source.maxStamina,
       source.attack, source.defense, source.armor, source.damage,
+      source.level, Math.floor(source.xp), source.xpNeeded, source.points,
+      ...ATTRIBUTE_KEYS.map((key) => attributes[key]),
       ...DAMAGE_TYPE_KEYS.map((key) => resistances[key]),
     ].map((value) => String(value ?? '')).join('|');
     if (signature === this.lastCharacterSignature) return;
@@ -667,6 +747,12 @@ export default class CharacterPanel {
 
     this.setBar(this.healthFill, this.healthValue, source.health, source.maxHealth);
     this.setBar(this.staminaFill, this.staminaValue, source.stamina, source.maxStamina);
+    this.setBar(this.xpFill, this.xpValue, source.xp, source.xpNeeded);
+    if (this.xpLabel) this.xpLabel.textContent = `Úroveň ${Number.isFinite(source.level) ? source.level : 1}`;
+    for (const key of ATTRIBUTE_KEYS) this.setValue(key, attributes[key]);
+    const points = Number.isFinite(source.points) ? source.points : 0;
+    if (this.pointsEl) this.pointsEl.textContent = points > 0 ? `Volné body: ${points}` : '';
+    for (const plus of this.plusButtons) plus.hidden = points <= 0;
     this.paintStats();
     for (const key of DAMAGE_TYPE_KEYS) {
       const value = Number(resistances[key]);

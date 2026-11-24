@@ -134,7 +134,7 @@ ukazuje seznam receptů a tlačítko Vyrobit, co jde vyrobit z batohu, počítá
 do ceny nepočítá. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
 Rozpracované a plánované věci jsou v `TODO.md`.
 
-Dolní lišta (`src/ui/dock.js`, `dockArea`) má uprostřed ukazatele zdraví a výdrže nad
+Dolní lišta (`src/ui/dock.js`, `dockArea`) má uprostřed ukazatele zdraví a energie nad
 lištou nástrojů a vpravo malá tlačítka oken (`DockButton` s písmenem klávesy; skládají
 se do dvou řad a další přibývají doprava); vlevo je prázdné místo stejné šířky, aby
 lišta zůstala uprostřed. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
@@ -526,11 +526,25 @@ klacek obrácený v pěsti a klacek ve směru paže; oba při nápřahu mířily
 Nový svět začíná na buňce **−1, −16**, hráč leží a vstane po stisku WASD nebo šipek.
 Uložená hra vstávání přeskočí. Když dojde zdraví, hráč se probudí na startu.
 
-Zdraví, výdrž, zbroj a resistity drží `playerStatsSystem.js`, čísla jsou
-v `src/data/catalogs/player.js`, proužky kreslí `src/ui/vitalsBar.js`. Výdrž ubírá
+Zdraví, energii (v kódu `stamina`), zbroj, resistity a vlastnosti drží `playerStatsSystem.js`,
+čísla jsou v `src/data/catalogs/player.js`, proužky kreslí `src/ui/vitalsBar.js`. Energii ubírá
 běh, útok a máchnutí do stromu či kamene; doplňuje se po prodlevě, kterou restartuje
-i kousnutí. Při prázdné výdrži postava přejde do chůze a běh povolí až nad mezí —
-Shift je potřeba pustit a stisknout znovu (jinak by kmitala). Útočit jde i bez výdrže.
+i kousnutí. Při prázdné energii postava přejde do chůze a běh povolí až nad mezí —
+Shift je potřeba pustit a stisknout znovu (jinak by kmitala).
+
+Vlastnosti (síla, obratnost, výdrž, inteligence) jsou v `PLAYER_ATTRIBUTES` v katalogu postavy.
+Čísla postavy v `PLAYER_BASE` platí pro průměr (10); každý bod nad ním přidá to, co má vlastnost
+v `effects` (síla ránu v procentech a nosnost, obratnost útok a obranu, výdrž zdraví a energii,
+inteligence magické odolnosti), pod průměrem stejně ubere.
+
+Vlastnosti rostou přes úrovně. Úroveň, zkušenosti, volné body a vlastnosti drží a ukládá
+`playerStatsSystem.js` (`gainXp`, `spendPoint`, po změně `applyAttributes` přepočítá maxima
+a zdraví i energii posune o stejný rozdíl). Kolik zkušeností chce úroveň a kolik bodů dá, je
+v `PLAYER_LEVELS` (`xpForNextLevel`: 100, pak o 50 víc za každou úroveň; 3 body). Zkušenosti
+za zabití má tvor u stáří jako `xp`. Scénu propojuje `sceneProgress.js`: `gainXp` (i pro budoucí
+úkoly), `spendAttributePoint` z tlačítek + v okně postavy a `refreshProgress`, který po každé
+změně (`onProgress`) předá útok a násobek rány do `playerAttackSystem` (`setAttributeBonus`)
+a překreslí tenký proužek `src/ui/xpBar.js` pod lištou nástrojů.
 
 Poškození je rozsah (`bite: [3, 5]`, pěst `[4, 8]`). Losuje ho `rollDamage`
 v `combatRoll.js`. `defense` rozhoduje o zásahu, `armor` snižuje jen fyzické
@@ -539,7 +553,7 @@ los → kritický násobek → resistita → zbroj → nejméně 1. Typy poškoz
 nuly drží `src/data/catalogs/damage.js`.
 
 Okno **Postava a batoh** otevírá **I** i **C** a jde tahat myší. Vlevo drží výbavu
-a staty (zdraví, výdrž, obranu, útok, zbroj, rozsah rány a dva sloupce resistit),
+a staty (zdraví, energie a úroveň jako proužky, pod nimi vlastnosti s tlačítky + pro volné body, boj a dva sloupce resistit),
 uprostřed batoh s počtem obsazených políček a vpravo detail předmětu. Najetí na
 stat ukáže vpravo jeho hodnotu a popis. Předmět má tagy odvozené z druhu a nástroje
 (klacek je Produkt i Zbraň), krátký popis a u zbraně typ poškození, rozsah a bonus
@@ -906,7 +920,7 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   trefovat až zbraň s obrovskou výsečí (třeba šavle).
 - Každá zbraň (i pěst) má dvě rány: primární (levé tlačítko) a sekundární (pravé).
   Sekundární je pro všechny zbraně stejně silnější (`SECONDARY_DAMAGE_SCALE` = 1,5
-  v `src/utils/weaponBlows.js`); zbraně se liší dosahem, úhlem, prodlevou a cenou ve výdrži.
+  v `src/utils/weaponBlows.js`); zbraně se liší dosahem, úhlem, prodlevou a cenou v energii.
   Sekundární rána = krátký klik pravým tlačítkem v bojovém postoji; tažení pravým dál otáčí
   kamerou, tvor se připíná prostředním klikem; mimo bojový postoj pravý klik nic nedělá.
 - Odhození zasaženého a posekání trávy se nedělají (zatím).
@@ -922,9 +936,9 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   Výsledky hodu `rollQuality`: z ran, které podle útoku proti obraně nesedly, je polovina
   škrábnutí a polovina minutí (`GRAZE_SHARE` v `combatRoll.js`; minutí ukáže „Minul“
   nad tvorem, `missCreature`). Žádná rána (primární ani sekundární) se neprovede, když na ni
-  nestačí výdrž (`canSpend`); hráč počká, až se výdrž doplní. Poškození hráče je od
+  nestačí energie (`canSpend`); hráč počká, až se energie doplní. Poškození hráče je od
   16. 11. 2026 snížené na třetinu: pěst 1–3, klacek 3–5 (sekundární ×1,5). Klacek: primární
-  1,7 m / 70° / 1 s, sekundární 1,9 m / 40° / 1,6 s / 22 výdrže. `anim` rány může být
+  1,7 m / 70° / 1 s, sekundární 1,9 m / 40° / 1,6 s / 22 energie. `anim` rány může být
   seznam: každá rána vybere náhodně jednu položku, jen ne stejnou jako minule (`pickAnim`
   v `playerAttackSystem.js`). Klacek: primární náhodně střídá tři rány: původní sek
   `Right_Hand_Sword_Slash` (bojová kopie `slash`, aby se nezměnilo sbírání s `chop`) s prvním švihem z `Double_Combo_Attack` (`double1`, soubor
@@ -938,7 +952,7 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   asi v 0,95 s; pak se v animaci vlastním pohybem zvedne z výpadu (od 1,15 s dvojnásobnou rychlostí, `PLAYER_ANIM_SNAP`), celkem asi 1,85 s. Dřív končila ve výpadu a přechod do postoje přetáčel tělo. Vyzkoušené a nepoužité pro sekundární: `Heavy_Hammer_Swing` (pomalé, končí s klackem
   za hlavou; zůstává na kopání), `Left_Slash` (rozmáchlá otočka bez síly). Okamžik dopadu je podle nejrychlejšího pohybu ruky
   v animaci (`STRIKE_IMPACT_SHARE`). Pěst: primární úder pěstí 1,4 m / 50° / 1 s (už se nestřídá s kopem),
-  sekundární kopnutí 1,6 m / 50° / 1,5 s / 16 výdrže (klíč `heavyKick`, pomalejší `kick`).
+  sekundární kopnutí 1,6 m / 50° / 1,5 s / 16 energie (klíč `heavyKick`, pomalejší `kick`).
   Výseč na zemi během sekundární rány ukazuje její výseč.
   Za zbraní se při ráně táhne vítr (`src/effects/swingTrail.js`, volá ho `updateSwingTrail` v `playerSystem`):
   pruh od třetiny zbraně ke špičce, kreslí se jen během rány a jen když špička letí vůči postavě
@@ -949,7 +963,7 @@ Sekyra a krumpáč jako zbraně odloženy na později.
 **Etapa 4 — tvorové stejným systémem, úskok**
 - Kousnutí tvora se stane výsečí před ním v okamžiku dopadu, s viditelným nápřahem;
   hráč, který z výseče uteče, není zasažen.
-- Úskok na mezerník: krátký přískok, stojí výdrž, chvilka nezranitelnosti.
+- Úskok na mezerník: krátký přískok, stojí energii, chvilka nezranitelnosti.
 - Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
 - Jak je to udělané: na začátku nápřahu se tvor natočí k hráči, během nápřahu ho sleduje svou
   rychlostí otáčení (`turnRate`) a směr zamkne až `BITE_AIM_LOCK` (0,2 s) před dopadem; dřív ho
@@ -972,7 +986,7 @@ Sekyra a krumpáč jako zbraně odloženy na později.
   `PLAYER_BASE.dodge`): kotoul 3 m za 0,75 s směrem WASD, bez pohybu pryč od kurzoru;
   animace `roll` se přizpůsobí délce úskoku. Kotoul v animaci vede šikmo, o 0,79 rad
   vpravo od pohledu (`PLAYER_ROLL_HEADING`), proto se postava natočí o tolik doleva od směru
-  úskoku (rychlým otočením `DODGE_TURN_SPEED`); 20 výdrže, 0,5 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
+  úskoku (rychlým otočením `DODGE_TURN_SPEED`); 20 energie, 0,5 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
   nápřahu vlastní rány (do dopadu), po dopadu ránu přeruší. Kousnutí během
   nezranitelnosti ukáže „Uhnul“.
 

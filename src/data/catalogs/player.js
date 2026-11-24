@@ -1,6 +1,45 @@
-// Co je hráč zač — výchozí čísla postavy na jednom místě; systém stavů je jen čte.
-// Útok a obrana rozhodují o zásahu, zdraví o přežití; další vlastnosti přibudou později.
+// Co je hráč zač — výchozí čísla postavy, její vlastnosti (síla, obratnost, výdrž, inteligence) a úrovně na jednom místě.
+// Čísla postavy platí pro průměrné vlastnosti; každý bod nad průměrem přidá, pod ním ubere.
 import { zeroResistances } from './damage.js';
+
+export const PLAYER_ATTRIBUTES = {
+  average: 10,
+  list: [
+    { key: 'strength', start: 10, effects: { damage: 5, carry: 3 } },
+    { key: 'agility', start: 10, effects: { attack: 1, defense: 1 } },
+    { key: 'endurance', start: 10, effects: { health: 5, stamina: 5 } },
+    { key: 'intelligence', start: 10, effects: { magicResist: 2 } },
+  ],
+};
+
+export const ATTRIBUTE_KEYS = PLAYER_ATTRIBUTES.list.map((entry) => entry.key);
+
+export const PLAYER_LEVELS = {
+  firstLevelXp: 100,
+  extraXpPerLevel: 50,
+  pointsPerLevel: 3,
+};
+
+export function xpForNextLevel(level) {
+  const current = Number.isFinite(level) && level >= 1 ? Math.floor(level) : 1;
+  return PLAYER_LEVELS.firstLevelXp + (current - 1) * PLAYER_LEVELS.extraXpPerLevel;
+}
+
+export function startAttributes() {
+  return Object.fromEntries(PLAYER_ATTRIBUTES.list.map((entry) => [entry.key, entry.start]));
+}
+
+export function attributeBonus(attributes) {
+  const total = {};
+  for (const entry of PLAYER_ATTRIBUTES.list) {
+    const value = attributes && Number.isFinite(attributes[entry.key]) ? attributes[entry.key] : entry.start;
+    const points = value - PLAYER_ATTRIBUTES.average;
+    for (const [effect, perPoint] of Object.entries(entry.effects)) {
+      total[effect] = (total[effect] || 0) + points * perPoint;
+    }
+  }
+  return total;
+}
 
 export const PLAYER_BASE = {
   maxHealth: 100,

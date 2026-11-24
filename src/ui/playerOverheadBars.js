@@ -1,4 +1,4 @@
-// Malé proužky zdraví a výdrže nad hlavou postavy — stejně jako u tvorů, jen dva nad sebou.
+// Malé proužky zdraví a energie nad hlavou postavy — stejně jako u tvorů, jen dva nad sebou.
 // Sám nic nepočítá; dostane obrazovou pozici a poměry, nebo pokyn se schovat.
 export default class PlayerOverheadBars {
 

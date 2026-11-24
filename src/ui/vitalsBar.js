@@ -1,4 +1,4 @@
-// Proužky stavu postavy — zdraví a výdrž vedle sebe nad lištou nástrojů a červené bliknutí při zásahu.
+// Proužky stavu postavy — zdraví a energie vedle sebe nad lištou nástrojů a červené bliknutí při zásahu.
 // Sám nic nepočítá — dostane hodnoty s maximem, nebo pokyn bliknout.
 import { dockArea } from './dock.js';
 
@@ -28,7 +28,7 @@ export default class VitalsBar {
           <span class="hud-vitals__value hud-vitals__value--health"></span>
         </div>
       </div>
-      <div class="hud-vitals__group" title="Výdrž">
+      <div class="hud-vitals__group" title="Energie">
         <span class="hud-vitals__icon hud-vitals__icon--stamina">⚡</span>
         <div class="hud-vitals__bar">
           <div class="hud-vitals__fill hud-vitals__fill--stamina"></div>

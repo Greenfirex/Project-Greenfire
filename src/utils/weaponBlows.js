@@ -1,4 +1,4 @@
-// Primární a sekundární rána zbraně (bez zbraně pěsti) — dosah, úhel výseče, prodleva, cena ve výdrži a poškození.
+// Primární a sekundární rána zbraně (bez zbraně pěsti) — dosah, úhel výseče, prodleva, cena v energii a poškození.
 // Sekundární rána je vždy o stejný násobek silnější; co v ní zbraň neurčí, převezme z primární.
 import { PLAYER_BASE } from '../data/catalogs/player.js';
 import { normalizeRange } from './combatRoll.js';

@@ -56,6 +56,7 @@ import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
 import Hotbar from '../ui/hotbar.js';
 import VitalsBar from '../ui/vitalsBar.js';
+import XpBar from '../ui/xpBar.js';
 import HoverHint from '../ui/hoverHint.js';
 import CreatureHealthBar from '../ui/creatureHealthBar.js';
 import PlayerOverheadBars from '../ui/playerOverheadBars.js';
@@ -94,6 +95,7 @@ import sceneStepsParts from './sceneSteps.js';
 import sceneEquipmentParts from './sceneEquipment.js';
 import sceneCraftingParts from './sceneCrafting.js';
 import sceneFoodParts from './sceneFood.js';
+import sceneProgressParts from './sceneProgress.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -261,6 +263,7 @@ export default class GameScene {
     this.lootWindow = new LootWindow();
     this.lootSource = null;
     this.vitalsBar = new VitalsBar();
+    this.xpBar = new XpBar();
     this.hoverHint = new HoverHint();
     this.creatureHealthBar = new CreatureHealthBar();
     this.playerOverheadBars = new PlayerOverheadBars();
@@ -307,6 +310,7 @@ export default class GameScene {
     this.playerStats.onChange = (health, maxHealth) => this.vitalsBar.setHealth(health, maxHealth);
     this.playerStats.onStamina = (stamina, maxStamina) => this.vitalsBar.setStamina(stamina, maxStamina);
     this.playerStats.onExhausted = () => this.audioSystem.play('outOfBreath');
+    this.playerStats.onProgress = () => this.refreshProgress();
     this.unlockAudio = () => {
       this.audioSystem.unlock();
       this.audioSystem.startAmbient();
@@ -364,6 +368,7 @@ export default class GameScene {
     this.loader.endMap();
     this.buildMapLayout(mapFile);
     this.setupTerrain();
+    this.loader.logPhase('Terén a voda');
     if (takeModelError()) console.warn('[start] Některé modely se nepodařilo načíst — hra pokračuje bez nich.');
     const stages = describeWorld(this.mapFile || {});
     this.loader.beginWorld(stages.length);
@@ -384,6 +389,7 @@ export default class GameScene {
     this.setupInput();
     this.setupEditorToggle();
     this.registerHudEvents();
+    this.loader.logPhase('Stavby, simulace a rozhraní');
 
     this.s.onBeforeRenderObservable.add(() => {
       const dt = Math.min(this.engine.getDeltaTime() / 1000, MAX_STEP_SECONDS);
@@ -488,6 +494,7 @@ export default class GameScene {
     this.saveSystem.dropLegacy();
     this.setupSave();
     if (this.saveSystem.consumeLoadOnStart()) this.loadSaveState();
+    this.gainXp(350);
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
     await this.setupCreatures();
@@ -680,7 +687,7 @@ export default class GameScene {
       const attack = this.playerAttackSystem;
       const blow = (kind, name) => {
         const cost = attack.blow(kind).cost;
-        return { text: `${name} · ${Math.round(cost)} výdrže`, off: !this.playerStats.canSpend(cost) };
+        return { text: `${name} · ${Math.round(cost)} energie`, off: !this.playerStats.canSpend(cost) };
       };
       this.tooltipPanel.setMouse({
         left: blow('primary', 'Rána'),
@@ -1440,8 +1447,10 @@ export default class GameScene {
     this.characterPanel.onEquip = (itemKey, slot) => this.equipItem(itemKey, slot);
     this.characterPanel.onUse = (itemKey) => this.useBagItem(itemKey);
     this.characterPanel.onPreview = (itemKey) => this.previewStats(itemKey);
+    this.characterPanel.onSpendPoint = (key) => this.spendAttributePoint(key);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
+    this.refreshProgress();
     this.creatureHealthBar.mount();
     this.log.mount();
     this.hoverHint.mount();
@@ -1521,6 +1530,11 @@ export default class GameScene {
       ...this.playerAttackSystem.weaponStats(weapon ? weapon.tool : null),
       defense: this.playerStats.defense,
       armor: this.playerStats.armor,
+      level: this.playerStats.level,
+      xp: this.playerStats.xp,
+      xpNeeded: this.playerStats.xpNeeded(),
+      points: this.playerStats.points,
+      attributes: this.playerStats.attributes,
       resistances: this.playerStats.resistances,
     });
   }
@@ -2084,4 +2098,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts);

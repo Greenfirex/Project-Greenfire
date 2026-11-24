@@ -1,5 +1,5 @@
 // Hotbar dole uprostřed — sloty pro předměty v ruce a jídlo, plní se přetažením z batohu.
-// Kliknutí a přetahování jen hlásí callbacky; sedí uprostřed dolní lišty pod ukazateli zdraví a výdrže.
+// Kliknutí a přetahování jen hlásí callbacky; sedí uprostřed dolní lišty pod ukazateli zdraví a energie.
 import { barEntry, HOTBAR_SLOTS } from '../data/catalogs/items.js';
 import { itemIconElement } from './itemIcons.js';
 import { HAND_DRAG_TYPE, BAR_DRAG_TYPE } from './dragTypes.js';

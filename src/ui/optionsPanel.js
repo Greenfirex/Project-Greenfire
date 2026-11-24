@@ -45,7 +45,7 @@ const SIGHT_LEVELS = [
 ];
 
 const PLAYER_BAR_PLACES = [
-  { value: 'dock', label: 'Dole', title: 'Zdraví a výdrž nad lištou nástrojů' },
+  { value: 'dock', label: 'Dole', title: 'Zdraví a energie nad lištou nástrojů' },
   { value: 'head', label: 'Nad postavou', title: 'Malé proužky nad hlavou jako u tvorů' },
   { value: 'both', label: 'Obojí', title: 'Dole i nad postavou' },
 ];
@@ -64,7 +64,7 @@ const ITEMS = [
   { kind: 'volume', key: 'ambientVolume', tab: 'sound', label: 'Zvuky prostředí', note: 'Hučení lesa (ve dne jiné než v noci) a příboj u vody.' },
   { kind: 'volume', key: 'musicVolume', tab: 'sound', label: 'Hudba', note: 'Ostrovní hudba na pozadí. Skladby se střídají náhodně.' },
   { kind: 'choice', key: 'uiScale', tab: 'game', label: 'Velikost rozhraní', note: 'Zvětší nebo zmenší okna, lištu, log a nápisy. Na malé obrazovce se při velkém rozhraní nemusí vejít okna.', options: UI_SCALE_OPTIONS, numeric: true },
-  { kind: 'choice', key: 'playerBars', tab: 'game', label: 'Zdraví a výdrž', note: 'Kde se ukazují proužky zdraví a výdrže tvé postavy.', options: PLAYER_BAR_PLACES },
+  { kind: 'choice', key: 'playerBars', tab: 'game', label: 'Zdraví a energie', note: 'Kde se ukazují proužky zdraví a energie tvé postavy.', options: PLAYER_BAR_PLACES },
   { kind: 'volume', key: 'panelTransparency', tab: 'game', label: 'Průhlednost logu a panelu vpravo dole', note: 'Jak moc je vidět hra skrz pozadí a rámeček. Text zůstává plně čitelný.' },
   { kind: 'toggle', key: 'highlights', tab: 'game', label: 'Obrys pod myší', note: 'Světlý obrys věci, na kterou míříš myší (strom, houba, truhla…).' },
   { kind: 'toggle', key: 'pickupSparkles', tab: 'game', label: 'Třpyt věcí k sebrání', note: 'Nad věcmi, které jde poblíž sebrat rukou (mušle, klacek, truhla, mrtvola…), se třpytí jiskřičky.' },

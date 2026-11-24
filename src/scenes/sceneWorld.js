@@ -185,6 +185,7 @@ export default {
       models = await this.loadStageModels(entries, models);
       await this.placeStage(stage, entries);
       this.loader.endStage();
+      this.loader.logPhase(`Etapa ${stage.kind} (${entries.length} kusů)`);
     }
     this.decoSystem.finishStages();
     this.loader.endWorld();

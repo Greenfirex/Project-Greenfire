@@ -1,41 +1,93 @@
-// Stavy postavy — zdraví, obrana, zbroj, resistity a výdrž hráče, doplňování a chvilka klidu po probuzení.
-// Čísla bere z katalogu postavy; scéně jen hlásí změnu zdraví a výdrže.
-import { PLAYER_BASE } from '../../data/catalogs/player.js';
-import { DAMAGE_TYPE_KEYS, clampResistance, damageBreakdown } from '../../data/catalogs/damage.js';
+// Stavy postavy — úroveň, zkušenosti, vlastnosti, zdraví, obrana, zbroj, resistity a energie hráče.
+// Čísla bere z katalogu postavy a přičte k nim, co dávají vlastnosti; scéně jen hlásí změnu zdraví, energie a postupu.
+import { PLAYER_BASE, PLAYER_LEVELS, ATTRIBUTE_KEYS, attributeBonus, startAttributes, xpForNextLevel } from '../../data/catalogs/player.js';
+import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS, clampResistance, damageBreakdown } from '../../data/catalogs/damage.js';
 
 export default class PlayerStatsSystem {
 
   constructor() {
-    this.maxHealth = this.amount(PLAYER_BASE.maxHealth, 100, 1);
-    this.health = this.maxHealth;
+    this.attributes = startAttributes();
+    this.level = 1;
+    this.xp = 0;
+    this.points = 0;
+    this.gear = {};
+    this.maxHealth = 0;
+    this.maxStamina = 0;
+    this.health = 0;
+    this.stamina = 0;
     this.lastHit = null;
-    this.baseDefense = this.amount(PLAYER_BASE.defense, 0, 0);
-    this.baseArmor = this.amount(PLAYER_BASE.armor, 0, 0);
-    this.defense = this.baseDefense;
-    this.armor = this.baseArmor;
-    this.carryWeight = this.amount(PLAYER_BASE.carryWeight, 0, 0);
-    this.resistances = this.readResistances(PLAYER_BASE.resistances);
     this.immunity = 0;
     this.heals = [];
     const stamina = PLAYER_BASE.stamina || {};
-    this.maxStamina = this.amount(stamina.max, 100, 1);
-    this.stamina = this.maxStamina;
     this.sprintDrainPerSecond = this.amount(stamina.sprintPerSecond, 0, 0);
     this.gatherCost = this.amount(stamina.gatherCost, 0, 0);
     this.staminaRegenDelay = this.amount(stamina.regenDelaySeconds, 0, 0);
     this.staminaRegenPerSecond = this.amount(stamina.regenPerSecond, 0, 0);
-    const resumeShare = this.amount(stamina.sprintResumeShare, 0.2, 0);
-    this.sprintResume = this.maxStamina * Math.min(1, resumeShare);
     this.sinceEffort = 0;
     this.sprintLocked = false;
     this.onChange = null;
     this.onStamina = null;
     this.onExhausted = null;
+    this.onProgress = null;
+    this.applyAttributes();
+    this.health = this.maxHealth;
+    this.stamina = this.maxStamina;
   }
 
   amount(value, fallback, min) {
     if (Number.isFinite(value) && value >= min) return value;
     return fallback;
+  }
+
+  applyAttributes() {
+    const bonus = attributeBonus(this.attributes);
+    const stamina = PLAYER_BASE.stamina || {};
+    const oldHealth = this.maxHealth;
+    const oldStamina = this.maxStamina;
+    this.maxHealth = Math.max(1, this.amount(PLAYER_BASE.maxHealth, 100, 1) + (bonus.health || 0));
+    this.maxStamina = Math.max(1, this.amount(stamina.max, 100, 1) + (bonus.stamina || 0));
+    this.baseDefense = Math.max(0, this.amount(PLAYER_BASE.defense, 0, 0) + (bonus.defense || 0));
+    this.baseArmor = this.amount(PLAYER_BASE.armor, 0, 0);
+    this.carryWeight = Math.max(0, this.amount(PLAYER_BASE.carryWeight, 0, 0) + (bonus.carry || 0));
+    this.resistances = this.readResistances(PLAYER_BASE.resistances, bonus.magicResist || 0);
+    this.combatBonus = { attack: bonus.attack || 0, damage: bonus.damage || 0 };
+    this.sprintResume = this.maxStamina * Math.min(1, this.amount(stamina.sprintResumeShare, 0.2, 0));
+    this.setGear(this.gear);
+    if (this.health > 0) this.health = Math.max(1, Math.min(this.maxHealth, this.health + this.maxHealth - oldHealth));
+    this.stamina = Math.max(0, Math.min(this.maxStamina, this.stamina + this.maxStamina - oldStamina));
+  }
+
+  xpNeeded() {
+    return xpForNextLevel(this.level);
+  }
+
+  notifyProgress() {
+    if (this.onProgress) this.onProgress();
+  }
+
+  gainXp(amount) {
+    if (!Number.isFinite(amount) || amount <= 0) return 0;
+    this.xp += amount;
+    let gained = 0;
+    while (this.xp >= this.xpNeeded()) {
+      this.xp -= this.xpNeeded();
+      this.level += 1;
+      this.points += PLAYER_LEVELS.pointsPerLevel;
+      gained += 1;
+    }
+    this.notifyProgress();
+    return gained;
+  }
+
+  spendPoint(key) {
+    if (this.points <= 0 || !ATTRIBUTE_KEYS.includes(key)) return false;
+    this.attributes[key] += 1;
+    this.points -= 1;
+    this.applyAttributes();
+    if (this.onChange) this.onChange(this.health, this.maxHealth);
+    this.notifyStamina();
+    this.notifyProgress();
+    return true;
   }
 
   gearStats(bonus) {
@@ -47,16 +99,18 @@ export default class PlayerStatsSystem {
   }
 
   setGear(bonus) {
-    const stats = this.gearStats(bonus);
+    this.gear = bonus || {};
+    const stats = this.gearStats(this.gear);
     this.defense = stats.defense;
     this.armor = stats.armor;
   }
 
-  readResistances(source) {
+  readResistances(source, magicBonus) {
     const out = {};
     for (const key of DAMAGE_TYPE_KEYS) {
       const value = source && Number.isFinite(source[key]) ? source[key] : 0;
-      out[key] = clampResistance(value);
+      const extra = DAMAGE_TYPES[key].group === 'magic' ? magicBonus : 0;
+      out[key] = clampResistance(value + extra);
     }
     return out;
   }
@@ -185,10 +239,33 @@ export default class PlayerStatsSystem {
   }
 
   serialize() {
-    return { health: this.health, stamina: this.stamina };
+    return {
+      health: this.health,
+      stamina: this.stamina,
+      level: this.level,
+      xp: this.xp,
+      points: this.points,
+      attributes: { ...this.attributes },
+    };
+  }
+
+  whole(value, fallback, min) {
+    return Number.isFinite(value) && value >= min ? Math.floor(value) : fallback;
+  }
+
+  applyProgress(data) {
+    const source = data || {};
+    const start = startAttributes();
+    const saved = source.attributes || {};
+    this.attributes = Object.fromEntries(ATTRIBUTE_KEYS.map((key) => [key, this.whole(saved[key], start[key], 1)]));
+    this.level = this.whole(source.level, 1, 1);
+    this.xp = Number.isFinite(source.xp) && source.xp >= 0 ? Math.min(source.xp, this.xpNeeded() - 1) : 0;
+    this.points = this.whole(source.points, 0, 0);
+    this.applyAttributes();
   }
 
   apply(data) {
+    this.applyProgress(data);
     const saved = data && Number.isFinite(data.health) ? data.health : this.maxHealth;
     const clamped = Math.max(0, Math.min(this.maxHealth, saved));
     this.health = clamped > 0 ? clamped : this.maxHealth;
@@ -200,9 +277,10 @@ export default class PlayerStatsSystem {
     this.refreshSprintLock();
     if (this.onChange) this.onChange(this.health, this.maxHealth);
     this.notifyStamina();
+    this.notifyProgress();
   }
 
   defaultState() {
-    return { health: this.maxHealth, stamina: this.maxStamina };
+    return { level: 1, xp: 0, points: 0, attributes: startAttributes() };
   }
 }

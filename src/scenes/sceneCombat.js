@@ -526,8 +526,11 @@ export default {
     const label = creature.type ? creature.type.label : 'Tvor';
     this.showFloatingDamage(creature, amount, crit, graze, absorbed);
     if (killed) {
-      this.log.combat(`Porazil jsi: ${label} (poslední rána ${Math.round(amount)})`, 'warn', this.damageDetailText(detail));
+      const xp = creatureStat(creature.type, creature.tier, 'xp');
+      const xpText = xp > 0 ? `, +${xp} zkušeností` : '';
+      this.log.combat(`Porazil jsi: ${label} (poslední rána ${Math.round(amount)}${xpText})`, 'warn', this.damageDetailText(detail));
       this.recordKill(creature);
+      this.gainXp(xp);
       return true;
     }
     const left = Math.max(0, Math.round(creature.health));

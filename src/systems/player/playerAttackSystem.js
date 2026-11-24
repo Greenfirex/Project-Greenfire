@@ -16,6 +16,8 @@ export default class PlayerAttackSystem {
     const punch = PLAYER_BASE.punch || {};
     this.baseAttack = this.number(PLAYER_BASE.attack);
     this.attack = this.baseAttack;
+    this.damageScale = 1;
+    this.tool = null;
     this.heightLimit = this.number(punch.heightLimit);
     this.setWeapon(null);
     this.cooldown = 0;
@@ -35,14 +37,27 @@ export default class PlayerAttackSystem {
     return Number.isFinite(value) && value >= 0 ? value : 0;
   }
 
+  setAttributeBonus(bonus) {
+    const source = bonus || {};
+    this.baseAttack = Math.max(0, this.number(PLAYER_BASE.attack) + (Number(source.attack) || 0));
+    this.damageScale = Math.max(0, 1 + (Number(source.damage) || 0) / 100);
+    this.setWeapon(this.tool);
+  }
+
+  scaledDamage(range) {
+    const [low, high] = normalizeRange(range);
+    return [Math.round(low * this.damageScale), Math.round(high * this.damageScale)];
+  }
+
   setWeapon(tool) {
+    this.tool = tool || null;
     const weapon = tool && tool.weapon ? tool.weapon : null;
     const source = weapon || PLAYER_BASE.punch || {};
     this.hitSound = source.hitSound || (PLAYER_BASE.punch || {}).hitSound || null;
     this.damageType = source.damageType || null;
     this.attack = this.weaponStats(tool).attack;
     const blows = weaponBlows(weapon);
-    const inRadians = (blow) => ({ ...blow, arc: blow.arc * Math.PI / 180 });
+    const inRadians = (blow) => ({ ...blow, damage: this.scaledDamage(blow.damage), arc: blow.arc * Math.PI / 180 });
     this.blows = { primary: inRadians(blows.primary), secondary: inRadians(blows.secondary) };
     this.reach = this.blows.primary.reach;
   }
@@ -56,7 +71,7 @@ export default class PlayerAttackSystem {
     const punch = PLAYER_BASE.punch || {};
     return {
       attack: this.baseAttack + this.number(weapon ? weapon.attack : 0),
-      damage: normalizeRange(weapon ? weapon.damage : punch.damage),
+      damage: this.scaledDamage(weapon ? weapon.damage : punch.damage),
     };
   }
 

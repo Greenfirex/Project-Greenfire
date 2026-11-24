@@ -29,11 +29,11 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **I / C / B / J / V** | Postava a batoh (obojí I i C) / bestiář / deník / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také malými tlačítky vpravo od lišty); deník a výroba jsou zatím prázdné. Vlevo od lišty je nápověda, co teď udělá levé, pravé a prostřední tlačítko myši |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
 | **Levé tlačítko u truhly / kostry / táboráku** | Otevřít / prohledat / zapálit (stačí stát u nich) |
-| **Mezerník** | Úskok směrem, kterým jdeš (bez pohybu dozadu od kurzoru); stojí výdrž a na chvilku tě nic nezraní. Tvor před kousnutím ukáže na zemi červenou výseč, z ní se dá utéct i uskočit |
+| **Mezerník** | Úskok směrem, kterým jdeš (bez pohybu dozadu od kurzoru); stojí energii a na chvilku tě nic nezraní. Tvor před kousnutím ukáže na zemi červenou výseč, z ní se dá utéct i uskočit |
 | **X** | Tasit / zandat zbraň z políčka Zbraň v okně postavy (tasená = bojový postoj; bez zbraně postoj s pěstmi; pochodeň je vždy v levé ruce). Sama se zandá jen při prohledávání truhly nebo těla |
 | **Levé tlačítko u tvora** | Útok (podržet = opakovat); nasazenou zbraň rovnou tasí, bez zbraně bije pěstí |
-| **Levé tlačítko v bojovém postoji** | Rána směrem ke kurzoru; dopadne na všechny tvory ve výseči před postavou a poškození se mezi ně rozdělí (podle útoku a obrany může i jen škrábnout nebo minout); bez výdrže se útočit nedá, tvora kousek vedle kurzoru rána sama trefí |
-| **Pravé kliknutí v bojovém postoji** | Sekundární rána zbraně ke kurzoru (klackem úder s nápřahem, bez zbraně kopnutí): o polovinu silnější, pomalejší a stojí víc výdrže. Čísla obou ran ukazuje zbraň v okně postavy, pěsti prázdné políčko Zbraň |
+| **Levé tlačítko v bojovém postoji** | Rána směrem ke kurzoru; dopadne na všechny tvory ve výseči před postavou a poškození se mezi ně rozdělí (podle útoku a obrany může i jen škrábnout nebo minout); bez energie se útočit nedá, tvora kousek vedle kurzoru rána sama trefí |
+| **Pravé kliknutí v bojovém postoji** | Sekundární rána zbraně ke kurzoru (klackem úder s nápřahem, bez zbraně kopnutí): o polovinu silnější, pomalejší a stojí víc energie. Čísla obou ran ukazuje zbraň v okně postavy, pěsti prázdné políčko Zbraň |
 | **Prostřední kliknutí na tvora** | Připne panel se statistikami tvora (zavře ho křížek, Esc nebo prostřední kliknutí jinam); tažení prostředním otáčí kamerou. V boji se panel ukáže sám: u tvora, kterého jsi naposledy zasáhl, jinak u nejbližšího útočícího, a pár sekund po boji zmizí |
 | **E** | V otevřené truhle vzít vše |
 | **G** | Zobrazit / skrýt mřížku |
@@ -72,7 +72,9 @@ hejna ryb.
 zabít, zůstane po nich tělo s kořistí a po pár herních dnech se na stejném místě
 objeví jiný.
 
-**Zdraví a výdrž.** Běh a každé máchnutí ubírá výdrž, ta se po chvíli doplní.
+**Úrovně.** Za zabité tvory dostáváš zkušenosti (modrý proužek pod lištou nástrojů). Každá nová úroveň dá 3 body, které v okně postavy (C) rozdělíš tlačítkem + do síly, obratnosti, výdrže nebo inteligence.
+
+**Zdraví a energie.** Běh a každé máchnutí ubírá energii, ta se po chvíli doplní.
 Když dojde zdraví, probudíš se na startovním místě mapy.
 
 **Editor mapy.** Ve hře jde otevřít editor (F2) a malovat mapu — zóny, povrchy,

@@ -51,7 +51,9 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Etapa 4 — doladění boje
 
 - [ ] Výbava: brnění na sloty zvedá obranu o procento ze základu se stropem, zbraně útok.
-- [ ] Vlastnosti postavy (síla, obratnost, výdrž) a jejich vliv na ránu, zdraví a rychlost.
+- [ ] Úrovně a vlastnosti: vyzkoušet ve hře proužek zkušeností, novou úroveň a tlačítka +; doladit zkušenosti za tvory, kolik jich chce úroveň, 3 body za úroveň a co dává bod. Zvážit vliv obratnosti na rychlost.
+- [ ] Po testu odebrat zkušenosti zdarma při startu (`this.gainXp(350)` v `prepareGame` v `GameScene.js`).
+- [ ] Zkušenosti za úkoly, až budou úkoly (scéna má na to `gainXp`).
 - [ ] Záblesk obrysu při zásahu (zvuk zásahu už mají oba tvorové).
 - [ ] Zvážit ztrátu batohu při smrti hráče.
 
@@ -70,6 +72,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Hudba: vymyslet systém výběru (den/noc, klid versus souboj) místo dnešního náhodného střídání tří skladeb.
 
 - [ ] Tón smrti (`death_sting`) — vygenerovat a zapojit.
+- [ ] Nová úroveň postavy: krátká znělka (dnes jen zpráva v logu).
 - [ ] Kritický zásah tvora: těžký úder navíc přes zvuk zbraně (`hit_crit_1–2`, prompt hotový).
 - [ ] Kopí: vlastní bodnutí (`hit_spear_1–3`); dnes hraje jen maso (`fleshCut`).
 - [ ] Kroky tvorů (aspoň tiché našlapování, dnes dělají jen stopy).

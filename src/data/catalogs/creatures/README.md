@@ -88,6 +88,7 @@ Tier je stáří tvora. Klíč tieru se ukládá do savu, takže přejmenování
 | `scale` | měřítko proti základu | 1 |
 | `tint` | `[r, g, b]` nádech barvy | `[1, 1, 1]` |
 | `health` | životy | povinné |
+| `xp` | zkušenosti pro hráče za zabití | 0 |
 | `bite` | zranění z rány jako rozsah `[min, max]` | povinné |
 | `damageType` | přebije typ poškození z druhu tvora | typ tvora |
 | `attack` | síla útoku proti obraně hráče | povinné |
