@@ -93,9 +93,13 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Výroba a vaření (chybějící obrázky a modely)
 - [ ] Ikony `cooked_egg.png`, `twine.png` a `rope.png` do `public/assets/ui/items/` (256 × 256, průhledné pozadí, jako ostatní; doplnit do `CREDITS.txt`) a pak přidat `image` k předmětům v `items.js`. Dnes se ukazují jen emoji 🥚, 🧵 a 🪢.
-- [ ] Pečené maso v ruce: vyzkoušet velikost (`scale: 0.18` u `cooked_meat`) a jak ho pěst drží.
+- [ ] Palec při jídle: neřídí se (u masa leží ze strany dlaně přes spodek masa); ostatní prsty se zavírají po povrch jídla.
 - [ ] Další polotovary po jednom (plán: ostrý kámen ze 2 kamenů a občas při těžbě, násada, prkénko, miska z kokosu, bylinková pasta), pak recepty z nich a záložky v okně Výroby.
-- [ ] Pečené vejce: vlastní model (opečená skořápka) místo dnešního syrového vejce v ruce; zkontrolovat velikost v ruce (`scale: 0.6`).
+- [ ] Modely z Meshy (obrázek v Gemini → Image to 3D; trojúhelníky, ~2 000, textura 1024, GLB do `_sources/`; ikony se renderují z modelu). Prompty jsou v konverzaci z 24. 11. 2026, styl ikon: malovaný, tmavý obrys, šikmo shora, bílé pozadí.
+  - Pečené vejce (opečená skořápka) — nahradí syrové vejce v ruce; pak doladit úchop v dlani (`scale`, `turn`, `at`, `thumbward` u `cooked_egg`).
+  - Provázek a lano — jen na ikony.
+  - Polotovary: ostrý kámen (bude ležet i na pláži a v jeskyních), násada, prkénko, miska z kokosu, bylinková pasta v mušli.
+  - Výbava (až na ni dojde): kamenná sekera, nůž, štít z krunýře, palmový klobouk. Vesta z listů až po domluvě (napasování na postavu v Blenderu).
 - [ ] Vyzkoušet ve hře okno Vaření (klik na hořící táborák) a doladit léčení: maso 20 zdraví po 2 za sekundu, vejce 12 po 1,5.
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
