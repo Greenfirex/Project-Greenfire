@@ -52,6 +52,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 - [ ] Výbava: brnění na sloty zvedá obranu o procento ze základu se stropem, zbraně útok.
 - [ ] Úrovně a vlastnosti: vyzkoušet ve hře proužek zkušeností, novou úroveň a tlačítka +; doladit zkušenosti za tvory, kolik jich chce úroveň, 3 body za úroveň a co dává bod. Zvážit vliv obratnosti na rychlost.
+- [ ] Načítání: po kontrole smazat dočasné měření kroků terénu (`[terén]` v `terrainStep` v `sceneWorld.js`); případně dál zrychlit povrch hlavního patra, vodu a objem skal.
 - [ ] Po testu odebrat zkušenosti zdarma při startu (`this.gainXp(350)` v `prepareGame` v `GameScene.js`).
 - [ ] Zkušenosti za úkoly, až budou úkoly (scéna má na to `gainXp`).
 - [ ] Záblesk obrysu při zásahu (zvuk zásahu už mají oba tvorové).

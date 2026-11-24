@@ -5,7 +5,7 @@ import { decorationModelUrl } from '../utils/decoTemplate.js';
 import { grassModelUrls } from '../data/catalogs/grass.js';
 import { getMap } from '../data/catalogs/maps.js';
 import { mapFileFromLayout, layoutFromMapFile, isMapFile, MAP_VERSION, quantizeMapFileHeights, defaultSpawn } from '../data/catalogs/mapFile.js';
-import { describeWorld, stagePieces } from '../data/catalogs/worldStages.js';
+import { describeWorld, stagePieces, TERRAIN_STEP_LABELS } from '../data/catalogs/worldStages.js';
 import { PAINT_TERRAIN, PAINT_DECORATIONS, PAINT_CREATURES, PAINT_FISH, PAINT_CRABS, PAINT_ALL } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { fillLakes } from '../utils/lakeFill.js';
@@ -69,14 +69,28 @@ export default {
     this.renderWater();
   },
 
-  setupTerrain() {
+  async setupTerrain() {
     this.bodyCache = null;
-    const ground = this.terrainSystem.create(this.mapKey, this.mapFile);
-    if (ground && ground.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
+    const steps = this.terrainSystem.createSteps(this.mapKey, this.mapFile) || [];
+    this.loader.beginTerrain(steps.length + 1);
+    for (const step of steps) {
+      await this.terrainStep(step.kind, () => step.run());
+    }
+    if (steps.length && this.terrainSystem.surfaces.length) this.s.clearColor = this.mapColor(this.mapKey, 'sky');
     this.editor.mode.assignRealCells(this.terrainSystem.realCells);
     this.navigation.resetArea();
     this.creatureSystem.clearPathCache();
-    this.renderWater();
+    await this.terrainStep('water', () => this.renderWater());
+    this.loader.endTerrain();
+  },
+
+  async terrainStep(kind, run) {
+    this.loader.terrainLabel(TERRAIN_STEP_LABELS[kind] || 'Chystám ostrov');
+    await this.announceStage();
+    const start = performance.now();
+    run();
+    console.info(`[terén] ${kind}: ${((performance.now() - start) / 1000).toFixed(2)} s`);
+    this.loader.terrainProgress();
   },
 
   wireDecoReady() {

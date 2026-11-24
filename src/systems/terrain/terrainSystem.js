@@ -194,39 +194,60 @@ export default class TerrainSystem {
   }
 
   create(mapKey, world = null) {
+    const steps = this.createSteps(mapKey, world);
+    if (!steps) return null;
+    for (const step of steps) step.run();
+    return this.surfaces;
+  }
+
+  createSteps(mapKey, world = null) {
     const map = getMap(mapKey);
     if (!map) return null;
-
-    if (this.mapKey && this.mapKey !== mapKey) this.disposeMaterials();
-    this.mapKey = mapKey;
-    this.layout = world;
-    this.groundCells = groundCells(world);
-    this.realCells = worldCells(world);
-    this.field = createTerrainField(world);
-    this.columnRuns = null;
-    const vents = this.connectorInfo();
-    this.mouths = vents.mouths;
-    this.field.setDoorBlends(this.caveDoors(true));
-    this.resetSurfaces();
-    if (this.solidDebugEnabled()) {
-      const blocks = buildSolidBlockMesh(this, world, WALL_TILE);
-      if (blocks) this.surfaces.push(blocks);
-      this.createPicker(this.pickCells());
+    const prepare = () => {
+      if (this.mapKey && this.mapKey !== mapKey) this.disposeMaterials();
+      this.mapKey = mapKey;
+      this.layout = world;
+      this.groundCells = groundCells(world);
+      this.realCells = worldCells(world);
+      this.field = createTerrainField(world);
+      this.columnRuns = null;
+      const vents = this.connectorInfo();
+      this.mouths = vents.mouths;
+      this.field.setDoorBlends(this.caveDoors(true));
+      this.resetSurfaces();
+    };
+    const finish = () => {
       this.ready = Promise.resolve(this.surfaces);
       if (this.onRebuilt) this.onRebuilt();
-      return this.surfaces;
+    };
+    if (this.solidDebugEnabled()) {
+      return [{
+        kind: 'field',
+        run: () => {
+          prepare();
+          const blocks = buildSolidBlockMesh(this, world, WALL_TILE);
+          if (blocks) this.surfaces.push(blocks);
+          this.createPicker(this.pickCells());
+          finish();
+        },
+      }];
     }
+    const steps = [{ kind: 'field', run: prepare }];
     for (const level of planeLevels(world)) {
-      this.createSurface(map, groundCells(world, level), level);
+      steps.push({ kind: level === 0 ? 'surface' : 'caveSurface', run: () => this.createSurface(map, groundCells(world, level), level) });
     }
-    this.createVolumeMass(map);
-    this.createEdgeAnchors();
-    if (this.urlFlag('corners')) this.surfaces.push(...buildCornerDebugMeshes(this));
-    this.createPicker(this.pickCells());
-    this.gridLines = this.createGridLines(map, this.realCells);
-    this.ready = Promise.resolve(this.surfaces);
-    if (this.onRebuilt) this.onRebuilt();
-    return this.surfaces;
+    steps.push({ kind: 'mass', run: () => this.createVolumeMass(map) });
+    steps.push({
+      kind: 'grid',
+      run: () => {
+        this.createEdgeAnchors();
+        if (this.urlFlag('corners')) this.surfaces.push(...buildCornerDebugMeshes(this));
+        this.createPicker(this.pickCells());
+        this.gridLines = this.createGridLines(map, this.realCells);
+        finish();
+      },
+    });
+    return steps;
   }
 
   cellsSignature(cells) {
@@ -251,6 +272,8 @@ export default class TerrainSystem {
     }
     if (level === 0) this.floorKeys = keys;
     const keyAt = (cx, cz) => keys.get(`${cx},${cz}`) || null;
+    const thresholdKeys = this.thresholdKeys(level);
+    const neighbourKey = (cx, cz, nx, nz) => thresholdKeys.get(`${cx},${cz}>${nx},${nz}`) || keyAt(nx, nz);
     const field = planeView(this.field, level);
     const caveColumns = columnsByCell(this.layout || {});
     const overCaveAt = (cx, cz) => {
@@ -281,7 +304,7 @@ export default class TerrainSystem {
       for (const [cx, cz] of cells) {
         if (keyAt(cx, cz) !== key) continue;
         for (const [dx, dz] of BLEND_NEIGHBORS) {
-          const other = keyAt(cx + dx, cz + dz);
+          const other = neighbourKey(cx, cz, cx + dx, cz + dz);
           if (!other || other === key) continue;
           counts.set(other, (counts.get(other) || 0) + 1);
         }
@@ -325,6 +348,7 @@ export default class TerrainSystem {
       const data = new Uint8Array(width * height);
       const smooth = (t) => t * t * (3 - 2 * t);
       const isDry = (cx, cz) => {
+        if (level < 0) return true;
         const water = this.waterAtCell(cx, cz);
         return water === null || field.heightAtCell(cx, cz) > water + 0.001;
       };
@@ -367,28 +391,52 @@ export default class TerrainSystem {
         if (sides[3]) best = Math.min(best, z1 - z);
         return best;
       };
+      const cellsWide = maxX - minX + 1;
+      const cellInfo = new Array(cellsWide * (maxZ - minZ + 1));
+      const infoAt = (cx, cz) => {
+        const index = (cz - minZ) * cellsWide + (cx - minX);
+        let info = cellInfo[index];
+        if (info) return info;
+        const dry = isDry(cx, cz);
+        if (keyAt(cx, cz) === partner) {
+          info = { partner: true, dry, near: null };
+        } else {
+          const near = [];
+          for (const [dx, dz] of BLEND_NEIGHBORS) {
+            const nx = cx + dx;
+            const nz = cz + dz;
+            const across = thresholdKeys.get(`${cx},${cz}>${nx},${nz}`);
+            if ((across || keyAt(nx, nz)) !== partner) continue;
+            if (!across && dry && blockedFrom(cx, cz, nx, nz)) continue;
+            near.push(nx, nz);
+          }
+          info = { partner: false, dry, near };
+        }
+        cellInfo[index] = info;
+        return info;
+      };
       for (let j = 0; j < height; j += 1) {
         const z = z0 + (j + 0.5) * (spanZ / height);
         for (let i = 0; i < width; i += 1) {
           const x = x0 + (i + 0.5) * (spanX / width);
           const cx = Math.floor((x + half) / CELL_SIZE);
           const cz = Math.floor((z + half) / CELL_SIZE);
-          const isPartner = keyAt(cx, cz) === partner;
-          if (isPartner) {
+          const info = infoAt(cx, cz);
+          if (info.partner) {
             let weight = maxWeight;
-            if (isDry(cx, cz)) {
+            if (info.dry) {
               const toWall = wallReach(cx, cz, x, z);
               if (Number.isFinite(toWall)) weight = Math.round(maxWeight * Math.min(1, toWall / SURFACE_BLEND_WALL_FADE));
             }
             data[j * width + i] = weight;
             continue;
           }
+          const near = info.near;
+          if (!near.length) continue;
           let reach = 0;
-          for (const [dx, dz] of BLEND_NEIGHBORS) {
-            const nx = cx + dx;
-            const nz = cz + dz;
-            if (keyAt(nx, nz) !== partner) continue;
-            if (isDry(cx, cz) && blockedFrom(cx, cz, nx, nz)) continue;
+          for (let n = 0; n < near.length; n += 2) {
+            const nx = near[n];
+            const nz = near[n + 1];
             const gapX = Math.abs(x - nx * CELL_SIZE) - half;
             const gapZ = Math.abs(z - nz * CELL_SIZE) - half;
             const distance = Math.hypot(Math.max(gapX, 0), Math.max(gapZ, 0));
@@ -638,23 +686,21 @@ export default class TerrainSystem {
     }
 
     const blends = new Map();
-    if (level === 0) {
-      const floorKeys = new Set();
-      for (const group of groups.values()) floorKeys.add(group.key);
-      for (const key of floorKeys) {
-        const partners = [];
-        for (const partner of partnerFor(key)) {
-          const cfg = this.surfaceConfig(partner);
-          if (!cfg || !cfg.texture) continue;
-          partners.push({
-            key: partner,
-            tile: cfg.tile || 1,
-            color: this.surfaceColor(partner, map),
-            weights: weightsFor(key, partner),
-          });
-        }
-        blends.set(key, partners.length ? { partners } : null);
+    const floorKinds = new Set();
+    for (const group of groups.values()) floorKinds.add(group.key);
+    for (const key of floorKinds) {
+      const partners = [];
+      for (const partner of partnerFor(key)) {
+        const cfg = this.surfaceConfig(partner);
+        if (!cfg || !cfg.texture) continue;
+        partners.push({
+          key: partner,
+          tile: cfg.tile || 1,
+          color: this.surfaceColor(partner, map),
+          weights: weightsFor(key, partner),
+        });
       }
+      blends.set(key, partners.length ? { partners } : null);
     }
 
     const borderNormals = new Map();
@@ -717,7 +763,7 @@ export default class TerrainSystem {
         roof.isPickable = false;
         roof.receiveShadows = true;
         roof.metadata = { level, roof: true };
-        roof.material = this.materialFor(key, map, blends.get(key), level < 0);
+        roof.material = this.materialFor(key, map, blends.get(key), level);
         this.surfaces.push(roof);
         this.roofMeshes.push(roof);
         continue;
@@ -742,7 +788,7 @@ export default class TerrainSystem {
         minCz: group.chunkZ * SURFACE_CHUNK,
         maxCz: (group.chunkZ + 1) * SURFACE_CHUNK - 1,
       };
-      mesh.material = this.materialFor(key, map, blends.get(key), level < 0);
+      mesh.material = this.materialFor(key, map, blends.get(key), level);
       this.surfaces.push(mesh);
       this.surfaceChunks.push(mesh);
     }

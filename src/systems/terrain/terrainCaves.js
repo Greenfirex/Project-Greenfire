@@ -3,6 +3,7 @@
 import { CELL_SIZE } from '../../utils/gridMath.js';
 import { DOOR_LINTEL_DEPTH } from './runVolume.js';
 import { columnsByCell, layerLiftAt, floorCellAt, caveOpensInto, doorFrameStyleOf } from '../../data/maps/areaShape.js';
+import { DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
 
 const OUTER_LIGHT_CELLS = 6;
 const INNER_LIGHT_CELLS = 3;
@@ -197,6 +198,25 @@ export default {
       openLeft: doors.has(doorId(door.cx - door.dz, door.cz + door.dx, door.dx, door.dz)),
       openRight: doors.has(doorId(door.cx + door.dz, door.cz - door.dx, door.dx, door.dz)),
     }));
+  },
+
+  thresholdKeys(level) {
+    const keys = new Map();
+    const layout = this.layout || {};
+    const levelOf = (end) => (end && Number.isFinite(end.level) ? end.level : 0);
+    for (const record of this.movementConnectors || []) {
+      const from = record && record.from;
+      const to = record && record.to;
+      if (!from || !to || levelOf(from) === levelOf(to)) continue;
+      if (Math.abs(from.cx - to.cx) + Math.abs(from.cz - to.cz) !== 1) continue;
+      for (const [near, far] of [[from, to], [to, from]]) {
+        if (levelOf(near) !== level) continue;
+        const entry = floorCellAt(layout, far.cx, far.cz, levelOf(far));
+        if (!entry) continue;
+        keys.set(`${near.cx},${near.cz}>${far.cx},${far.cz}`, entry.key || DEFAULT_FLOOR);
+      }
+    }
+    return keys;
   },
 
   connectorInfo() {

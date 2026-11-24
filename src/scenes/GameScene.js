@@ -367,8 +367,7 @@ export default class GameScene {
     const mapFile = await this.loadMapFile();
     this.loader.endMap();
     this.buildMapLayout(mapFile);
-    this.setupTerrain();
-    this.loader.logPhase('Terén a voda');
+    await this.setupTerrain();
     if (takeModelError()) console.warn('[start] Některé modely se nepodařilo načíst — hra pokračuje bez nich.');
     const stages = describeWorld(this.mapFile || {});
     this.loader.beginWorld(stages.length);

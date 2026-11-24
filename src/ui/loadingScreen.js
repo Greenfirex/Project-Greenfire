@@ -9,8 +9,9 @@ const ASSET_LANES = 4;
 const SPLASH_URL = 'assets/ui/loading-screen-bg.jpg';
 
 const ASSET_END = 25;
-const MAP_END = 28;
-const WORLD_START = MAP_END;
+const MAP_END = 26;
+const TERRAIN_END = 50;
+const WORLD_START = TERRAIN_END;
 const WORLD_END = 95;
 const FLOAT_START = WORLD_END;
 const FLOAT_END = 100;
@@ -35,6 +36,7 @@ export default class LoadingScreen {
     this.missing = 0;
     this.overall = 0;
     this.mapStep = null;
+    this.terrainStep = null;
     this.startedAt = 0;
     this.phaseAt = 0;
     this.lastProgressAt = 0;
@@ -140,6 +142,33 @@ export default class LoadingScreen {
     this.logPhase('Mapa');
   }
 
+  beginTerrain(count) {
+    this.terrainStep = { label: 'Chystám ostrov…', done: 0, total: Math.max(count, 1), note: '' };
+    this.paint();
+  }
+
+  terrainLabel(label) {
+    if (!this.terrainStep) return;
+    this.terrainStep.label = `${label}…`;
+    this.paint();
+  }
+
+  terrainProgress() {
+    const step = this.terrainStep;
+    if (!step) return;
+    step.done = Math.min(step.done + 1, step.total);
+    this.setOverall(MAP_END + (step.done / step.total) * (TERRAIN_END - MAP_END));
+    this.lastProgressAt = performance.now();
+    this.paint();
+  }
+
+  endTerrain() {
+    this.terrainStep = null;
+    this.setOverall(TERRAIN_END);
+    this.paint();
+    this.logPhase('Terén a voda');
+  }
+
   beginWorld(count) {
     this.mount();
     this.stageCount = Math.max(count, 1);
@@ -240,7 +269,7 @@ export default class LoadingScreen {
 
   get allDone() {
     if (this.assetStep && this.assetStep.done < this.assetStep.total) return false;
-    return !this.floatStep && !this.mapStep && this.stageClosed >= this.stageCount;
+    return !this.floatStep && !this.mapStep && !this.terrainStep && this.stageClosed >= this.stageCount;
   }
 
   percent() {
@@ -255,7 +284,7 @@ export default class LoadingScreen {
 
   paint() {
     if (!this.root) return;
-    const step = this.stageStep || this.floatStep || this.mapStep;
+    const step = this.stageStep || this.floatStep || this.terrainStep || this.mapStep;
     this.barEl.style.width = `${this.percent()}%`;
     this.labelEl.textContent = step ? step.label : (this.assetStep ? this.assetStep.label : 'Chystám svět…');
     this.detailEl.textContent = step ? (step.note || '') : (this.assetStep ? this.assetStep.note || '' : '');

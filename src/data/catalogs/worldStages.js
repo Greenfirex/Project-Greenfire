@@ -1,5 +1,5 @@
 // Etapy stavby světa pro načítací obrazovku — názvy i pořadí vycházejí z druhů
-// objektů v katalogu dekorací, takže nová kategorie se objeví sama.
+// objektů v katalogu dekorací, takže nová kategorie se objeví sama. Navíc nápisy kroků stavby terénu.
 import { getDecoration } from './decorations.js';
 
 const KIND_ORDER = ['floor', 'path', 'ground', 'tree', 'prop', 'rock'];
@@ -14,6 +14,15 @@ const KIND_LABELS = {
 };
 
 const KIND_GROUP = { campfire: 'prop' };
+
+export const TERRAIN_STEP_LABELS = {
+  field: 'Měřím, kde je kopec a kde důlek',
+  caveSurface: 'Hloubím jeskyně',
+  surface: 'Kladu trávu a písek',
+  mass: 'Podkládám ostrov skálou',
+  grid: 'Kreslím čtverečky do mapy',
+  water: 'Napouštím moře a řeky',
+};
 
 function entriesOf(layout, part) {
   if (part === 'deco') return layout.decorations || [];

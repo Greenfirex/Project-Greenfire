@@ -19,6 +19,12 @@ const RELIEF_DEFINES = {
   RELIEF_NEIGHBOUR_TILE: '1.000',
   RELIEF_NEIGHBOUR_ANGLE: '0.000',
   RELIEF_NEIGHBOUR_STRENGTH: '1.000',
+  RELIEF_NEIGHBOUR_CAVITY: '0.000',
+  RELIEF_NEIGHBOUR_MASK_TILE: '7.000',
+  RELIEF_NEIGHBOUR_DETAIL: false,
+  RELIEF_NEIGHBOUR_TILE_B: '1.000',
+  RELIEF_NEIGHBOUR_ANGLE_B: '0.000',
+  RELIEF_NEIGHBOUR_MIX_B: '0.000',
 };
 
 const asFloat = (value) => Number(value).toFixed(3);
@@ -27,6 +33,7 @@ const RELIEF_CODE = `
 uniform sampler2D reliefMapA;
 uniform sampler2D reliefMapB;
 uniform sampler2D reliefNeighbour;
+uniform sampler2D reliefNeighbourB;
 
 float reliefHash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -83,7 +90,8 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
 
   setNeighbour(neighbour) {
     const next = neighbour || null;
-    if (Boolean(next) !== Boolean(this.neighbour)) this.markAllDefinesAsDirty();
+    const hadDetail = Boolean(this.neighbour && this.neighbour.detail);
+    if (Boolean(next) !== Boolean(this.neighbour) || Boolean(next && next.detail) !== hadDetail) this.markAllDefinesAsDirty();
     this.neighbour = next;
   }
 
@@ -104,21 +112,33 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
     }
     const neighbour = this.neighbour;
     defines.RELIEF_NEIGHBOUR = Boolean(neighbour);
+    const neighbourDetail = neighbour ? neighbour.detail : null;
+    defines.RELIEF_NEIGHBOUR_DETAIL = Boolean(neighbourDetail);
     if (neighbour) {
-      defines.RELIEF_NEIGHBOUR_TILE = asFloat(neighbour.tile);
-      defines.RELIEF_NEIGHBOUR_ANGLE = asFloat(neighbour.angle);
+      defines.RELIEF_NEIGHBOUR_TILE = asFloat(neighbour.primary.tile);
+      defines.RELIEF_NEIGHBOUR_ANGLE = asFloat(neighbour.primary.angle);
       defines.RELIEF_NEIGHBOUR_STRENGTH = asFloat(neighbour.strength);
+      defines.RELIEF_NEIGHBOUR_CAVITY = asFloat(neighbour.cavity);
+      defines.RELIEF_NEIGHBOUR_MASK_TILE = asFloat(neighbour.maskTile);
+    }
+    if (neighbourDetail) {
+      defines.RELIEF_NEIGHBOUR_TILE_B = asFloat(neighbourDetail.tile);
+      defines.RELIEF_NEIGHBOUR_ANGLE_B = asFloat(neighbourDetail.angle);
+      defines.RELIEF_NEIGHBOUR_MIX_B = asFloat(neighbourDetail.mix);
     }
   }
 
   getSamplers(samplers) {
-    samplers.push('reliefMapA', 'reliefMapB', 'reliefNeighbour');
+    samplers.push('reliefMapA', 'reliefMapB', 'reliefNeighbour', 'reliefNeighbourB');
   }
 
   bindForSubMesh(ubo) {
+    const neighbour = this.neighbour;
     ubo.setTexture('reliefMapA', this.primary.texture);
     ubo.setTexture('reliefMapB', this.detail ? this.detail.texture : this.primary.texture);
-    ubo.setTexture('reliefNeighbour', this.neighbour ? this.neighbour.texture : this.primary.texture);
+    ubo.setTexture('reliefNeighbour', neighbour ? neighbour.primary.texture : this.primary.texture);
+    const neighbourDetail = neighbour && neighbour.detail ? neighbour.detail.texture : null;
+    ubo.setTexture('reliefNeighbourB', neighbourDetail || this.primary.texture);
   }
 
   getCustomCode(shaderType) {
@@ -144,6 +164,7 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
           float reliefMask = smoothstep(0.32, 0.78, reliefNoise(reliefWorld / RELIEF_MASK_TILE)) * RELIEF_MIX_B;
           reliefResult = normalize(mix(reliefResult, reliefSecond, reliefMask));
         #endif
+        float reliefCavity = RELIEF_CAVITY;
         #ifdef RELIEF_NEIGHBOUR
           vec2 reliefWeightUv = clamp((reliefWorld - blendOrigin) * blendScale, vec2(0.0), vec2(1.0));
           float reliefAmount = texture2D(blendWeightSampler, reliefWeightUv).r;
@@ -153,13 +174,24 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
             RELIEF_NEIGHBOUR_STRENGTH,
             RELIEF_NEIGHBOUR_ANGLE
           );
+          #ifdef RELIEF_NEIGHBOUR_DETAIL
+            vec3 reliefOtherSecond = reliefNormal(
+              reliefBase,
+              texture2D(reliefNeighbourB, reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE_B, RELIEF_NEIGHBOUR_ANGLE_B)).xyz * 2.0 - 1.0,
+              RELIEF_NEIGHBOUR_STRENGTH,
+              RELIEF_NEIGHBOUR_ANGLE_B
+            );
+            float reliefOtherMask = smoothstep(0.32, 0.78, reliefNoise(reliefWorld / RELIEF_NEIGHBOUR_MASK_TILE)) * RELIEF_NEIGHBOUR_MIX_B;
+            reliefOther = normalize(mix(reliefOther, reliefOtherSecond, reliefOtherMask));
+          #endif
           reliefResult = normalize(mix(reliefResult, reliefOther, reliefAmount));
+          reliefCavity = mix(RELIEF_CAVITY, RELIEF_NEIGHBOUR_CAVITY, reliefAmount);
         #endif
         float reliefFlat = clamp(dot(reliefResult, reliefBase), 0.0, 1.0);
         normalW = reliefResult;
       `,
       CUSTOM_FRAGMENT_BEFORE_FOG: `
-        color.rgb *= 1.0 - RELIEF_CAVITY * (1.0 - reliefFlat);
+        color.rgb *= 1.0 - reliefCavity * (1.0 - reliefFlat);
         if (RELIEF_MACRO > 0.0) {
           float reliefPatch = reliefNoise(vPositionW.xz / RELIEF_MACRO_TILE + vec2(3.7, 1.9));
           color.rgb *= 1.0 + (reliefPatch - 0.5) * 2.0 * RELIEF_MACRO;

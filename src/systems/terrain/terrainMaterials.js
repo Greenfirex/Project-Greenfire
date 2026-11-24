@@ -231,9 +231,11 @@ export default {
     return material;
   },
 
-  materialFor(key, map, blend = null, underground = false) {
+  materialFor(key, map, blend = null, level = 0) {
+    const underground = level < 0;
     const baseKey = blend ? `${key}|${blend.partners.map((partner) => partner.key).join('+')}` : key;
-    const cacheKey = underground ? `Cave|${baseKey}` : baseKey;
+    const cavePrefix = blend ? `Cave${level}` : 'Cave';
+    const cacheKey = underground ? `${cavePrefix}|${baseKey}` : baseKey;
     let material = this.materials.get(cacheKey);
     if (!material) {
       const cfg = this.surfaceConfig(key);
@@ -293,12 +295,13 @@ export default {
     if (!blend || !blend.partners.length) return null;
     const cfg = this.surfaceConfig(blend.partners[0].key);
     if (!cfg || !cfg.relief || !cfg.relief.map) return null;
-    const map = cfg.relief.map;
+    const relief = cfg.relief;
     return {
-      texture: this.reliefTexture(map.texture),
-      tile: map.tile || 1,
-      angle: map.angle || 0,
-      strength: cfg.relief.strength === undefined ? 1 : cfg.relief.strength,
+      primary: this.reliefMapFor(relief.map),
+      detail: relief.detail ? this.reliefMapFor(relief.detail) : null,
+      strength: relief.strength === undefined ? 1 : relief.strength,
+      maskTile: relief.maskTile || 7,
+      cavity: relief.cavity || 0,
     };
   },
 

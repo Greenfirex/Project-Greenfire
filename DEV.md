@@ -186,12 +186,30 @@ v krocích 0,25 m, mezi nimi je vzduch (`utils/terrainRuns.js`, `buildColumnAir`
 vršek zůstává hladká plocha (pohyb, tráva a voda se nemění), hmota k ní dodává
 boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
 
+Stavba terénu je rozdělená na kroky (`terrainSystem.createSteps`: výškové pole, povrch
+každého patra, objem skal, mřížka a výběr myší). Editor je pouští všechny najednou
+přes `create`. Při startu hry je `setupTerrain` v `sceneWorld.js` pouští postupně
+a po nich i vodu; mezi kroky dá prohlížeči chvilku na překreslení a načítací obrazovka
+ukáže nápis kroku (`TERRAIN_STEP_LABELS` ve `worldStages.js`, úsek pruhu 26–50 %).
+Přechody povrchů (`weightsFor` v `createSurface`) si zjištění o sousedech počítají
+jednou za buňku, ne za každý bod obrázku; buňky bez přechodu se přeskočí. Přechody
+se počítají pro každé patro, jeskyně se berou jako suché (voda je jen na povrchu).
+Materiál jeskyně s přechodem má v klíči i číslo patra (`Cave-1|…`), aby si patra
+nepřepisovala váhové obrázky; jeskynní materiál bez přechodu je dál společný (`Cave|…`).
+Přes práh vchodu se povrchy míchají taky: `thresholdKeys` (`terrainCaves.js`) podle spojení
+mezi patry řekne buňce u prahu, jaká podlaha je za ním v druhém patře, a ta se pro přechod
+bere jako soused (bez kontroly schodu, práh je srovnaný). Mění se jen barva a nerovnosti.
+
 - **Reliéf povrchu** (`terrainReliefPlugin.js`) čte normálové mapy ve formátu GL
   (zelená = +V) s texturou načtenou standardně (`invertY`), takže bitangenta míří
   k +Z (`cross(tangent, n)`). Natočení vrstvy (`angle`) se musí otočit i ve sklonech
   z mapy, jinak stín nesedí na tvar. Do 17. 11. 2026 byla osa Z obrácená a vlnky
   písku vypadaly dopoledne ploše. `cavity` v nastavení povrchu ztmaví boky nerovností
-  přímo v barvě, aby byly vidět i při slunci shora (zatím jen písek).
+  přímo v barvě, aby byly vidět i při slunci shora (zatím jen písek). V přechodu
+  si materiál bere od prvního souseda (`reliefNeighbourFor`) obě mapy nerovností
+  i `cavity` a míchá je podle váhy přechodu; dřív bral jen první mapu bez `cavity`
+  a písek v přechodu vypadal v poledne jinak než písek vedle. Odstín ve stínu
+  (`ambient`) se v přechodu zatím nemíchá.
 - **Boky terénu:** nahoře pás v materiálu buňky (na útesu 0,25 m, na měkkém schodu
   `SURFACE_DEPTH` 1 m), pod ním skála. Bok je rozřezaný na pláty po 0,25 m, každý
   s vlastním výřezem textury, aby se obrázek netáhl a mezi buňkami nevznikaly švy.
