@@ -10,7 +10,7 @@ const DRY_SECONDS = 12;
 const WET_SECONDS = 3.5;
 const FADE_SECONDS = 2;
 const PRINT_STYLES = {
-  human: { width: 0.26, length: 0.52, alpha: 0.44 },
+  human: { width: 0.24, length: 0.38, alpha: 0.44 },
   turtle: { width: 0.22, length: 0.38, alpha: 0.62 },
   sanddevil: { width: 0.11, length: 0.13, alpha: 0.66 },
   gnaw_rat: { width: 0.09, length: 0.11, alpha: 0.6 },
