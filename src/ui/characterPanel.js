@@ -1,7 +1,7 @@
 // Okno postavy a batohu — výbava a staty vlevo, batoh uprostřed, detail předmětu vpravo.
 // Jen zobrazuje a hlásí callbacky; co hráč nese a má na sobě, drží systémy scény.
 import WindowFrame from './windowFrame.js';
-import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, itemFood, itemTags, itemWeapon, itemWeight, toolForItem } from '../data/catalogs/items.js';
+import { EQUIP_SLOTS, ITEM_TYPES, ITEM_TAG_LABELS, BAG_FILTERS, bagFilterOf, itemFood, itemTags, itemWeapon, itemWeight, toolForItem } from '../data/catalogs/items.js';
 import { DAMAGE_GROUPS, DAMAGE_TYPES, DAMAGE_TYPE_KEYS } from '../data/catalogs/damage.js';
 import { PLAYER_STAT_INFO } from '../data/catalogs/statInfo.js';
 import { PLAYER_ATTRIBUTES, ATTRIBUTE_KEYS } from '../data/catalogs/player.js';
@@ -42,6 +42,9 @@ export default class CharacterPanel {
       closeTitle: 'Zavřít (I / C)',
     });
     this.itemsEl = null;
+    this.filterEls = new Map();
+    this.bagFilter = 'all';
+    this.bagLayout = [];
     this.detailEl = null;
     this.summaryEl = null;
     this.healthFill = null;
@@ -132,6 +135,7 @@ export default class CharacterPanel {
           <span class="character-panel__heading">Batoh</span>
           <span class="character-panel__summary">—</span>
         </div>
+        <div class="inv-filters"></div>
         <div class="inv-grid"></div>
       </section>
       <aside class="inv-detail character-panel__detail"></aside>
@@ -197,6 +201,19 @@ export default class CharacterPanel {
 
     this.summaryEl = layout.querySelector('.character-panel__summary');
     this.itemsEl = layout.querySelector('.inv-grid');
+    const filtersEl = layout.querySelector('.inv-filters');
+    for (const filter of BAG_FILTERS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'inv-filter';
+      btn.textContent = filter.label;
+      btn.tabIndex = -1;
+      btn.classList.toggle('is-active', filter.key === this.bagFilter);
+      btn.addEventListener('mousedown', (evt) => evt.preventDefault());
+      btn.addEventListener('click', () => this.setBagFilter(filter.key));
+      filtersEl.appendChild(btn);
+      this.filterEls.set(filter.key, btn);
+    }
     this.detailEl = layout.querySelector('.character-panel__detail');
     this.itemsEl.addEventListener('pointerleave', () => this.lingerDetail());
     this.detailEl.addEventListener('pointerenter', () => this.stopLinger());
@@ -716,14 +733,44 @@ export default class CharacterPanel {
     }
     if (signature === this.lastInventorySignature) return;
     this.lastInventorySignature = signature;
+    this.bagLayout = layout;
+    this.renderBag();
+  }
 
+  setBagFilter(key) {
+    if (key === this.bagFilter) return;
+    this.bagFilter = key;
+    for (const [filterKey, btn] of this.filterEls) btn.classList.toggle('is-active', filterKey === key);
+    this.renderBag();
+    this.itemsEl.scrollTop = 0;
+  }
+
+  renderBag() {
+    const layout = this.bagLayout;
+    const filter = this.bagFilter;
+    const counts = new Map();
+    for (const entry of layout) {
+      if (!entry) continue;
+      const group = bagFilterOf(entry[0]);
+      counts.set(group, (counts.get(group) || 0) + 1);
+    }
+    for (const [filterKey, btn] of this.filterEls) {
+      btn.classList.toggle('is-empty', filterKey !== 'all' && !counts.get(filterKey));
+    }
     this.itemsEl.innerHTML = '';
     layout.forEach((entry, index) => {
+      if (filter !== 'all' && (!entry || bagFilterOf(entry[0]) !== filter)) return;
       this.itemsEl.appendChild(entry ? this.itemCell(entry[0], entry[1], index) : this.emptyCell(index));
     });
+    if (!this.itemsEl.children.length) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = 'Nic takového v batohu nemáš.';
+      this.itemsEl.appendChild(empty);
+    }
     if (this.hoverKey && !this.hoverWorn) {
       const still = layout.find((entry) => entry && entry[0] === this.hoverKey);
-      if (still) this.showDetail(still[0], still[1]);
+      if (still && (filter === 'all' || bagFilterOf(still[0]) === filter)) this.showDetail(still[0], still[1]);
       else this.clearDetail();
     }
   }

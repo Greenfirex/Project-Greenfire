@@ -1,5 +1,6 @@
 // Část herní scény: výroba a vaření — co jde vyrobit z obsahu batohu a samotné vyrobení předmětu.
-// Recepty s místem (třeba hořící oheň) mají vlastní okno, které se zavře, když hráč od místa odejde.
+// Výroba chvíli trvá (doba je u receptu); suroviny se odeberou až na konci. Najednou se vyrábí jedna věc.
+// Recepty s místem (třeba hořící oheň) mají vlastní okno; když hráč od místa odejde, okno se zavře a vaření se přeruší.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { ITEM_TYPES, RECIPES, RECIPE_KEYS, RECIPE_STATIONS } from '../data/catalogs/items.js';
 
@@ -10,8 +11,20 @@ export default {
     return false;
   },
 
-  updateCraftingStations() {
+  updateCrafting(dt) {
     if (this.cookingWindow.open && !this.stationReady('fire')) this.cookingWindow.close();
+    const job = this.craftJob;
+    if (!job) return;
+    const recipe = RECIPES[job.key];
+    if (!this.stationReady(recipe.station) || !this.inventorySystem.canCraft(job.key)) {
+      this.stopCrafting(true);
+      return;
+    }
+    job.elapsed += dt;
+    const progress = Math.min(1, job.elapsed / job.total);
+    this.craftingWindow.setProgress(job.key, progress);
+    this.cookingWindow.setProgress(job.key, progress);
+    if (progress >= 1) this.finishCrafting();
   },
 
   discoverRecipes(itemKeys) {
@@ -26,6 +39,7 @@ export default {
   },
 
   craftingRecipes(station = null) {
+    const job = this.craftJob;
     return RECIPE_KEYS.filter((key) => (RECIPES[key].station || null) === station && this.recipeBook.knows(key)).map((key) => {
       const cost = Object.entries(RECIPES[key].cost).map(([itemKey, need]) => ({
         key: itemKey,
@@ -33,11 +47,14 @@ export default {
         need,
         have: this.inventorySystem.count(itemKey),
       }));
+      const busy = Boolean(job) && job.key === key;
       return {
         key,
         name: ITEM_TYPES[key].displayName,
         cost,
-        ready: this.inventorySystem.canCraft(key),
+        busy,
+        progress: busy ? Math.min(1, job.elapsed / job.total) : 0,
+        ready: !job && this.inventorySystem.canCraft(key),
       };
     });
   },
@@ -56,13 +73,35 @@ export default {
 
   craftRecipe(key) {
     const recipe = RECIPES[key];
-    if (!recipe || !this.stationReady(recipe.station)) return false;
-    if (!this.inventorySystem.craft(key)) return false;
-    const station = RECIPE_STATIONS[recipe.station];
+    if (this.craftJob || !recipe || !this.stationReady(recipe.station)) return false;
+    if (!this.inventorySystem.canCraft(key)) return false;
+    this.craftJob = { key, elapsed: 0, total: Math.max(0.1, recipe.time || 0) };
+    this.refreshCrafting();
+    return true;
+  },
+
+  finishCrafting() {
+    const key = this.craftJob.key;
+    this.craftJob = null;
+    if (!this.inventorySystem.craft(key)) {
+      this.refreshCrafting();
+      return;
+    }
+    const station = RECIPE_STATIONS[RECIPES[key].station];
     this.log.add(`${station ? station.done : 'Vyrobeno'}: ${ITEM_TYPES[key].displayName}`, 'action');
     this.audioSystem.play('craft');
     this.discoverRecipes([key]);
     this.refreshInventory();
-    return true;
+  },
+
+  stopCrafting(tell = false) {
+    const job = this.craftJob;
+    if (!job) return;
+    this.craftJob = null;
+    if (tell) {
+      const station = RECIPE_STATIONS[RECIPES[job.key].station];
+      this.log.add(`${station ? station.stopped : 'Výroba přerušena'}: ${ITEM_TYPES[job.key].displayName}`, 'warn');
+    }
+    this.refreshCrafting();
   },
 };

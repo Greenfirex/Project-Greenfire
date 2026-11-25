@@ -266,6 +266,7 @@ export default class GameScene {
     this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
     this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', ...RECIPE_STATIONS.fire });
+    this.craftJob = null;
     this.log = new LogPanel();
     this.toasts = new ToastNotices();
     this.characterPanel = new CharacterPanel();
@@ -483,7 +484,7 @@ export default class GameScene {
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
-      this.updateCraftingStations();
+      this.updateCrafting(dt);
       this.lootSystem.update(dt, root, this.playerSystem.level);
       this.buildingSystem.updateInteractive(dt);
       this.waterSystem.update(dt);

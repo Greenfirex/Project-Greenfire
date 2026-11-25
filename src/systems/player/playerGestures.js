@@ -1,5 +1,6 @@
 // Část hratelné postavy: drobné pohyby rukou nad animací. Jídlo: levá ruka donese jídlo k puse
-// a zase ho spustí, i za chůze (pochodeň se na tu chvíli schová). Použití věci: pravá ruka máchne před sebe.
+// a zase ho spustí, i za chůze. Pochodeň z levé ruky předtím zandá k boku a po jídle ji zase vytáhne.
+// Použití věci: pravá ruka máchne před sebe.
 // Patří k PlayerSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { getDecoration } from '../../data/catalogs/decorations.js';
@@ -46,26 +47,60 @@ export default {
   eat(hold = null) {
     if (!this.ready || this.dead || this.lying || !this.leftArm) return 0;
     if (this.strikeTimer > 0 || this.pickupTimer > 0 || this.igniteTimer > 0) return 0;
-    if (this.dodgeTimer > 0 || this.flinchTimer > 0 || this.eatTimer > 0) return 0;
-    this.eatTimer = EAT_SECONDS;
-    this.eatClock = 0;
+    if (this.dodgeTimer > 0 || this.flinchTimer > 0 || this.mealStage || this.leftSwap) return 0;
     this.mealCurl = !hold ? EAT_CURL : Number.isFinite(hold.curl) ? hold.curl : WRAP_CURL;
     this.mealThickness = hold && Number.isFinite(hold.thickness) ? hold.thickness : MEAL_THICKNESS;
     this.mealInPalm = Boolean(hold && hold.palm);
     this.mealTurn = hold && Number.isFinite(hold.turn) ? hold.turn : 0;
     this.mealPalmAt = hold && Number.isFinite(hold.at) ? hold.at : PALM_AT;
     this.mealThumbward = hold && Number.isFinite(hold.thumbward) ? hold.thumbward : 0;
+    const stow = this.torchHidden ? null : this.offHandStow();
+    this.mealStage = stow ? 'stow' : 'bite';
     this.showMeal(hold);
-    return EAT_BITE_AT;
+    if (!stow) {
+      this.beginBite();
+      return EAT_BITE_AT;
+    }
+    return this.startPocket(stow, () => this.stowForMeal(true), () => this.beginBite()) + EAT_BITE_AT;
+  },
+
+  beginBite() {
+    if (this.mealStage !== 'stow' && this.mealStage !== 'bite') return;
+    this.mealStage = 'bite';
+    this.eatTimer = EAT_SECONDS;
+    this.eatClock = 0;
   },
 
   eating() {
-    return this.eatTimer > 0;
+    return this.mealStage === 'stow' || this.mealStage === 'bite';
+  },
+
+  finishBite() {
+    this.eatTimer = 0;
+    this.dropMeal();
+    this.mealStage = this.mealStowed ? 'draw' : null;
   },
 
   stopEating() {
     this.eatTimer = 0;
     this.dropMeal();
+    if (this.leftSwap && this.leftSwap.onSwap) this.leftSwap = null;
+    this.mealStage = null;
+    if (this.mealStowed) this.stowForMeal(false);
+  },
+
+  stowForMeal(away) {
+    this.mealStowed = away;
+    this.hideTorchForMeal(away);
+  },
+
+  drawAfterMeal() {
+    const stow = this.offHandStow();
+    if (!stow) {
+      this.stopEating();
+      return;
+    }
+    this.startPocket(stow, () => this.stowForMeal(false), () => { this.mealStage = null; });
   },
 
   tickGestures(dt) {
@@ -73,7 +108,7 @@ export default {
     if (this.eatTimer <= 0) return;
     this.eatClock += dt;
     this.eatTimer -= dt;
-    if (this.eatTimer <= 0) this.stopEating();
+    if (this.eatTimer <= 0) this.finishBite();
   },
 
   prefetchMeal(hold) {
@@ -95,7 +130,7 @@ export default {
     const token = {};
     this.mealToken = token;
     const build = (template) => {
-      if (this.mealToken !== token || this.eatTimer <= 0) return;
+      if (this.mealToken !== token || !this.eating()) return;
       const node = instantiateModel(this.s, template, 'playerMeal');
       if (!node) return;
       node.scaling.scaleInPlace(factor);
@@ -144,7 +179,8 @@ export default {
   feedMouth(dt) {
     const eating = this.eatTimer > 0;
     this.eatBlend = clamp01(this.eatBlend + (eating ? dt : -dt) / EAT_FADE);
-    this.hideTorchForMeal(this.eatBlend > 0);
+    this.hideTorchForMeal(this.mealStowed || this.eatBlend > 0);
+    if (this.mealStage === 'draw' && !this.eatBlend && !this.leftSwap) this.drawAfterMeal();
     if (!this.eatBlend || !this.leftArm || !this.headSlot || !this.idleNodes || !this.armNodes) return;
     const forward = new Vector3(Math.sin(this.bodyFacing), 0, Math.cos(this.bodyFacing));
     this.refreshNode(this.headSlot);

@@ -320,6 +320,8 @@ export default class PlayerSystem {
     this.mealThumbward = 0;
     this.mealPalmAt = null;
     this.torchHidden = false;
+    this.mealStage = null;
+    this.mealStowed = false;
     this.useTimer = 0;
     this.useAt = null;
     this.travelled = 0;
@@ -504,6 +506,7 @@ export default class PlayerSystem {
   setOffHandTool(key, instant = false) {
     const next = key || null;
     if (this.offHandKey === next) return;
+    if (this.mealStage) this.stopEating();
     const stow = (TOOL_TYPES[next || this.offNodeKey] || {}).stow;
     this.offHandKey = next;
     if (instant || !stow || !this.ready || this.lying || this.dead || !this.leftArm || !this.sheathFrame) {
@@ -513,14 +516,31 @@ export default class PlayerSystem {
     }
     if (next) this.prefetchTool(next);
     if (this.leftSwap && !this.leftSwap.swapped) return;
-    this.leftSwap = { time: 0, swapped: false, stow };
+    this.startPocket(stow);
+  }
+
+  startPocket(stow, onSwap = null, onDone = null) {
+    this.leftSwap = { time: 0, swapped: false, stow, onSwap, onDone };
+    return POCKET_TIME;
+  }
+
+  offHandStow() {
+    if (!this.offNode || !this.leftArm || !this.sheathFrame) return null;
+    return (TOOL_TYPES[this.offNodeKey] || {}).stow || null;
+  }
+
+  swapPocket(swap) {
+    swap.swapped = true;
+    if (swap.onSwap) swap.onSwap();
+    else this.refreshOffNode();
   }
 
   finishPocket() {
     const swap = this.leftSwap;
     if (!swap) return;
     this.leftSwap = null;
-    if (!swap.swapped) this.refreshOffNode();
+    if (!swap.swapped) this.swapPocket(swap);
+    if (swap.onDone) swap.onDone();
   }
 
   hipPoint(spot) {
@@ -898,10 +918,7 @@ export default class PlayerSystem {
     if (!swap) return;
     swap.time += dt;
     const t = swap.time / POCKET_TIME;
-    if (!swap.swapped && t >= POCKET_SHARE) {
-      swap.swapped = true;
-      this.refreshOffNode();
-    }
+    if (!swap.swapped && t >= POCKET_SHARE) this.swapPocket(swap);
     if (t >= 1 || !this.leftArm || !this.sheathFrame) {
       this.finishPocket();
       return;

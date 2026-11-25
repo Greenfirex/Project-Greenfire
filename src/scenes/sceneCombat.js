@@ -769,6 +769,7 @@ export default {
     this.audioSystem.play('playerDeath');
     this.deathTimer = this.playerSystem.die(Boolean(fromBehind));
     this.playerSystem.releaseKeys();
+    this.stopCrafting();
     this.closeOpenWindows();
     this.hoverHint.hide();
     this.simSystem.setHalted(true);

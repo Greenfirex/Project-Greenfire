@@ -72,6 +72,7 @@ export default {
     this.impactTimer = 0;
     this.floatingNumbers.clear();
     this.toasts.clear();
+    this.stopCrafting();
     this.footprintSystem.clear();
     this.hoverHint.hide();
   },

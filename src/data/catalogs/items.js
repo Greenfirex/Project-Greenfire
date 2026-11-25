@@ -20,6 +20,15 @@ export const ITEM_TAG_LABELS = {
   food: 'Jídlo',
 };
 
+export const BAG_FILTERS = [
+  { key: 'all', label: 'Vše' },
+  { key: 'weapon', label: 'Zbraně' },
+  { key: 'wear', label: 'Zbroje' },
+  { key: 'tool', label: 'Nástroje' },
+  { key: 'food', label: 'Jídlo' },
+  { key: 'raw', label: 'Suroviny' },
+];
+
 export const ITEM_TYPES = {
   wood: {
     displayName: 'Dřevo',
@@ -261,15 +270,15 @@ export const ITEM_TYPES = {
 export const ITEM_KEYS = Object.keys(ITEM_TYPES);
 
 export const RECIPES = {
-  twine: { cost: { palm_leaf: 2 } },
-  rope: { cost: { twine: 3 } },
-  spear: { cost: { stick: 1, shell: 2 } },
-  cooked_meat: { cost: { meat: 1 }, station: 'fire' },
-  cooked_egg: { cost: { koa_egg: 1 }, station: 'fire' },
+  twine: { cost: { palm_leaf: 2 }, time: 2 },
+  rope: { cost: { twine: 3 }, time: 3 },
+  spear: { cost: { stick: 1, shell: 2 }, time: 4 },
+  cooked_meat: { cost: { meat: 1 }, station: 'fire', time: 6 },
+  cooked_egg: { cost: { koa_egg: 1 }, station: 'fire', time: 5 },
 };
 
 export const RECIPE_STATIONS = {
-  fire: { title: 'Vaření', verb: 'Upéct', done: 'Upečeno' },
+  fire: { title: 'Vaření', verb: 'Upéct', busyVerb: 'Peču…', done: 'Upečeno', stopped: 'Pečení přerušeno' },
 };
 
 export const RECIPE_KEYS = Object.keys(RECIPES).filter((key) => ITEM_TYPES[key]);
@@ -396,4 +405,14 @@ export function itemTags(itemKey) {
   if (tool && tool.kind) keys.push(tool.kind);
   if (def.food) keys.push('food');
   return [...new Set(keys)].map((key) => ({ key, label: ITEM_TAG_LABELS[key] || key }));
+}
+
+export function bagFilterOf(itemKey) {
+  const def = ITEM_TYPES[itemKey];
+  if (!def) return 'raw';
+  if (def.slot === 'weapon') return 'weapon';
+  if (def.slot) return 'wear';
+  if (itemFood(itemKey)) return 'food';
+  if (toolForItem(itemKey)) return 'tool';
+  return 'raw';
 }

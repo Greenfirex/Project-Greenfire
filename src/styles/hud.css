@@ -515,6 +515,49 @@
   opacity: 1;
 }
 
+.inv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(201, 162, 94, 0.25);
+}
+
+.inv-filter {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-family: var(--font-title);
+  font-size: 14px;
+  line-height: 1.5;
+  text-shadow: 0 1px 2px #000;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.inv-filter.is-empty {
+  opacity: 0.35;
+}
+
+.inv-filter:hover {
+  color: var(--text-main);
+  opacity: 1;
+}
+
+.inv-filter.is-active {
+  color: var(--title-gold);
+  opacity: 1;
+}
+
+.inv-empty {
+  grid-column: 1 / -1;
+  padding: 10px 4px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
 .log-filters,
 .hud-tooltip__target {
   padding-bottom: 8px;
@@ -799,6 +842,31 @@
   filter: grayscale(1) brightness(0.7);
 }
 
+.craft-recipe.is-busy {
+  grid-template-areas: "head make" "cost make" "bar bar";
+}
+
+.craft-recipe.is-busy .craft-recipe__make:disabled {
+  filter: none;
+  color: #fff3d0;
+}
+
+.craft-recipe__bar {
+  grid-area: bar;
+  height: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(201, 162, 94, 0.4);
+  border-radius: 4px;
+}
+
+.craft-recipe__fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(to right, #a07c40, #ecc982);
+  box-shadow: 0 0 6px rgba(236, 201, 130, 0.55);
+}
+
 .side-window__body {
   flex: 1;
   min-height: 0;
@@ -831,10 +899,12 @@
 }
 
 .character-panel.side-window {
+  --dock-room: 150px;
+  top: calc((100% - var(--dock-room)) / 2);
   width: min(96vw, 1280px);
   min-width: 820px;
-  height: min(90vh, 840px);
-  min-height: 600px;
+  height: min(calc(100% - var(--dock-room) - 16px), 840px);
+  min-height: 360px;
 }
 
 .character-panel .side-window__body {
@@ -1180,7 +1250,6 @@
   .character-panel.side-window {
     width: min(96vw, 900px);
     min-width: 0;
-    height: min(90vh, 840px);
   }
 
   .character-panel__layout {

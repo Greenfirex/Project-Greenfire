@@ -1,4 +1,4 @@
-// Okno s recepty — seznam receptů s cenou v surovinách a tlačítkem na výrobu.
+// Okno s recepty — seznam receptů s cenou v surovinách a tlačítkem na výrobu; u právě vyráběného receptu běží ukazatel postupu.
 // Stejné okno slouží pro Výrobu (klávesa V) i pro Vaření u ohně; liší se jen nadpisem a slovem na tlačítku.
 // Co se vyrobí, řeší scéna přes onCraft.
 import WindowFrame from './windowFrame.js';
@@ -6,7 +6,7 @@ import { itemIconElement } from './itemIcons.js';
 
 export default class CraftingWindow {
 
-  constructor({ id = 'hud-crafting', title = 'Výroba', closeTitle = 'Zavřít (V)', verb = 'Vyrobit' } = {}) {
+  constructor({ id = 'hud-crafting', title = 'Výroba', closeTitle = 'Zavřít (V)', verb = 'Vyrobit', busyVerb = 'Vyrábím…' } = {}) {
     this.frame = new WindowFrame({
       id,
       className: 'craft-window',
@@ -14,7 +14,9 @@ export default class CraftingWindow {
       closeTitle,
     });
     this.verb = verb;
+    this.busyVerb = busyVerb;
     this.recipes = [];
+    this.bars = new Map();
     this.onClose = null;
     this.onCraft = null;
     this.frame.onClose = () => {
@@ -45,8 +47,14 @@ export default class CraftingWindow {
     if (this.frame.body) this.render();
   }
 
+  setProgress(key, progress) {
+    const fill = this.bars.get(key);
+    if (fill) fill.style.width = `${Math.round(progress * 100)}%`;
+  }
+
   render() {
     const body = this.frame.body;
+    this.bars.clear();
     if (!this.recipes.length) {
       const empty = document.createElement('div');
       empty.className = 'craft-empty';
@@ -84,12 +92,23 @@ export default class CraftingWindow {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'craft-recipe__make';
-    button.textContent = this.verb;
+    button.textContent = recipe.busy ? this.busyVerb : this.verb;
     button.disabled = !recipe.ready;
     button.addEventListener('click', () => {
       if (recipe.ready && this.onCraft) this.onCraft(recipe.key);
     });
     row.appendChild(button);
+    if (recipe.busy) {
+      row.classList.add('is-busy');
+      const bar = document.createElement('div');
+      bar.className = 'craft-recipe__bar';
+      const fill = document.createElement('div');
+      fill.className = 'craft-recipe__fill';
+      fill.style.width = `${Math.round(recipe.progress * 100)}%`;
+      bar.appendChild(fill);
+      row.appendChild(bar);
+      this.bars.set(recipe.key, fill);
+    }
     return row;
   }
 }
