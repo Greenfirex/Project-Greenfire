@@ -163,6 +163,9 @@ async function run() {
       if (type === 'error' || type === 'warn' || type === 'warning' || /error/i.test(text)) note(`[${type}] ${text}`);
     });
     await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
+    await page.waitForSelector('.main-menu [data-action="new"]', { timeout: 60000 });
+    console.log('Hlavní menu je vidět, spouštím novou hru.');
+    await page.click('.main-menu [data-action="new"]');
     await page.waitForFunction(() => Boolean(window.greenfire && window.greenfire.game && window.greenfire.game.loaded), { timeout: 240000, polling: 500 });
     console.log('Svět je načtený.');
     phase = 'běh hry';

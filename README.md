@@ -12,7 +12,8 @@ npm install
 npm run dev      # http://localhost:5174
 ```
 
-Při startu běží přes obrazovku načítání reálné počítadlo dokončených dílů
+Hra začíná hlavním menu: **Pokračovat** (nejnovější uložení), **Nová hra**
+a **Načíst hru…**. Po volbě běží přes obrazovku načítání reálné počítadlo dokončených dílů
 (dlaždice mapy, stromy a kameny, modely tvorů, postava, její animace, nástroje,
 příprava ukládání). Mapa se začne vykreslovat dřív, než doběhnou všechny modely;
 vstup je zamčený, dokud obrazovka nezmizí.
@@ -42,7 +43,8 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
 | **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem 🧱 Editor v liště |
 | **O** | Možnosti (záložky obraz a výkon, zvuk, hra) — také tlačítkem ⚙ Možnosti v liště |
-| **F5 / F9** | Uložit / načíst (načtení se ptá na potvrzení) — také tlačítky 💾 Uložit a 📂 Načíst v liště |
+| **F5 / F9** | Rychlé uložení / rychlé načtení (načtení se ptá na potvrzení) |
+| **💾 Uložit / 📂 Načíst** | Okno s pěti pojmenovanými pozicemi, rychlým a automatickým uložením (hra se sama ukládá každých 5 minut). Totéž najdeš v pauze (P), kde je i návrat do hlavního menu |
 | **Ctrl+Alt+I** | Ladicí okno Babylona (jen při vývoji; jde i přes adresu `?inspector`) |
 
 Hra se ukládá do prohlížeče, takže si ji můžeš rozehrát na pokračování.

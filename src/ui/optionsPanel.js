@@ -93,19 +93,23 @@ export default class OptionsPanel {
     this.tab = TABS[0].key;
   }
 
-  mount() {
-    if (this.root) return this.root;
+  mountButton() {
+    const host = document.getElementById('hud-bar');
+    if (this.button || !host) return;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'hud-bar__btn hud-bar__btn--options';
     button.title = 'Možnosti (O)';
     button.textContent = '⚙ Možnosti';
     button.addEventListener('mousedown', (evt) => evt.preventDefault());
-    const host = document.getElementById('hud-bar') || document.body;
     host.appendChild(button);
     button.addEventListener('click', () => this.toggle());
     this.button = button;
+  }
 
+  mount() {
+    this.mountButton();
+    if (this.root) return this.root;
     const root = document.createElement('div');
     root.className = 'options-panel';
     root.innerHTML = `

@@ -37,6 +37,9 @@ import PlayerStatsSystem from '../systems/player/playerStatsSystem.js';
 import InteractionSystem from '../systems/core/interactionSystem.js';
 import PlayerAttackSystem from '../systems/player/playerAttackSystem.js';
 import SaveSystem from '../systems/core/saveSystem.js';
+import MainMenu from '../ui/mainMenu.js';
+import MenuBackdrop from '../ui/menuBackdrop.js';
+import SaveSlotsWindow from '../ui/saveSlotsWindow.js';
 import GatherSystem from '../systems/gathering/gatherSystem.js';
 import FellingSystem from '../systems/gathering/fellingSystem.js';
 import HarvestSystem from '../systems/gathering/harvestSystem.js';
@@ -96,6 +99,7 @@ import sceneEquipmentParts from './sceneEquipment.js';
 import sceneCraftingParts from './sceneCrafting.js';
 import sceneFoodParts from './sceneFood.js';
 import sceneProgressParts from './sceneProgress.js';
+import sceneSaveParts from './sceneSave.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -288,6 +292,13 @@ export default class GameScene {
     this.loadingDrawnAt = 0;
     this.loaded = false;
     this.saveHintAfterLoad = null;
+    this.autosaveTimer = 0;
+    this.menuBackdrop = new MenuBackdrop();
+    this.mainMenu = new MainMenu();
+    this.saveSlots = new SaveSlotsWindow();
+    this.menuKeyHandler = null;
+    this.gameStarted = false;
+    this.pendingLoadSlot = null;
     this.defaultMaxFPS = undefined;
     this.options = mergeSavedOptions(readJSON(OPTIONS_STORAGE_KEY));
     this.renderScale = 1;
@@ -328,8 +339,20 @@ export default class GameScene {
   }
 
   start() {
+    this.wireSaveSlots();
+    const slot = this.saveSystem.consumeLoadOnStart();
+    if (slot) this.beginGame(slot);
+    else this.showMainMenu();
+  }
+
+  beginGame(slot) {
+    if (this.gameStarted) return;
+    this.gameStarted = true;
+    this.pendingLoadSlot = slot || null;
+    this.loader.useBackdrop(this.menuBackdrop);
     const urls = collectStartupUrls(this.heldItemSystem.key);
     this.loader.plan(urls.length);
+    this.closeMainMenu();
     this.startPreload(urls);
   }
 
@@ -467,6 +490,7 @@ export default class GameScene {
         this.editor.followCreatureMarks(dt);
       }
       this.autoTune(dt);
+      this.updateAutosave(dt);
       this.audioSystem.update(dt);
       this.playerSystem.updateFire();
       this.refreshClock();
@@ -493,7 +517,7 @@ export default class GameScene {
     this.refreshShadowCasters();
     this.saveSystem.dropLegacy();
     this.setupSave();
-    if (this.saveSystem.consumeLoadOnStart()) this.loadSaveState();
+    if (this.pendingLoadSlot) this.loadSaveState(this.pendingLoadSlot);
     this.gainXp(350);
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
@@ -1114,9 +1138,8 @@ export default class GameScene {
     this.optionsPanel.render();
     this.optionsPanel.setButtonVisible(false);
     this.optionsPanel.onChange = (values) => {
-      this.options = { ...values };
+      this.storeOptions(values);
       this.autoScale = 1;
-      writeJSON(OPTIONS_STORAGE_KEY, values);
       this.applyOptions();
     };
     this.optionsPanel.onToggle = (open) => this.holdGameForOptions(open);
@@ -1133,6 +1156,9 @@ export default class GameScene {
     this.editorToggle.mount();
     this.editorToggle.setActive(this.editor.active);
     this.pauseScreen.onResume = () => this.togglePause();
+    this.pauseScreen.onSave = () => this.openSaveSlots('save');
+    this.pauseScreen.onLoad = () => this.openSaveSlots('load');
+    this.pauseScreen.onMenu = () => this.askReturnToMenu();
     this.pauseScreen.mount();
     this.pauseScreen.setSpeed(this.simSystem.speed);
   }
@@ -1163,8 +1189,7 @@ export default class GameScene {
     this.decoHighlight.setVisible(this.options.highlights);
     this.crabSystem.setOutlineVisible(this.options.highlights);
     this.pickupSparkles.setEnabled(this.options.pickupSparkles);
-    document.documentElement.style.setProperty('--ui-scale', String((Number(this.options.uiScale) || 100) / 100));
-    document.documentElement.style.setProperty('--panel-backdrop', String(1 - (Number(this.options.panelTransparency) || 0) / 100));
+    this.applyUiOptions();
     this.vitalsBar.setVisible(this.options.playerBars !== 'head');
     this.gameCursor.setEnabled(this.options.customCursor);
     const densityChanged = this.floraSystem.density !== this.options.grass;
@@ -1175,6 +1200,16 @@ export default class GameScene {
     this.audioSystem.setAmbientVolume(this.options.ambientVolume / 100);
     this.audioSystem.setMusicVolume(this.options.musicVolume / 100);
     if (this.waterSystem.quality !== this.options.quality) this.withBusy('Přepočítávám vodu…', () => this.renderWater());
+  }
+
+  storeOptions(values) {
+    this.options = { ...values };
+    writeJSON(OPTIONS_STORAGE_KEY, values);
+  }
+
+  applyUiOptions() {
+    document.documentElement.style.setProperty('--ui-scale', String((Number(this.options.uiScale) || 100) / 100));
+    document.documentElement.style.setProperty('--panel-backdrop', String(1 - (Number(this.options.panelTransparency) || 0) / 100));
   }
 
   autoTune(dt) {
@@ -1396,8 +1431,8 @@ export default class GameScene {
 
   setupHud() {
     this.hud.onSpeed = (speed) => this.setSimSpeed(speed);
-    this.hud.onSave = () => this.doSave();
-    this.hud.onLoad = () => this.requestLoad();
+    this.hud.onSave = () => this.openSaveSlots('save');
+    this.hud.onLoad = () => this.openSaveSlots('load');
     this.hud.mount();
     this.hotbar.mount();
     this.hotbar.onSelect = (key) => this.selectTool(key);
@@ -1775,6 +1810,11 @@ export default class GameScene {
       if (evt.key !== 'Enter') evt.preventDefault();
       return;
     }
+    if (evt.key === 'Escape' && this.saveSlots.open) {
+      evt.preventDefault();
+      this.saveSlots.close();
+      return;
+    }
     if (this.editor.active) {
       this.editor.handleKey(evt, typing);
       return;
@@ -2041,67 +2081,8 @@ export default class GameScene {
     this.handleHover(cell);
   }
 
-  doSave() {
-    if (this.dying) return;
-    const ok = this.saveSystem.save();
-    this.log.add(ok ? 'Hra uložena' : 'Uložení selhalo', ok ? 'info' : 'warn');
-    this.dialog.tell({
-      title: ok ? 'Uloženo' : 'Uložení selhalo',
-      text: ok
-        ? 'Hra je uložená. Načíst ji můžeš tlačítkem 📂 Načíst nebo klávesou F9.'
-        : 'Uložení se nepodařilo — prohlížeč nepovolil zápis do úložiště.',
-    });
-  }
-
   markMapDirty() {
     return this.editor.markDirty();
-  }
-
-  requestLoad() {
-    if (this.dialog.open) return;
-    this.playerSystem.releaseKeys();
-    this.dialog.ask({
-      title: 'Načíst uloženou hru?',
-      text: 'Hra se znovu načte a vrátí se stav z posledního uložení. Co jsi od té doby udělal, se ztratí.',
-      confirmLabel: 'Načíst',
-      cancelLabel: 'Zrušit',
-      onConfirm: () => this.reloadFromSave(),
-    });
-  }
-
-  loadSaveState() {
-    const ok = this.saveSystem.load();
-    this.saveHintAfterLoad = ok
-      ? { title: 'Načteno', text: 'Hra je obnovená z posledního uložení.' }
-      : { title: 'Načtení selhalo', text: 'Uloženou hru nešlo načíst — chybí, nebo je z jiné verze.' };
-    this.log.add(ok ? 'Hra načtena' : 'Načtení selhalo', ok ? 'info' : 'warn');
-    if (!ok) {
-      console.warn('[save] Uloženou hru nešlo načíst — chybí, nebo má jinou verzi.');
-      return;
-    }
-    console.info('[save] Obnoveno:', {
-      druhyPredmetu: Object.keys(this.inventorySystem.items || {}).length,
-      sebrane: this.harvestSystem.list().length,
-      cas: Math.round(this.simSystem.time),
-    });
-  }
-
-  reloadFromSave() {
-    if (!this.saveSystem.hasSave()) {
-      this.dialog.tell({
-        title: 'Žádný save',
-        text: 'Nejdřív hru ulož — tlačítkem 💾 Uložit nebo klávesou F5.',
-      });
-      return;
-    }
-    if (!this.saveSystem.markLoadOnStart()) {
-      this.dialog.tell({
-        title: 'Načtení selhalo',
-        text: 'Prohlížeč nepovolil připravit načtení uložené hry.',
-      });
-      return;
-    }
-    window.location.reload();
   }
 
   refreshShadowReach(force = false) {
@@ -2114,4 +2095,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSaveParts);

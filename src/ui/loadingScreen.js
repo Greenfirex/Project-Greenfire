@@ -1,12 +1,12 @@
 // Obrazovka načítání — jeden souvislý pruh od 0 do 100 %, který se jen plní dopředu.
-// Nahoře je splash obrázek, pod ním pruh s vtipnými popisky aktuální fáze.
+// Za pruhem běží pozadí z hlavního menu (video ostrova s logem), pod ním vtipné popisky aktuální fáze.
 import { releaseFrame } from '../utils/assetLoader.js';
+import MenuBackdrop from './menuBackdrop.js';
 
 const MIN_VISIBLE_MS = 600;
 const MIN_AFTER_FIRST_MS = 300;
 const FADE_MS = 400;
 const ASSET_LANES = 4;
-const SPLASH_URL = 'assets/ui/loading-screen-bg.jpg';
 
 const ASSET_END = 25;
 const MAP_END = 26;
@@ -42,6 +42,12 @@ export default class LoadingScreen {
     this.lastProgressAt = 0;
     this.hideTimer = 0;
     this.onHiddenCallback = null;
+    this.backdrop = null;
+  }
+
+  useBackdrop(backdrop) {
+    this.backdrop = backdrop;
+    if (this.root) this.root.prepend(backdrop.mount());
   }
 
   mount() {
@@ -49,7 +55,6 @@ export default class LoadingScreen {
     const root = document.createElement('div');
     root.className = 'loading-screen';
     root.innerHTML = `
-      <div class="loading-splash"></div>
       <div class="loading-box">
         <div class="loading-bar"><div class="loading-bar__fill"></div></div>
         <div class="loading-row">
@@ -63,8 +68,8 @@ export default class LoadingScreen {
     this.barEl = root.querySelector('.loading-bar__fill');
     this.labelEl = root.querySelector('.loading-label');
     this.detailEl = root.querySelector('.loading-detail');
-    const splash = root.querySelector('.loading-splash');
-    splash.style.backgroundImage = `url('${SPLASH_URL}')`;
+    if (!this.backdrop) this.backdrop = new MenuBackdrop();
+    root.prepend(this.backdrop.mount());
     this.startedAt = performance.now();
     this.lastProgressAt = this.startedAt;
     this.paint();
@@ -304,6 +309,7 @@ export default class LoadingScreen {
       this.root.classList.add('is-hidden');
       this.hideTimer = setTimeout(() => {
         if (!this.root) return;
+        this.dropBackdrop();
         this.root.remove();
         this.root = null;
         this.onHidden();
@@ -315,8 +321,14 @@ export default class LoadingScreen {
     if (this.onHiddenCallback) this.onHiddenCallback();
   }
 
+  dropBackdrop() {
+    if (this.backdrop) this.backdrop.dispose();
+    this.backdrop = null;
+  }
+
   dispose() {
     clearTimeout(this.hideTimer);
+    this.dropBackdrop();
     if (this.root) this.root.remove();
     this.root = null;
   }

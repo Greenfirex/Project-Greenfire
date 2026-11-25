@@ -1,6 +1,6 @@
 // Obecný save systém — sběrač stavu nad registrovanými vlastníky.
 // Nezná obsah stavu: každý vlastník dodá serialize, apply, defaults a order.
-import { SAVE_VERSION, SAVE_STORAGE_KEY, SAVE_LEGACY_KEY, SAVE_LOAD_FLAG_KEY } from '../../data/catalogs/saveSchema.js';
+import { SAVE_VERSION, SAVE_SLOTS, SAVE_LEGACY_KEY, SAVE_LOAD_FLAG_KEY } from '../../data/catalogs/saveSchema.js';
 import { readJSON, writeJSON, removeJSON } from '../../utils/storage.js';
 import { stateProvider } from '../../utils/saveState.js';
 
@@ -21,7 +21,7 @@ export default class SaveSystem {
       .sort((a, b) => a[1].order - b[1].order);
   }
 
-  buildPayload() {
+  buildPayload(meta) {
     const state = {};
     for (const [key, provider] of this.providers.entries()) {
       try {
@@ -31,22 +31,58 @@ export default class SaveSystem {
         state[key] = null;
       }
     }
-    return { version: SAVE_VERSION, savedAt: Date.now(), state };
+    return { version: SAVE_VERSION, savedAt: Date.now(), meta: meta || null, state };
   }
 
-  save() {
-    return writeJSON(SAVE_STORAGE_KEY, this.buildPayload());
+  readSlot(slot) {
+    const key = SAVE_SLOTS[slot];
+    if (!key) return null;
+    const payload = readJSON(key);
+    return payload && payload.version === SAVE_VERSION && payload.state ? payload : null;
   }
 
-  hasSave() {
-    const raw = readJSON(SAVE_STORAGE_KEY);
-    return !!(raw && raw.version === SAVE_VERSION && raw.state);
+  save(slot, meta = null) {
+    const key = SAVE_SLOTS[slot];
+    return key ? writeJSON(key, this.buildPayload(meta)) : false;
   }
 
-  markLoadOnStart() {
+  hasSave(slot) {
+    return Boolean(this.readSlot(slot));
+  }
+
+  summary(slot) {
+    const payload = this.readSlot(slot);
+    if (!payload) return null;
+    const meta = payload.meta && typeof payload.meta === 'object' ? payload.meta : {};
+    return {
+      slot,
+      savedAt: Number.isFinite(payload.savedAt) ? payload.savedAt : 0,
+      name: typeof meta.name === 'string' ? meta.name : '',
+      level: Number.isFinite(meta.level) ? meta.level : null,
+      clock: typeof meta.clock === 'string' ? meta.clock : '',
+    };
+  }
+
+  newest() {
+    let best = null;
+    for (const slot of Object.keys(SAVE_SLOTS)) {
+      const info = this.summary(slot);
+      if (info && (!best || info.savedAt > best.savedAt)) best = info;
+    }
+    return best;
+  }
+
+  rename(slot, name) {
+    const payload = this.readSlot(slot);
+    if (!payload) return false;
+    payload.meta = { ...(payload.meta && typeof payload.meta === 'object' ? payload.meta : {}), name };
+    return writeJSON(SAVE_SLOTS[slot], payload);
+  }
+
+  markLoadOnStart(slot) {
     try {
-      if (typeof sessionStorage === 'undefined') return false;
-      sessionStorage.setItem(SAVE_LOAD_FLAG_KEY, '1');
+      if (typeof sessionStorage === 'undefined' || !SAVE_SLOTS[slot]) return false;
+      sessionStorage.setItem(SAVE_LOAD_FLAG_KEY, slot);
       return true;
     } catch {
       return false;
@@ -55,18 +91,18 @@ export default class SaveSystem {
 
   consumeLoadOnStart() {
     try {
-      if (typeof sessionStorage === 'undefined') return false;
-      const wanted = sessionStorage.getItem(SAVE_LOAD_FLAG_KEY) === '1';
-      if (wanted) sessionStorage.removeItem(SAVE_LOAD_FLAG_KEY);
-      return wanted;
+      if (typeof sessionStorage === 'undefined') return null;
+      const slot = sessionStorage.getItem(SAVE_LOAD_FLAG_KEY);
+      if (slot !== null) sessionStorage.removeItem(SAVE_LOAD_FLAG_KEY);
+      return SAVE_SLOTS[slot] ? slot : null;
     } catch {
-      return false;
+      return null;
     }
   }
 
-  load() {
-    const payload = readJSON(SAVE_STORAGE_KEY);
-    if (!payload || payload.version !== SAVE_VERSION || !payload.state) return false;
+  load(slot) {
+    const payload = this.readSlot(slot);
+    if (!payload) return false;
 
     for (const [key, provider] of this.orderedProviders()) {
       const data = payload.state[key];
@@ -79,8 +115,9 @@ export default class SaveSystem {
     return true;
   }
 
-  clear() {
-    return removeJSON(SAVE_STORAGE_KEY);
+  clear(slot) {
+    const key = SAVE_SLOTS[slot];
+    return key ? removeJSON(key) : false;
   }
 
   dropLegacy() {

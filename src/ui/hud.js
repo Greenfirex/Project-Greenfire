@@ -35,10 +35,10 @@ export default class Hud {
     this.helpToggle.addEventListener('click', () => this.toggleHelp());
     this.barEl.appendChild(this.helpToggle);
 
-    this.saveBtn = this.createBarButton('💾 Uložit', 'Uložit hru (F5)', 'save', () => {
+    this.saveBtn = this.createBarButton('💾 Uložit', 'Uložit hru do pozice (rychlé uložení: F5)', 'save', () => {
       if (this.onSave) this.onSave();
     });
-    this.loadBtn = this.createBarButton('📂 Načíst', 'Načíst uloženou hru (F9)', 'load', () => {
+    this.loadBtn = this.createBarButton('📂 Načíst', 'Načíst uloženou hru (rychlé načtení: F9)', 'load', () => {
       if (this.onLoad) this.onLoad();
     });
 
@@ -56,8 +56,8 @@ export default class Hud {
       <div class="hud-row"><span>Posunout čas</span><span class="hud-key">N</span></div>
       <div class="hud-row"><span>Editor mapy</span><span class="hud-key">F2</span></div>
       <div class="hud-row"><span>Zrušit výběr</span><span class="hud-key">Esc</span></div>
-      <div class="hud-row"><span>Uložit</span><span class="hud-key">F5</span></div>
-      <div class="hud-row"><span>Načíst</span><span class="hud-key">F9</span></div>
+      <div class="hud-row"><span>Rychlé uložení</span><span class="hud-key">F5</span></div>
+      <div class="hud-row"><span>Rychlé načtení</span><span class="hud-key">F9</span></div>
       <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
       <div class="hud-row"><span>Inventář / postava</span><span class="hud-key">I</span> <span class="hud-key">C</span></div>
       <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">P</span></div>

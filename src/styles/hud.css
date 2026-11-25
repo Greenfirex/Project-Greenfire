@@ -34,6 +34,8 @@
 .inv-detail__use,
 .confirm-card__btn,
 .pause-card__resume,
+.main-menu__btn,
+.save-slot__btn,
 .death-card__respawn,
 .options-panel__tabs button,
 .options-panel__presets button,
@@ -57,6 +59,9 @@
 .inv-detail__use:hover,
 .confirm-card__btn:hover,
 .pause-card__resume:hover,
+.main-menu__btn:hover,
+.main-menu__btn:focus-visible,
+.save-slot__btn:hover:not(:disabled),
 .death-card__respawn:hover,
 .death-card__respawn:focus,
 .options-panel__tabs button:hover,
@@ -1586,7 +1591,7 @@
   justify-content: center;
   background: rgba(4, 7, 10, 0.55);
   backdrop-filter: blur(2px);
-  z-index: 45;
+  z-index: 80;
 }
 
 .confirm-screen.is-open {
@@ -1613,6 +1618,7 @@
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-dim);
+  white-space: pre-line;
 }
 
 .confirm-card__input {
@@ -1682,6 +1688,7 @@
 }
 
 .pause-card__resume {
+  min-width: 200px;
   margin-top: 4px;
   padding: 8px 18px;
 }
@@ -1996,6 +2003,194 @@
   padding: 7px 10px;
 }
 
+/* Pozadí menu a načítání — video ostrova přes celou obrazovku, ztmavené okraje a logo nahoře. */
+.menu-backdrop {
+  position: absolute;
+  inset: 0;
+  zoom: calc(1 / var(--ui-scale, 1));
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  background-position: center center;
+  background-size: cover;
+}
+
+.menu-backdrop__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+
+.menu-backdrop__video.is-playing {
+  opacity: 1;
+}
+
+.menu-backdrop__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.45) 100%),
+    linear-gradient(to bottom, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+}
+
+.menu-backdrop__logo {
+  position: absolute;
+  top: 4vh;
+  left: 50%;
+  width: min(50vw, 720px, 70vh);
+  aspect-ratio: 1270 / 636;
+  transform: translateX(-50%);
+  animation: menu-logo-glow 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.menu-backdrop__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.menu-backdrop__shine {
+  position: absolute;
+  inset: 0;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 248, 220, 0.55) 50%, transparent 58%) no-repeat;
+  background-size: 250% 100%;
+  mix-blend-mode: screen;
+  animation: menu-logo-shine 9s ease-in-out infinite;
+}
+
+@keyframes menu-logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(63, 212, 131, 0.25)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6)); }
+  50% { filter: drop-shadow(0 0 26px rgba(63, 212, 131, 0.6)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6)); }
+}
+
+@keyframes menu-logo-shine {
+  0%, 62% { background-position: 130% 0; }
+  88%, 100% { background-position: -30% 0; }
+}
+
+/* Hlavní menu — tlačítka ve spodní části nad pohyblivým pozadím. */
+.main-menu {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  user-select: none;
+}
+
+.main-menu__nav {
+  position: absolute;
+  left: 50%;
+  bottom: 20vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+}
+
+.main-menu__btn {
+  min-width: 280px;
+  padding: 11px 28px;
+  font-size: 22px;
+}
+
+.main-menu__btn[hidden],
+.main-menu__note[hidden] {
+  display: none;
+}
+
+.main-menu__note {
+  margin: -6px 0 4px;
+  color: var(--text-main);
+  font-size: 13px;
+  text-shadow: 0 1px 3px #000, 0 0 8px #000;
+}
+
+/* Okno s pozicemi pro uložení — nad menu i nad pauzou, pod potvrzovacím oknem. */
+.side-window.save-slots-window {
+  width: 600px;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  max-height: 80vh;
+  z-index: 70;
+}
+
+.save-slots-window .side-window__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.save-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+}
+
+.save-slot.is-empty {
+  opacity: 0.55;
+}
+
+.save-slot__info {
+  min-width: 0;
+}
+
+.save-slot__label {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.save-slot__label:empty {
+  display: none;
+}
+
+.save-slot__name {
+  color: var(--text-main);
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.save-slot__detail {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.save-slot__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.save-slot__btn {
+  padding: 5px 4px;
+  font-size: 12px;
+}
+
+.save-slot__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Obrazovka načítání — kryje celou hru, dokud nedoběhnou modely, postava a animace. */
 .loading-screen {
   position: absolute;
@@ -2003,20 +2198,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding-bottom: 10vh;
   background: var(--bg-dark);
   z-index: 60;
   opacity: 1;
   transition: opacity 400ms ease;
-}
-
-.loading-splash {
-  position: absolute;
-  inset: 0;
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: cover;
-  background-color: var(--bg-dark);
 }
 
 .loading-screen.is-hidden {

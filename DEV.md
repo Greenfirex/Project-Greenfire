@@ -53,6 +53,21 @@ src/
   `saveSystem.register` (`serialize`, `apply`, `defaultState`).
 - Načtení savu hru znovu spustí a stav se navrství na čerstvě postavený svět —
   proto je u načtení vidět načítací obrazovka. Samo se nic nenačítá.
+- Pozice uložení jsou v `SAVE_SLOTS` (`saveSchema.js`): rychlé (F5/F9, klíč zůstal
+  po starém jediném uložení), automatické a pět pojmenovaných. Uložení nese kromě
+  stavu nepovinné `meta` (název, úroveň, herní čas) pro okno s pozicemi; stav se tím
+  nemění, takže verze zůstala. Ovládání ukládání je v části `sceneSave.js`.
+- Automatické uložení se zapíše každých `AUTOSAVE_INTERVAL_S` hraní, jen když je klid
+  (ne v boji, při umírání, v editoru, s otevřeným oknem, vleže); jinak počká.
+  Každé jiné uložení odpočet vynuluje.
+- Start: nejdřív hlavní menu (`mainMenu.js`) a svět se staví až po volbě. Načtení
+  během hry a „Do hlavního menu“ obnoví stránku; načtení nechá v `sessionStorage`
+  značku s pozicí a menu se pak přeskočí.
+- Pozadí menu a načítání (`menuBackdrop.js`) je smyčka `menu-loop.mp4`. Šev smyčky
+  je zapečený přímo ve videu (poslední 1,5 s se prolíná do začátku), prohlížeč ho jen
+  opakuje. Původní video z Gemini, logo na purpurovém pozadí a krajina bez loga jsou
+  v `_sources/ui/`. Při novém videu hlídat, aby poslední snímky nezhoršila komprese
+  (kódovat s rezervou snímků navíc a ty pak odříznout).
 
 ### Dvě otázky na výšku
 

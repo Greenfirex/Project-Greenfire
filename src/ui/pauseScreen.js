@@ -1,10 +1,13 @@
-// Ztmavení obrazovky přes hru — nápis PAUZA, tlačítko Pokračovat a stav herního času.
+// Ztmavení obrazovky přes hru — nápis PAUZA, Pokračovat, uložení, načtení, návrat do menu a stav herního času.
 // Jen zobrazuje stav a hlásí kliknutí; zastavení hry má na starost scéna.
 export default class PauseScreen {
 
   constructor() {
     this.root = null;
     this.onResume = null;
+    this.onSave = null;
+    this.onLoad = null;
+    this.onMenu = null;
     this.speedEl = null;
     this.lastSpeed = '';
   }
@@ -17,16 +20,28 @@ export default class PauseScreen {
       <div class="pause-card">
         <div class="pause-card__title">Pauza</div>
         <div class="pause-card__speed">Rychlost času: <strong>1×</strong></div>
-        <button type="button" class="pause-card__resume">Pokračovat</button>
+        <button type="button" class="pause-card__resume" data-action="resume">Pokračovat</button>
+        <button type="button" class="pause-card__resume" data-action="save">Uložit hru</button>
+        <button type="button" class="pause-card__resume" data-action="load">Načíst hru</button>
+        <button type="button" class="pause-card__resume" data-action="menu">Do hlavního menu</button>
         <div class="pause-card__keys"><span class="hud-key">P</span> pokračovat</div>
       </div>
     `;
     document.getElementById('hud-layer').appendChild(root);
     this.root = root;
     this.speedEl = root.querySelector('.pause-card__speed strong');
-    root.querySelector('.pause-card__resume').addEventListener('click', () => {
-      if (this.onResume) this.onResume();
-    });
+    const handlers = {
+      resume: () => this.onResume,
+      save: () => this.onSave,
+      load: () => this.onLoad,
+      menu: () => this.onMenu,
+    };
+    for (const btn of root.querySelectorAll('button[data-action]')) {
+      btn.addEventListener('click', () => {
+        const action = handlers[btn.dataset.action]();
+        if (action) action();
+      });
+    }
     return root;
   }
 
