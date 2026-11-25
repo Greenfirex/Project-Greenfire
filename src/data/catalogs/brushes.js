@@ -13,7 +13,8 @@ const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
 const ROTATION_OPTION = { key: 'rotation', label: 'Natočení', kind: 'range', min: 0, max: 7, step: 1, display: 'angle' };
 const RANDOM_OPTION = { key: 'random', label: 'Náhodně střídat varianty', default: true };
-const PACK_OPTION = { key: 'pack', label: 'Smečka: svolá ostatní a přijde na zavolání', default: false };
+const CELLS_OPTION = { key: 'cells', label: 'Do buněk (tažením vyplní plochu)', default: false };
+const PACK_OPTION ={ key: 'pack', label: 'Smečka: svolá ostatní a přijde na zavolání', default: false };
 const LIGHT_ROCKS = [
   'rock_large', 'rock_large_c', 'rock_small', 'rock_small_flat', 'rock_tall',
   'rock_pair', 'rock_jagged', 'rock_pebbles',
@@ -584,6 +585,7 @@ export function brushOptions(brush) {
   if (!brush) return [];
   const list = [...(Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))];
   if (brush.join || brush.bridge || brush.creature || brush.creatureSettings || brush.spawn || brush.lake || brush.river) return list;
+  if (brush.deco) list.push(CELLS_OPTION);
   if (brush.rotate) list.push(ROTATION_OPTION);
   const size = Number.isFinite(brush.radius) ? Math.max(0, Math.min(SIZE_OPTION.max, Math.round(brush.radius))) : 0;
   return [...list, { ...SIZE_OPTION, default: size }];

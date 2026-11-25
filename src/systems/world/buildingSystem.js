@@ -112,6 +112,49 @@ export default class BuildingSystem {
     return best;
   }
 
+  deckAt(x, z, storey = null) {
+    let best = null;
+    for (const deck of this.decks) {
+      const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
+      const upperFrom = Number.isFinite(deck.upperTop) ? deck.upperTop - ROOM_FEET_BELOW_UPPER : Infinity;
+      for (const rect of deck.rects) {
+        if (p.x < rect.x0 || p.x > rect.x1 || p.z < rect.z0 || p.z > rect.z1) continue;
+        const level = rect.y >= upperFrom ? 'upper' : 'lower';
+        if (storey === 'lower' && level === 'upper') continue;
+        const y = deck.top + rect.y;
+        if (!best || y > best.y) best = { y, storey: level, deck };
+      }
+    }
+    return best;
+  }
+
+  deckOnRay(origin, direction, storey = null) {
+    if (direction.y > -1e-4) return null;
+    let best = null;
+    for (const deck of this.decks) {
+      const upperFrom = Number.isFinite(deck.upperTop) ? deck.upperTop - ROOM_FEET_BELOW_UPPER : Infinity;
+      for (const rect of deck.rects) {
+        const level = rect.y >= upperFrom ? 'upper' : 'lower';
+        if (storey === 'lower' && level === 'upper') continue;
+        const y = deck.top + rect.y;
+        const t = (y - origin.y) / direction.y;
+        if (t <= 0 || (best && t >= best.t)) continue;
+        const x = origin.x + direction.x * t;
+        const z = origin.z + direction.z * t;
+        const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
+        if (p.x < rect.x0 || p.x > rect.x1 || p.z < rect.z0 || p.z > rect.z1) continue;
+        best = { t, x, y, z, storey: level };
+      }
+    }
+    return best;
+  }
+
+  storeyShownAt(x, z, storey) {
+    const found = this.deckAt(x, z);
+    const part = found ? found.deck.parts[storey] : null;
+    return !part || part.shown >= 0.5;
+  }
+
   updateInside(dt, position, eye, storey = null) {
     const step = Math.max(0, dt) / LAYER_FADE_SECONDS;
     let flipped = false;

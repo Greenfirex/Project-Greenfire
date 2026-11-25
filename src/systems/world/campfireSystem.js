@@ -1,6 +1,6 @@
 // Táboráky ve světě — kde stojí, jestli hoří, a co udělá zapálení.
 // Drží jen seznam ohňů; kdo klikne a kde stojí hráč, mu hlásí scéna. Zdroj světla každého ohně ohlásí scéně.
-import { cellKey, cellToWorldCoords } from '../../utils/gridMath.js';
+import { cellKey } from '../../utils/gridMath.js';
 import CampfireFire from '../../effects/campfireFire.js';
 import { levelOfEntry } from '../../data/maps/areaShape.js';
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
@@ -10,7 +10,8 @@ const REACH_HEIGHT = PLAYER_BASE.handReach.heightLimit;
 const MOVE_CANCEL = 0.16;
 
 function sameEntry(item, entry) {
-  return item.entry === entry || (item.cx === entry.cx && item.cz === entry.cz && item.level === levelOfEntry(entry));
+  return item.entry === entry || (item.cx === entry.cx && item.cz === entry.cz && item.level === levelOfEntry(entry)
+    && item.offsetX === (entry.offsetX || 0) && item.offsetZ === (entry.offsetZ || 0));
 }
 
 export default class CampfireSystem {
@@ -29,15 +30,17 @@ export default class CampfireSystem {
     this.onLightSource = null;
   }
 
-  add(entry, def, surfaceY) {
+  add(entry, def, at) {
     const cfg = def && def.flame;
-    if (!cfg) return;
-    const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
+    if (!cfg || !at) return;
+    const { x, y: surfaceY, z } = at;
     const existing = this.fires.find((item) => sameEntry(item, entry));
     if (existing) {
       existing.entry = entry;
       existing.lift = cfg.y;
+      existing.x = x;
       existing.y = surfaceY;
+      existing.z = z;
       existing.fire.setScale(cfg.size);
       existing.fire.place(x, surfaceY + cfg.y, z);
       return;
@@ -49,7 +52,7 @@ export default class CampfireSystem {
     fire.source.level = level;
     if (this.onLightSource) this.onLightSource(fire.source, true);
     fire.setDayness(level < 0 ? 0 : this.dayness);
-    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, level, x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
+    this.fires.push({ entry, cx: entry.cx, cz: entry.cz, offsetX: entry.offsetX || 0, offsetZ: entry.offsetZ || 0, level, x, y: surfaceY, z, fire, lift: cfg.y, lit: false });
   }
 
   reseatHeights(heightForEntry, entries) {

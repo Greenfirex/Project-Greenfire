@@ -30,6 +30,8 @@ export const BUILDING_VIEWS = [
   { storey: 'upper', label: 'Patro', note: 'Bez střechy, stěny patra ke kameře seříznuté' },
 ];
 
+export const FREE_ERASE_REACH = 1;
+
 export const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
 export function clampLevel(level) {

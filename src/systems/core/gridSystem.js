@@ -68,12 +68,15 @@ export default class GridSystem {
     this.hologramOwnMaterials = [];
     this.hologramToken = 0;
     this.hologramValid = true;
+    this.draftModels = [];
+    this.draftModelMaterials = [];
+    this.draftModelToken = 0;
   }
 
-  showDecorPreview(def, items, cx, cz, topY, rotation = 0) {
+  showDecorPreview(def, items, cx, cz, topY, rotation = 0, decoKey = null) {
     if (!def) return;
     const list = Array.isArray(items) && items.length ? items : [SINGLE_ITEM];
-    const key = `deco:${speciesOf(def)}`;
+    const key = `deco:${decoKey || speciesOf(def)}`;
     if (this.hologramKey !== key) this.buildHologram(key, () => decorationTemplate(this.s, def), list);
     this.placeHologram(cx * CELL_SIZE, topY, cz * CELL_SIZE, (Math.PI / 2) * rotation, list);
     this.tintHologram(true);
@@ -124,24 +127,54 @@ export default class GridSystem {
       if (token !== this.hologramToken || this.hologramKey !== key) return;
       const node = instantiateModel(this.s, template, 'hologramModel');
       if (!node) return;
-      this.hologramOwnMaterials = node.getChildMeshes().map((mesh) => {
-        const mat = new StandardMaterial(`hologramMat_${mesh.name}`, this.s);
-        const source = mesh.material;
-        if (source && source.alphaTexture) mat.opacityTexture = source.alphaTexture;
-        else if (source && source.useAlphaFromDiffuseTexture && source.diffuseTexture) mat.opacityTexture = source.diffuseTexture;
-        mat.diffuseColor = HOLO_VALID.clone();
-        mat.emissiveColor = new Color3(0.21, 0.57, 0.48);
-        mat.specularColor = new Color3(0, 0, 0);
-        mat.alpha = HOLOGRAM_ALPHA;
-        mat.backFaceCulling = false;
-        mesh.material = mat;
-        mesh.receiveShadows = false;
-        return mat;
-      });
+      this.hologramOwnMaterials = this.hologramMaterials(node, HOLO_VALID);
       this.hologramNodes = [node];
       this.arrangeHologram();
       this.tintHologram(this.hologramValid);
     });
+  }
+
+  hologramMaterials(node, color) {
+    return node.getChildMeshes().map((mesh) => {
+      const mat = new StandardMaterial(`hologramMat_${mesh.name}`, this.s);
+      const source = mesh.material;
+      if (source && source.alphaTexture) mat.opacityTexture = source.alphaTexture;
+      else if (source && source.useAlphaFromDiffuseTexture && source.diffuseTexture) mat.opacityTexture = source.diffuseTexture;
+      mat.diffuseColor = color.clone();
+      mat.emissiveColor = color.scale(0.6);
+      mat.specularColor = new Color3(0, 0, 0);
+      mat.alpha = HOLOGRAM_ALPHA;
+      mat.backFaceCulling = false;
+      mesh.material = mat;
+      mesh.receiveShadows = false;
+      return mat;
+    });
+  }
+
+  showDraftModels(items) {
+    this.draftModelToken += 1;
+    const token = this.draftModelToken;
+    this.clearDraftModels();
+    for (const item of items) {
+      Promise.resolve(decorationTemplate(this.s, item.def)).then((template) => {
+        if (token !== this.draftModelToken || !template) return;
+        const node = instantiateModel(this.s, template, 'hologramDraft');
+        if (!node) return;
+        this.draftModelMaterials.push(...this.hologramMaterials(node, item.remove ? HOLO_INVALID : HOLO_VALID));
+        node.position.set(item.x, item.y, item.z);
+        node.rotation.y = item.yaw;
+        node.scaling.setAll(item.scale);
+        node.setEnabled(true);
+        this.draftModels.push(node);
+      });
+    }
+  }
+
+  clearDraftModels() {
+    for (const node of this.draftModels) node.dispose(false, false);
+    this.draftModels = [];
+    for (const mat of this.draftModelMaterials) mat.dispose();
+    this.draftModelMaterials = [];
   }
 
   disposeHologram() {

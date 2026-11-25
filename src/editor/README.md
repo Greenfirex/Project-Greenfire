@@ -43,6 +43,12 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
 - **B** přepíná pohled do staveb (Celé, Přízemí, Patro), stejně jako řádka **Stavby** v panelu.
 - **Klik na dekoraci bez vybraného štětce** vybere štětec, kterým se ta dekorace pokládá,
   i s jejím druhem (u palem i tvarem). Když je na buňce víc věcí, bere tu nejbližší k myši.
+- **Štětce dekorací pokládají volně pod myší** (zaškrtnutím **Do buněk** se vrátí vyplňování buněk tažením,
+  hodí se na plochy jako les nebo kamení): náhled stojí přesně pod kurzorem a klik přidá jeden kus
+  do návrhu (zelený hologram), aniž by smazal, co už na buňce je. **R** natáčí po 45°. S mazáním (**X**)
+  klik dá do návrhu ke smazání nejbližší věc (červený hologram). Pravé tlačítko odebere kus z návrhu,
+  **Esc** návrh zahodí, **Enter** nebo **Aplikovat** ho zapíše do mapy najednou. U stavby se věc položí na podlahu, kterou je vidět: v pohledu **Přízemí**
+  do přízemí, v pohledu **Patro** do patra nebo na pavlač.
 - Průhled ke kameře v editoru sleduje myš: co stojí mezi kamerou a bodem pod kurzorem, se vyřízne.
 - **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).
 

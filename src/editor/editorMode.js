@@ -17,6 +17,7 @@ import editorJoinBridgeParts from './editorJoinBridge.js';
 import editorBrushApplyParts from './editorBrushApply.js';
 import editorQueryParts from './editorQuery.js';
 import editorFloorsParts, { DEFAULT_CLEARANCE } from './editorFloors.js';
+import editorFreePlaceParts from './editorFreePlace.js';
 
 function droppable(layout, cx, cz) {
   const layers = [];
@@ -61,6 +62,9 @@ export default class EditorMode {
     this.contentIndex = null;
     this.presentCache = null;
     this.floorLevel = 0;
+    this.freeRoll = null;
+    this.freeDraft = [];
+    this.onFreeDraftChange = null;
     this.floorHeight = 0;
     this.floorClearance = DEFAULT_CLEARANCE;
     this.floorExtra = new Set();
@@ -426,6 +430,11 @@ export default class EditorMode {
     return Boolean(brush && brush.lake);
   }
 
+  get placesFree() {
+    const brush = BRUSHES[this.brushKey];
+    return this.mode === 'zone' && Boolean(brush && brush.deco) && !this.brushOptionValue(this.brushKey, 'cells');
+  }
+
   get isRiverBrush() {
     const brush = BRUSHES[this.brushKey];
     return Boolean(brush && brush.river);
@@ -475,7 +484,7 @@ export default class EditorMode {
   }
 
   get draftStarted() {
-    return Boolean(this.draft && (this.draft.cells.size || this.joinTop || this.bridgeTop));
+    return Boolean(this.draft && (this.draft.cells.size || this.joinTop || this.bridgeTop || this.freeDraft.length));
   }
 
   clearDraft() {
@@ -643,6 +652,7 @@ export default class EditorMode {
   }
 
   cancelDraft() {
+    this.clearFreeDraft();
     if (!this.draft) return false;
     this.resetDraftDrag();
     this.resetJoin();
@@ -670,4 +680,4 @@ export default class EditorMode {
   }
 }
 
-Object.assign(EditorMode.prototype, editorHistoryParts, editorLayoutEditsParts, editorHeightsParts, editorAreaParts, editorJoinBridgeParts, editorBrushApplyParts, editorQueryParts, editorFloorsParts);
+Object.assign(EditorMode.prototype, editorHistoryParts, editorLayoutEditsParts, editorHeightsParts, editorAreaParts, editorJoinBridgeParts, editorBrushApplyParts, editorQueryParts, editorFloorsParts, editorFreePlaceParts);

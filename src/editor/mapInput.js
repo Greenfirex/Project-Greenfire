@@ -5,6 +5,7 @@ import { NO_BRUSH_HINT, cellCount } from './editorSettings.js';
 import { BRUSHES, brushForDecoration } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { HUD_TABS, tabBrushes } from './hudTabs.js';
+import { worldToCellCoords } from '../utils/gridMath.js';
 
 export default {
   handleKey(evt, typing) {
@@ -138,7 +139,8 @@ export default {
       this.mode.paint(cell.cx, cell.cz);
     } else if (!this.mode.hasBrush) {
       if (!this.pickBrushFrom(cell)) this.hud.setReadout(NO_BRUSH_HINT);
-    } else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
+    } else if (this.mode.placesFree) this.placeFreeAt(cell);
+    else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
     else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
     else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
     else if (this.mode.isRiverBrush) this.startRiver(cell);
@@ -161,6 +163,37 @@ export default {
     const def = getDecoration(entry.key);
     this.hud.setReadout(`Štětec ${BRUSHES[match.brushKey].label}: ${def && def.displayName ? def.displayName : entry.key}`);
     return true;
+  },
+
+  placeFreeAt(cell) {
+    const spot = this.s.editorPlaceSpot(cell);
+    if (!spot) return;
+    const { cx, cz } = worldToCellCoords(spot.x, spot.z);
+    if (!this.mode.canDraftCell(cx, cz)) {
+      this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
+      return;
+    }
+    const erasing = this.mode.erasing;
+    const entry = erasing ? this.mode.markFree(spot) : this.mode.addFree(spot);
+    if (!entry) {
+      this.hud.setReadout(erasing ? 'Pod myší není nic ke smazání' : 'Sem nejde nic položit');
+      return;
+    }
+    const def = getDecoration(entry.key);
+    const name = def && def.displayName ? def.displayName : entry.key;
+    const where = entry.deck === 'upper' ? ' — patro stavby' : entry.deck === 'lower' ? ' — přízemí stavby' : '';
+    this.hud.setReadout(`${erasing ? 'Do návrhu ke smazání' : 'Do návrhu'}: ${name}${where} · Enter nebo Aplikovat zapíše`);
+  },
+
+  unmarkFreeAt(cell) {
+    const entry = this.mode.unmarkFree(this.s.editorPlaceSpot(cell));
+    this.hud.setReadout(entry ? 'Odebráno z návrhu' : 'Tady v návrhu nic není');
+  },
+
+  showFreeDraft() {
+    const draft = this.mode.freeDraft;
+    this.brushPanel.setFreeCount(draft.filter((item) => !item.remove).length, draft.filter((item) => item.remove).length);
+    this.s.showFreeDraft(draft);
   },
 
   pickJoinCell(cell) {
@@ -245,6 +278,10 @@ export default {
     }
     if (this.mode.mode === 'height') {
       this.mode.unmarkHeightCell(cell.cx, cell.cz);
+      return;
+    }
+    if (this.mode.placesFree) {
+      this.unmarkFreeAt(cell);
       return;
     }
     if (!this.mode.canEditCell(cell.cx, cell.cz)) return;

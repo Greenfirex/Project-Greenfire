@@ -106,7 +106,7 @@ export default {
     }
     this.decoHighlight.add(entry, node, def);
     this.gatherSystem.ensureEntry(anchor);
-    this.campfireSystem.add(entry, def, anchor.position.y);
+    this.campfireSystem.add(entry, def, anchor.position);
     this.lootSystem.add(entry, def, node, anchor.position);
     if (def.loot) this.syncLootHighlights();
   },
@@ -499,6 +499,7 @@ export default {
     this.campfireSystem.sync((this.mapFile || {}).decorations || []);
     this.lootSystem.sync((this.mapFile || {}).decorations || []);
     this.refreshShadowCasters();
+    this.refreshDeckDecorations();
     this.handleHover(this.hoverCell);
     this.reportRebuild();
   },

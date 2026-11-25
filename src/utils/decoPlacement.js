@@ -50,7 +50,7 @@ function plantJitter(entry, fixedScale) {
 }
 
 export function decoJitter(def, entry) {
-  if (!def || !entry) return null;
+  if (!def || !entry || entry.exact) return null;
   if (def.tree) return treeJitter(entry);
   if (def.kind === 'bush') return plantJitter(entry, def.fixedScale);
   if (def.rock || def.stone || def.log || def.branch || def.driftwood || def.shell || def.flat || def.coral || def.flower || def.bush || def.loose) return rockJitter(entry);

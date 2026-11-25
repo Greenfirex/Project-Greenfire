@@ -188,6 +188,11 @@ export default class InputSystem {
     return pick.pickedPoint;
   }
 
+  pointerRay() {
+    if (!this.pointerInside()) return null;
+    return this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, this.camera);
+  }
+
   cellAtPointer(level = null) {
     const ray = this.s.createPickingRay(this.s.pointerX, this.s.pointerY, null, this.camera);
     const point = this.surfacePoint(ray, level) || (level === null ? this.fallbackPoint(ray) : null);

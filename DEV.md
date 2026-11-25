@@ -1278,9 +1278,19 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
       se schová totéž co ve hře, když tam postava stojí (patro, střecha, stěny ke kameře v pasu).
       Průhled ke kameře v editoru míří na bod pod myší místo na postavu (`editorPeekPoint`, poloměr
       `EDITOR_PEEK_RADIUS`); v pohledu do podzemního patra je vypnutý.
-   2. Volné pokládání dekorací (plán): náhled modelu pod myší, libovolné otočení, klik nemaže políčko, guma a výběr
-      jedné věci, výška z povrchu pod myší (terén, přízemí, patro, pavlač); dekorace v patře se schová s patrem.
-      Zápis v mapě zůstane políčko + posun. Ověřit, jak velké překážky (stromy, balvany) blokují chůzi.
+   2. Volné pokládání dekorací (hotovo jako pokus, `editorFreePlace.js`): štětce dekorací pokládají volně, zaškrtnutím „Do buněk“ (`cells`) se vrátí k vyplňování buněk tažením.
+      Náhled (hologram) stojí přesně pod myší, klik přidá kus do návrhu (`freeDraft`) a políčko nemaže; s gumou (X)
+      klik dá do návrhu ke smazání nejbližší věc do `FREE_ERASE_REACH` (nebo ji vyřadí z návrhu). Návrh je vidět
+      jako zelené a červené hologramy (`showDraftModels`), pravé tlačítko odebere nejbližší kus z návrhu, Esc ho
+      zahodí a Enter / Aplikovat ho zapíše najednou (jeden krok Zpět, jedno přestavění dekorací). Zápis v mapě: políčko + přesný posun,
+      `exact: true` (bez náhodného posunu, otočení a velikosti z `decoJitter`) a `rotation` v čtvrtotáčkách
+      (štětce bez natočení dostanou náhodné, ale uložené). Náhodnou variantu a natočení si editor vylosuje předem
+      (`freeRoll`), náhled ukazuje přesně ten kus a po položení se losuje znovu. Bod pod myší: nejbližší podlaha stavby, kterou protne
+      paprsek z kamery (`deckOnRay`, v pohledu Přízemí bez patra), jinak terén. Na podlaze má dekorace
+      `deck: 'lower' | 'upper'` a výšku bere ze stavby (`deckAt`), ne z terénu; v patře neblokuje chůzi v přízemí
+      a schová se spolu s patrem (`showDeckDecorations`). Překážky dekorací už počítají s posunem v políčku.
+      Zatím ne: kokosy a listy kolem palem, vejce v hnízdě, posouvání položené věci, jemnější otáčení než po 45°,
+      dekorace v patře jako překážka v patře.
    3. Stavění po dílech (rozhodnuto, cesta B): podlaha po buňkách, stěny po hranách, otvory, patro; zábradlí,
       schody a střechu dopočítá stavba; nábytek jako volně položené dekorace.
 

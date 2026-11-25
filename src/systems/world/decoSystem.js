@@ -66,6 +66,7 @@ export default class DecoSystem {
     this.onDecoBroken = null;
     this.colors = null;
     this.groundHeightAt = null;
+    this.deckAt = null;
     this.nodes = [];
     this.anchors = [];
     this.flowerAnchors = [];
@@ -210,7 +211,7 @@ export default class DecoSystem {
       layout.floor || [],
       layout.path || [],
       layout.clearing || [],
-      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0),
+      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0 && entry.deck !== 'upper'),
     );
     for (const entry of layout.decorations || []) {
       if (!entry || levelOfEntry(entry) !== 0) continue;
@@ -257,7 +258,7 @@ export default class DecoSystem {
 
   applyEntry(entry, section = 'deco') {
     const def = getDecoration(entry.key);
-    if (!def || levelOfEntry(entry) !== 0) return;
+    if (!def || levelOfEntry(entry) !== 0 || entry.deck) return;
 
     const top = this.entryHeight(entry) + decoHeight(def);
     const key = cellKey(entry.cx, entry.cz);
@@ -273,6 +274,11 @@ export default class DecoSystem {
   }
 
   entryHeight(entry, extraX = 0, extraZ = 0) {
+    if (entry.deck && this.deckAt) {
+      const spot = cellToWorldCoords(entry.cx, entry.cz);
+      const deck = this.deckAt(spot.x + (entry.offsetX || 0) + extraX, spot.z + (entry.offsetZ || 0) + extraZ, entry.deck);
+      if (deck) return deck.y;
+    }
     const base = entry.liftY || 0;
     if (!this.groundHeightAt) {
       warnMissingWiring('dekorace: výška země');
@@ -490,6 +496,14 @@ export default class DecoSystem {
       });
     }
     return this.areas.get(key).node;
+  }
+
+  showDeckDecorations(shownAt) {
+    for (const anchor of this.anchors) {
+      const entry = anchor.metadata && anchor.metadata.entry;
+      if (!entry || !entry.deck || anchor.isDisposed()) continue;
+      anchor.setEnabled(shownAt(anchor.position.x, anchor.position.z, entry.deck));
+    }
   }
 
   setHidden(hidden) {

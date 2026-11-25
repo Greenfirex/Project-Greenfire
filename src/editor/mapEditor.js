@@ -104,6 +104,7 @@ export default class MapEditor {
       this.areaPanel.setHeight(this.mode.areaHeightMeters);
     };
     this.mode.onDraftChange = (draft) => this.updateDraftView(draft);
+    this.mode.onFreeDraftChange = () => this.showFreeDraft();
     this.mode.onHeightsChange = () => this.s.renderHeights();
     this.mode.onHeightDraftChange = () => this.refreshHeightDraftView();
     this.mode.onHeightBrushChange = (size) => this.heightPanel.setBrushSize(size);
@@ -157,6 +158,7 @@ export default class MapEditor {
     };
     this.brushPanel.onOption = (optionKey, value) => {
       this.mode.setBrushOption(optionKey, value);
+      if (optionKey === 'cells' && value) this.mode.clearFreeDraft();
       this.updateDraftView(this.mode.draft);
       this.s.handleHover(this.s.hoverCell);
     };
@@ -507,6 +509,16 @@ export default class MapEditor {
   }
 
   applyBrushDraft() {
+    if (this.mode.freeDraft.length) {
+      const { added, removed } = this.mode.applyFreeDraft();
+      const parts = [];
+      if (added) parts.push(`položeno ${added}`);
+      if (removed) parts.push(`smazáno ${removed}`);
+      this.hud.setReadout(`Aplikováno: ${parts.join(' · ')}`);
+      this.refreshUndoButton();
+      this.s.handleHover(this.s.hoverCell);
+      return;
+    }
     if (this.mode.isRiverBrush) {
       this.applyRiver();
       return;
@@ -565,6 +577,7 @@ export default class MapEditor {
   clearBrushDraft() {
     this.dropRiverStroke();
     this.mode.clearDraft();
+    this.mode.clearFreeDraft();
     this.refreshRiverArrows();
     this.hud.setReadout('Návrh zahozen — další Esc odvybere štětec');
     this.s.handleHover(this.s.hoverCell);
@@ -637,7 +650,8 @@ export default class MapEditor {
     const shape = this.mode.heightDraftShape(draft);
     const slopeCount = shape ? shape.slope.length : 0;
     const rimCount = shape && shape.rim ? shape.rim.length : 0;
-    this.brushPanel.setCount(draft.cells.size, slopeCount, rimCount);
+    if (this.mode.placesFree) this.showFreeDraft();
+    else this.brushPanel.setCount(draft.cells.size, slopeCount, rimCount);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
   }

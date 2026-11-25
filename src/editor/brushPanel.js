@@ -34,6 +34,7 @@ export default class BrushPanel {
     this.pathStyle = 'dirt';
     this.draftMode = 'add';
     this.countValue = 0;
+    this.freeCount = null;
     this.slopeCount = 0;
     this.rimCount = 0;
     this.species = null;
@@ -330,7 +331,13 @@ export default class BrushPanel {
     if (brush && brush.randomInStyle) this.buildSpecies(brush, speciesKey);
   }
 
+  setFreeCount(added, removed) {
+    this.freeCount = { added: added || 0, removed: removed || 0 };
+    this.refreshCount();
+  }
+
   setCount(count, slopeCount = 0, rimCount = 0) {
+    this.freeCount = null;
     this.countValue = count || 0;
     this.slopeCount = slopeCount || 0;
     this.rimCount = rimCount || 0;
@@ -339,6 +346,16 @@ export default class BrushPanel {
 
   refreshCount() {
     if (!this.root || !this.count) return;
+    if (this.freeCount) {
+      const { added, removed } = this.freeCount;
+      const parts = [];
+      if (added) parts.push(`položí se ${added}`);
+      if (removed) parts.push(`smaže se ${removed}`);
+      this.count.textContent = parts.length ? `Návrh: ${parts.join(' · ')}` : 'Návrh: klikni do mapy';
+      const button = this.root.querySelector('.brush-panel__apply');
+      if (button) button.disabled = !parts.length;
+      return;
+    }
     const n = this.countValue || 0;
     const brush = getBrush(this.brushKey);
     const settingsBrush = Boolean(brush && brush.creatureSettings);

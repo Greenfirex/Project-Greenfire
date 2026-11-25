@@ -86,6 +86,7 @@ import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
 import { describeWorld } from '../data/catalogs/worldStages.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
+import { decoPlacement } from '../utils/decoPlacement.js';
 import { CRAB } from '../data/catalogs/crabs.js';
 import { readJSON, writeJSON } from '../utils/storage.js';
 import { NO_FLOOR_PICK_HEIGHT } from './sceneSettings.js';
@@ -117,6 +118,7 @@ const SHELF_GRASS_CLEAR = 0.6;
 const DECK_ABOVE_GROUND = 0.05;
 const PEEK_PICK_THROUGH = 0.5;
 const EDITOR_PEEK_RADIUS = 3;
+const DECK_PICK_SLACK = 0.1;
 const DOOR_SHUT_LEAD = 0.24;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
@@ -176,6 +178,7 @@ export default class GameScene {
     this.skySystem = new SkySystem(scene);
     this.decoSystem = new DecoSystem(scene);
     this.decoSystem.groundHeightAt = (x, z, level = 0) => this.terrainSystem.heightAt(x, z, level);
+    this.decoSystem.deckAt = (x, z, storey) => this.buildingSystem.deckAt(x, z, storey);
     this.buildingSystem = new BuildingSystem(scene);
     this.buildingSystem.groundHeightAt = (x, z) => this.terrainSystem.heightAt(x, z, 0);
     this.buildingSystem.onMesh = (mesh) => this.addShadowCaster(mesh);
@@ -1404,7 +1407,13 @@ export default class GameScene {
     const eye = this.camera ? this.camera.globalPosition : null;
     const storey = this.editor.active ? this.editor.buildingView : null;
     const hidden = this.buildingSystem.updateInside(dt, watching ? root.position : null, eye, storey);
-    if (hidden) this.cliffVineSystem.hideGroups(hidden);
+    if (!hidden) return;
+    this.cliffVineSystem.hideGroups(hidden);
+    this.refreshDeckDecorations();
+  }
+
+  refreshDeckDecorations() {
+    this.decoSystem.showDeckDecorations((x, z, storey) => this.buildingSystem.storeyShownAt(x, z, storey));
   }
 
   updateUndergroundMeshes(dt, root, level) {
@@ -2030,15 +2039,17 @@ export default class GameScene {
       this.editor.clearHoverReadout();
       return;
     }
-    const preview = this.editor.mode.decoPreview(cell.cx, cell.cz);
-    if (preview) {
-      this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.cellSurfaceAt(cell.cx, cell.cz), 0);
+    if (this.editor.mode.placesFree) this.showFreePreview(cell);
+    else {
+      const preview = this.editor.mode.decoPreview(cell.cx, cell.cz);
+      if (preview) this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.cellSurfaceAt(cell.cx, cell.cz), 0, preview.key);
     }
     const mapMode = this.editor.mapMode;
     const hoverSpan = mapMode === 'height' ? this.editor.mode.heightStampSpan : mapMode === 'zone' ? this.editor.mode.brushSpan : 1;
     const hoverSurfaceAt = (cx, cz) => this.cellSurfaceAt(cx, cz);
     const erasing = Boolean(this.editor.mode.eraseKind) || this.editor.erasing;
-    this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan, erasing);
+    if (this.editor.mode.placesFree) this.gridSystem.clearHoverCell();
+    else this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan, erasing);
     this.editor.syncCreatureRadius(cell);
     if (this.editor.mapMode === 'floors' || this.editor.mode.undergroundView) {
       this.editor.showFloorHoverReadout(cell);
@@ -2051,6 +2062,47 @@ export default class GameScene {
       return;
     }
     this.editor.showCellHoverReadout(cell);
+  }
+
+  editorPlaceSpot(cell) {
+    if (!cell || !cell.point) return null;
+    const level = this.editor.mode.paintLevel;
+    const ray = level === 0 ? this.inputSystem.pointerRay() : null;
+    if (ray) {
+      const hit = this.buildingSystem.deckOnRay(ray.origin, ray.direction, this.editor.buildingView);
+      if (hit && hit.t <= Vector3.Distance(ray.origin, cell.point) + DECK_PICK_SLACK) return { x: hit.x, y: hit.y, z: hit.z, deck: hit.storey };
+    }
+    const { x, z } = cell.point;
+    return { x, y: this.terrainSystem.walkHeightAt(x, z, level), z, deck: null };
+  }
+
+  showFreePreview(cell) {
+    const spot = this.editorPlaceSpot(cell);
+    const erasing = this.editor.erasing;
+    const entry = erasing ? this.editor.mode.freeEraseAt(spot) : this.editor.mode.freeEntry(spot);
+    const def = entry ? getDecoration(entry.key) : null;
+    if (!def) return;
+    this.gridSystem.showDecorPreview(def, [decoPlacement(def, entry)], entry.cx, entry.cz, this.decoSystem.entryHeight(entry), 0, entry.key);
+    if (erasing) this.gridSystem.tintHologram(false);
+  }
+
+  showFreeDraft(draft) {
+    const items = [];
+    for (const { entry, remove } of draft || []) {
+      const def = getDecoration(entry.key);
+      if (!def) continue;
+      const place = decoPlacement(def, entry);
+      items.push({
+        def,
+        remove,
+        x: entry.cx * CELL_SIZE + place.offsetX,
+        y: this.decoSystem.entryHeight(entry),
+        z: entry.cz * CELL_SIZE + place.offsetZ,
+        yaw: place.yaw,
+        scale: place.scale,
+      });
+    }
+    this.gridSystem.showDraftModels(items);
   }
 
   refreshHoverTooltip(cell) {
