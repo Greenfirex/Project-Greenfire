@@ -112,11 +112,11 @@ export default class BuildingSystem {
     return best;
   }
 
-  updateInside(dt, position, eye) {
+  updateInside(dt, position, eye, storey = null) {
     const step = Math.max(0, dt) / LAYER_FADE_SECONDS;
     let flipped = false;
     for (const deck of this.decks) {
-      const hide = this.partsToHide(deck, position, eye);
+      const hide = this.partsToHide(deck, position, eye, storey);
       for (const [key, part] of Object.entries(deck.parts)) {
         const target = hide.has(key) ? 0 : 1;
         if (part.shown === target) continue;
@@ -144,9 +144,9 @@ export default class BuildingSystem {
     return this.decks.some((deck) => this.storeyInside(deck, position) !== null);
   }
 
-  partsToHide(deck, position, eye) {
+  partsToHide(deck, position, eye, storey = null) {
     const hide = new Set();
-    const inside = this.storeyInside(deck, position);
+    const inside = storey || this.storeyInside(deck, position);
     if (inside === 'lower') hide.add('upper');
     if (inside) hide.add('roof');
     if (!inside || !eye) return hide;

@@ -2,6 +2,9 @@
 // Patří k MapEditor (sdílí jeho this).
 import { HEIGHT_PRESETS, formatMeters } from '../data/maps/layoutStore.js';
 import { NO_BRUSH_HINT, cellCount } from './editorSettings.js';
+import { BRUSHES, brushForDecoration } from '../data/catalogs/brushes.js';
+import { getDecoration } from '../data/catalogs/decorations.js';
+import { HUD_TABS, tabBrushes } from './hudTabs.js';
 
 export default {
   handleKey(evt, typing) {
@@ -76,6 +79,11 @@ export default {
       evt.preventDefault();
       return;
     }
+    if (evt.key === 'b' || evt.key === 'B') {
+      this.stepBuildingView();
+      evt.preventDefault();
+      return;
+    }
     if (evt.key === 'z' || evt.key === 'Z') {
       this.undo();
       evt.preventDefault();
@@ -128,13 +136,31 @@ export default {
     else if (this.mode.mode === 'height') {
       this.mode.beginHeightStroke();
       this.mode.paint(cell.cx, cell.cz);
-    } else if (!this.mode.hasBrush) this.hud.setReadout(NO_BRUSH_HINT);
-    else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
+    } else if (!this.mode.hasBrush) {
+      if (!this.pickBrushFrom(cell)) this.hud.setReadout(NO_BRUSH_HINT);
+    } else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
     else if (this.mode.isBridgeBrush && this.mode.draftMode !== 'remove') this.pickBridgeCell(cell);
     else if (this.mode.isLakeBrush) this.pickLake(cell, this.mode.draftMode === 'remove' ? 'remove' : 'add');
     else if (this.mode.isRiverBrush) this.startRiver(cell);
     else if (!this.mode.isCreatureSettingsBrush && !this.mode.canDraftCell(cell.cx, cell.cz)) this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
     else this.mode.beginDraftDrag(cell.cx, cell.cz);
+  },
+
+  pickBrushFrom(cell) {
+    const entry = this.mode.decorationAt(cell.cx, cell.cz, cell.point);
+    const match = entry ? brushForDecoration(entry.key) : null;
+    if (!match) return false;
+    const tab = HUD_TABS.find((item) => tabBrushes(item).includes(match.brushKey));
+    if (tab) this.hud.setTab(tab.key);
+    this.hud.onBrush(match.brushKey);
+    if (match.style) this.mode.setStyle(match.style);
+    if (this.mode.setTileKey(entry.key)) {
+      this.brushPanel.setSpecies(entry.key);
+      this.brushPanel.setOptions(this.mode.brushOptionValues(match.brushKey));
+    }
+    const def = getDecoration(entry.key);
+    this.hud.setReadout(`Štětec ${BRUSHES[match.brushKey].label}: ${def && def.displayName ? def.displayName : entry.key}`);
+    return true;
   },
 
   pickJoinCell(cell) {

@@ -11,7 +11,7 @@ import HeightLabels from './heightLabels.js';
 import HeightHologram from './heightHologram.js';
 import { BRUSHES, brushShapesTerrain } from '../data/catalogs/brushes.js';
 import { HUD_TABS, COMMON_BRUSHES, hudTab, tabBrushes, tabModes } from './hudTabs.js';
-import { NO_BRUSH_HINT, cellCount, creatureWord } from './editorSettings.js';
+import { NO_BRUSH_HINT, BUILDING_VIEWS, cellCount, creatureWord } from './editorSettings.js';
 import mapFloorsParts from './mapFloors.js';
 import mapInputParts from './mapInput.js';
 import mapOverlaysParts from './mapOverlays.js';
@@ -46,6 +46,17 @@ export default class MapEditor {
     this.riverDrawing = false;
     this.floorMarksReport = null;
     this.floorEdgeCounts = null;
+    this.buildingView = null;
+  }
+
+  setBuildingView(storey) {
+    this.buildingView = storey || null;
+    this.hud.setBuildingView(this.buildingView);
+  }
+
+  stepBuildingView() {
+    const index = BUILDING_VIEWS.findIndex((view) => view.storey === this.buildingView);
+    this.setBuildingView(BUILDING_VIEWS[(index + 1) % BUILDING_VIEWS.length].storey);
   }
 
   get active() {
@@ -152,6 +163,7 @@ export default class MapEditor {
     this.brushPanel.onErase = () => this.setEraseMode(!this.mode.erasing);
     this.brushPanel.onUndo = () => this.undo();
     this.hud.onFloor = (level) => this.selectFloor(level);
+    this.hud.onBuildingView = (storey) => this.setBuildingView(storey);
 
     this.areaPanel.onTool = (tool) => {
       this.mode.setAreaTool(tool);

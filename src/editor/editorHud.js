@@ -5,8 +5,9 @@ import { HEIGHT_STEP, formatMeters } from '../data/maps/layoutStore.js';
 import { makeDraggable } from '../ui/draggable.js';
 import { floorName } from './floorPanel.js';
 import { HUD_TABS, COMMON_BRUSHES, hudTab, tabForMode, looseBrushes } from './hudTabs.js';
+import { BUILDING_VIEWS } from './editorSettings.js';
 
-const COMMON_HINT = `WASD pohled · Shift+1–${HUD_TABS.length} záložky · Z zpět · N posunout čas · Ctrl+S uložit`;
+const COMMON_HINT = `WASD pohled · Shift+1–${HUD_TABS.length} záložky · B pohled do staveb · Z zpět · N posunout čas · Ctrl+S uložit`;
 const MODE_HINTS = {
   zone: 'Vyber štětec a táhni · X mazání',
   height: 'Táhni po buňkách · Q a E krok výšky · 1–9 předvolby · Enter použít · Esc zahodit',
@@ -37,6 +38,7 @@ export default class EditorHud {
     this.onMode = null;
     this.onTab = null;
     this.onFloor = null;
+    this.onBuildingView = null;
     this.onSaveMap = null;
     this.onPause = null;
     this.onWaterToggle = null;
@@ -59,6 +61,10 @@ export default class EditorHud {
       <div class="editor-panel__floor">
         <span class="editor-panel__floor-label">Patro</span>
         <div class="editor-panel__floor-list"></div>
+      </div>
+      <div class="editor-panel__building">
+        <span class="editor-panel__floor-label">Stavby</span>
+        <div class="editor-panel__floor-list editor-panel__building-list"></div>
       </div>
       <div class="editor-panel__grid"></div>
       <div class="editor-panel__note">–</div>
@@ -93,6 +99,19 @@ export default class EditorHud {
     root.querySelector('.editor-panel__floor-list').addEventListener('click', (event) => {
       const chip = event.target.closest('[data-floor]');
       if (chip && this.onFloor) this.onFloor(Number(chip.dataset.floor));
+    });
+    const views = root.querySelector('.editor-panel__building-list');
+    BUILDING_VIEWS.forEach((view, index) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.dataset.view = String(index);
+      chip.textContent = view.label;
+      chip.title = `${view.note} (B)`;
+      chip.classList.toggle('is-active', view.storey === null);
+      chip.addEventListener('click', () => {
+        if (this.onBuildingView) this.onBuildingView(view.storey);
+      });
+      views.appendChild(chip);
     });
     root.querySelector('.editor-panel__save-map').addEventListener('click', () => {
       if (this.onSaveMap) this.onSaveMap();
@@ -225,6 +244,15 @@ export default class EditorHud {
       chip.classList.toggle('is-active', floor.level === selected);
       list.appendChild(chip);
     }
+  }
+
+  setBuildingView(storey) {
+    if (!this.root) return;
+    for (const chip of this.root.querySelectorAll('[data-view]')) {
+      chip.classList.toggle('is-active', BUILDING_VIEWS[Number(chip.dataset.view)].storey === storey);
+    }
+    const view = BUILDING_VIEWS.find((item) => item.storey === storey);
+    if (view) this.setReadout(`Stavby: ${view.label} — ${view.note}`);
   }
 
   setBusy(text) {

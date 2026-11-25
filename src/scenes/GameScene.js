@@ -116,6 +116,7 @@ const CAVE_DECO_REFRESH_SECONDS = 1;
 const SHELF_GRASS_CLEAR = 0.6;
 const DECK_ABOVE_GROUND = 0.05;
 const PEEK_PICK_THROUGH = 0.5;
+const EDITOR_PEEK_RADIUS = 3;
 const DOOR_SHUT_LEAD = 0.24;
 const WADE_SPEED = 0.65;
 const WADE_RAMP = 0.2;
@@ -1364,9 +1365,17 @@ export default class GameScene {
     this.updateUndergroundMeshes(dt, root, level);
     this.updateSight(dt, view, under);
     const peeking = root && !view && !this.editor.active && level === 0;
-    this.revealSystem.setPeek(dt, peeking ? root.position : null, this.camera ? this.camera.globalPosition : null);
+    const eye = this.camera ? this.camera.globalPosition : null;
+    if (this.editor.active) this.revealSystem.setPeek(dt, view ? null : this.editorPeekPoint(), eye, EDITOR_PEEK_RADIUS);
+    else this.revealSystem.setPeek(dt, peeking ? root.position : null, eye);
     this.revealSystem.update(dt, under, root ? root.position : null, this.camera, view);
     this.terrainSystem.showCaveRing(this.revealSystem.isOpen());
+  }
+
+  editorPeekPoint() {
+    if (!this.inputSystem || !this.inputSystem.pointerInside()) return null;
+    const cell = this.inputSystem.cellAtPointer();
+    return cell ? cell.point : null;
   }
 
   fireFocus() {
@@ -1393,7 +1402,8 @@ export default class GameScene {
     const root = this.playerSystem ? this.playerSystem.root : null;
     const watching = root && !this.editor.active && this.playerSystem.level === 0;
     const eye = this.camera ? this.camera.globalPosition : null;
-    const hidden = this.buildingSystem.updateInside(dt, watching ? root.position : null, eye);
+    const storey = this.editor.active ? this.editor.buildingView : null;
+    const hidden = this.buildingSystem.updateInside(dt, watching ? root.position : null, eye, storey);
     if (hidden) this.cliffVineSystem.hideGroups(hidden);
   }
 

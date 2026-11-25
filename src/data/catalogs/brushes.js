@@ -545,6 +545,19 @@ export function getBrush(brushKey) {
   return BRUSHES[brushKey] || null;
 }
 
+export function brushForDecoration(decoKey) {
+  let best = null;
+  for (const [brushKey, brush] of Object.entries(BRUSHES)) {
+    if (!brush.deco) continue;
+    const styles = brush.poolByStyle || {};
+    const style = Object.keys(styles).find((name) => styles[name].includes(decoKey)) || null;
+    const pool = style ? styles[style] : (brush.pool || []);
+    if (!pool.includes(decoKey)) continue;
+    if (!best || pool.length < best.size) best = { brushKey, style, size: pool.length };
+  }
+  return best;
+}
+
 export function brushAboveGroundOnly(brushKey) {
   const brush = BRUSHES[brushKey];
   if (!brush || brush.erase) return false;

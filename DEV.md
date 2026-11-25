@@ -1214,7 +1214,7 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    překříží; první kláda bočních stěn je napůl zapuštěná do podlahy. Čela mají letokruhy
    kreslené v kódu (`utils/logEndTexture.js`). Klády jedné stavby jsou sloučené do
    dvou těles (pláště a čela).
-   **Z Meshy jen vybavení**, kde na navazování nezáleží: dveře, okenice, stůl, sudy, síť.
+   **Z Meshy jen vybavení**, kde na navazování nezáleží: dveře, stůl, sudy, síť. Okenice srub nemá (záměr: piráti na tropickém ostrově je neřešili).
 3. **Chůze dovnitř** po krocích:
    1. Zdi zastaví postavu (hotovo jako pokus, viz **Zdi** výše).
    2. Srub rozdělený na tři vrstvy (přízemí, patro, střecha); uvnitř plynule zmizí vše nad postavou
@@ -1272,7 +1272,17 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    v `buildingDoors.js`, `doorShift`): pod myší a na klik reaguje jen malá páka na boku (`secret` — bez hledání
    podle bodu na zemi), knihovna odjede o `slide` podél stěny a odkryje otvor; zeď knihovny se posouvá s ní
    (`wallGapAt`). Stav se ukládá stejně jako dveře.
-5. **Editor**: štětec Stavby — klik na roh, R otočí, guma smaže; zápis do historie (Zpět).
+5. **Editor**:
+   1. Pohled do staveb (hotovo jako pokus): řádka Stavby v panelu editoru (Celé / Přízemí / Patro, klávesa B,
+      `BUILDING_VIEWS` v `editorSettings.js`). Zvolené podlaží dostane `updateInside` místo polohy postavy, takže
+      se schová totéž co ve hře, když tam postava stojí (patro, střecha, stěny ke kameře v pasu).
+      Průhled ke kameře v editoru míří na bod pod myší místo na postavu (`editorPeekPoint`, poloměr
+      `EDITOR_PEEK_RADIUS`); v pohledu do podzemního patra je vypnutý.
+   2. Volné pokládání dekorací (plán): náhled modelu pod myší, libovolné otočení, klik nemaže políčko, guma a výběr
+      jedné věci, výška z povrchu pod myší (terén, přízemí, patro, pavlač); dekorace v patře se schová s patrem.
+      Zápis v mapě zůstane políčko + posun. Ověřit, jak velké překážky (stromy, balvany) blokují chůzi.
+   3. Stavění po dílech (rozhodnuto, cesta B): podlaha po buňkách, stěny po hranách, otvory, patro; zábradlí,
+      schody a střechu dopočítá stavba; nábytek jako volně položené dekorace.
 
 **Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku
 chůze ze stavby a schod u dveří); tráva a dekorace pod podlahou (dnes se neschovávají,

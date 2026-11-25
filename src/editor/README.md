@@ -40,6 +40,10 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
 - **R** pootočí náhled sázeného objektu o 45°, **Shift+R** zpět (u palem určuje směr prohnutí).
 - **Shift+1–7** přepíná záložky Terén, Voda, Povrch, Jeskyně, Rostliny, Předměty a Tvorové.
 - **N** posune denní dobu.
+- **B** přepíná pohled do staveb (Celé, Přízemí, Patro), stejně jako řádka **Stavby** v panelu.
+- **Klik na dekoraci bez vybraného štětce** vybere štětec, kterým se ta dekorace pokládá,
+  i s jejím druhem (u palem i tvarem). Když je na buňce víc věcí, bere tu nejbližší k myši.
+- Průhled ke kameře v editoru sleduje myš: co stojí mezi kamerou a bodem pod kurzorem, se vyřízne.
 - **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).
 
 Hra pod editorem běží dál. Když ji v editoru pozastavíš, po zavření editoru

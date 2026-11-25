@@ -24,6 +24,12 @@ export const MARK_COLORS = {
   river: [0.35, 0.7, 1],
 };
 
+export const BUILDING_VIEWS = [
+  { storey: null, label: 'Celé', note: 'Stavby celé, jak je hráč vidí zvenku' },
+  { storey: 'lower', label: 'Přízemí', note: 'Bez patra a střechy, stěny ke kameře seříznuté' },
+  { storey: 'upper', label: 'Patro', note: 'Bez střechy, stěny patra ke kameře seříznuté' },
+];
+
 export const NO_BRUSH_HINT = 'Vyber štětec v paletě — teprve pak jde do mapy kreslit';
 
 export function clampLevel(level) {

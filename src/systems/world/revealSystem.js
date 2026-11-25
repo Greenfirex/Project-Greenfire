@@ -179,14 +179,14 @@ export default class RevealSystem {
     }
   }
 
-  setPeek(dt, feet, eye) {
+  setPeek(dt, feet, eye, radius = PEEK_RADIUS) {
     const { peek, peekEye } = this.state;
     const on = Boolean(feet && eye);
     const step = Math.max(0, dt) / PEEK_FADE_SECONDS;
     const strength = on ? Math.min(1, peek.w + step) : Math.max(0, peek.w - step);
     if (on) {
       peek.set(feet.x, feet.y, feet.z, strength);
-      peekEye.set(eye.x, eye.y, eye.z, PEEK_RADIUS);
+      peekEye.set(eye.x, eye.y, eye.z, radius);
     } else {
       peek.w = strength;
     }

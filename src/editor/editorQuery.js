@@ -17,6 +17,15 @@ function hashText(text) {
 }
 
 export default {
+  decorationAt(cx, cz, point = null) {
+    const level = this.floorLevel;
+    const list = ((this.layout && this.layout.decorations) || [])
+      .filter((entry) => entry && entry.cx === cx && entry.cz === cz && levelOfEntry(entry) === level);
+    if (!point || list.length < 2) return list[0] || null;
+    const away = (entry) => (cellToWorld(cx) + (entry.offsetX || 0) - point.x) ** 2 + (cellToWorld(cz) + (entry.offsetZ || 0) - point.z) ** 2;
+    return list.reduce((best, entry) => (away(entry) < away(best) ? entry : best));
+  },
+
   spawnCell() {
     const spawn = this.layout && this.layout.spawn;
     if (!spawn || !Number.isFinite(spawn.cx) || !Number.isFinite(spawn.cz)) return null;
