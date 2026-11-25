@@ -82,7 +82,7 @@ export const HUD_TABS = [
   },
 ];
 
-export const COMMON_BRUSHES = ['spawn', 'erase_all'];
+export const COMMON_BRUSHES = ['move', 'spawn', 'erase_all'];
 
 export function hudTab(key) {
   return HUD_TABS.find((tab) => tab.key === key) || null;

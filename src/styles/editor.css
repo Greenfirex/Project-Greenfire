@@ -405,6 +405,7 @@
   color: var(--text-dim);
   font-size: 10px;
   margin-bottom: 8px;
+  white-space: pre-line;
 }
 
 .brush-panel__styles {

@@ -47,7 +47,11 @@ Po uložení je potřeba mapu znovu načíst; vývojový server obvykle stránku
   hodí se na plochy jako les nebo kamení): náhled stojí přesně pod kurzorem a klik přidá jeden kus
   do návrhu (zelený hologram), aniž by smazal, co už na buňce je. **R** natáčí po 45°. S mazáním (**X**)
   klik dá do návrhu ke smazání nejbližší věc (červený hologram). Pravé tlačítko odebere kus z návrhu,
-  **Esc** návrh zahodí, **Enter** nebo **Aplikovat** ho zapíše do mapy najednou. U stavby se věc položí na podlahu, kterou je vidět: v pohledu **Přízemí**
+  **Esc** návrh zahodí, **Enter** nebo **Aplikovat** ho zapíše do mapy najednou.
+- Štětec **Přesun** (mezi společnými štětci): klik na věc ji zvedne, věc visí pod myší, **R** ji natáčí po 45°
+  a další klik ji položí jinam; původní místo ukazuje červený hologram. **Esc** nebo pravé tlačítko nesení
+  zruší. Panel vypisuje, co neseš a co je přesunuté; **Aplikovat** (Enter) přesuny zapíše, **Zpět** je vrátí.
+  **Shift + klik** na věc s jakýmkoli štětcem rovnou přepne na Přesun a věc zvedne. U stavby se věc položí na podlahu, kterou je vidět: v pohledu **Přízemí**
   do přízemí, v pohledu **Patro** do patra nebo na pavlač.
 - Průhled ke kameře v editoru sleduje myš: co stojí mezi kamerou a bodem pod kurzorem, se vyřízne.
 - **F2** editor zavře, **P** pozastaví nebo pustí hru (stejně jako tlačítko **Pauza**).

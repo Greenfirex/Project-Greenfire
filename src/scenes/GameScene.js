@@ -2039,7 +2039,7 @@ export default class GameScene {
       this.editor.clearHoverReadout();
       return;
     }
-    if (this.editor.mode.placesFree) this.showFreePreview(cell);
+    if (this.editor.mode.freePlacing) this.showFreePreview(cell);
     else {
       const preview = this.editor.mode.decoPreview(cell.cx, cell.cz);
       if (preview) this.gridSystem.showDecorPreview(preview.def, preview.items, cell.cx, cell.cz, this.cellSurfaceAt(cell.cx, cell.cz), 0, preview.key);
@@ -2048,7 +2048,7 @@ export default class GameScene {
     const hoverSpan = mapMode === 'height' ? this.editor.mode.heightStampSpan : mapMode === 'zone' ? this.editor.mode.brushSpan : 1;
     const hoverSurfaceAt = (cx, cz) => this.cellSurfaceAt(cx, cz);
     const erasing = Boolean(this.editor.mode.eraseKind) || this.editor.erasing;
-    if (this.editor.mode.placesFree) this.gridSystem.clearHoverCell();
+    if (this.editor.mode.freePlacing) this.gridSystem.clearHoverCell();
     else this.gridSystem.showHoverCell(cell.cx, cell.cz, hoverSurfaceAt, hoverSpan, erasing);
     this.editor.syncCreatureRadius(cell);
     if (this.editor.mapMode === 'floors' || this.editor.mode.undergroundView) {
@@ -2078,8 +2078,10 @@ export default class GameScene {
 
   showFreePreview(cell) {
     const spot = this.editorPlaceSpot(cell);
-    const erasing = this.editor.erasing;
-    const entry = erasing ? this.editor.mode.freeEraseAt(spot) : this.editor.mode.freeEntry(spot);
+    const mode = this.editor.mode;
+    const erasing = this.editor.erasing && !mode.freeCarry && !mode.isMoveBrush;
+    const picking = mode.isMoveBrush && !mode.freeCarry;
+    const entry = erasing || picking ? mode.freeEraseAt(spot) : mode.freeEntry(spot);
     const def = entry ? getDecoration(entry.key) : null;
     if (!def) return;
     this.gridSystem.showDecorPreview(def, [decoPlacement(def, entry)], entry.cx, entry.cz, this.decoSystem.entryHeight(entry), 0, entry.key);

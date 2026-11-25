@@ -1,10 +1,11 @@
 // Část editoru: volné pokládání dekorací — kus přesně na bod pod myší, bez mazání políčka, i na podlahu stavby.
-// Kliky se sbírají do návrhu (položit / smazat nejbližší věc) a teprve Aplikovat je zapíše do mapy najednou.
+// Kliky se sbírají do návrhu (položit / smazat / přenést nejbližší věc) a teprve Aplikovat je zapíše do mapy najednou.
 // Patří k EditorMode (sdílí jeho this).
 import { BRUSHES, PAINT_DECORATIONS } from '../data/catalogs/brushes.js';
 import { getDecoration } from '../data/catalogs/decorations.js';
 import { cellToWorld, worldToCellCoords } from '../utils/gridMath.js';
 import { layerLiftAt, levelOfEntry } from '../data/maps/areaShape.js';
+import { decoPlacement } from '../utils/decoPlacement.js';
 import { FREE_ERASE_REACH } from './editorSettings.js';
 
 function round3(value) {
@@ -40,16 +41,21 @@ export default {
     return this.freeRoll;
   },
 
-  freeEntry(spot) {
+  freeBase() {
+    if (this.freeCarry) return this.freeCarry.base;
     const brush = BRUSHES[this.brushKey];
-    if (!brush || !brush.deco || !spot || !this.layout) return null;
+    if (!brush || !brush.deco) return null;
     const next = this.freeNext(brush);
-    const key = next.key;
-    if (!getDecoration(key)) return null;
+    return { key: next.key, rotation: next.turn === null ? this.decoRotation() : next.turn };
+  },
+
+  freeEntry(spot) {
+    if (!spot || !this.layout) return null;
+    const base = this.freeBase();
+    if (!base || !getDecoration(base.key)) return null;
     const { cx, cz } = worldToCellCoords(spot.x, spot.z);
     const level = this.paintLevel;
-    const rotation = next.turn === null ? this.decoRotation() : next.turn;
-    const entry = { key, cx, cz, offsetX: round3(spot.x - cellToWorld(cx)), offsetZ: round3(spot.z - cellToWorld(cz)), rotation, exact: true };
+    const entry = { ...base, cx, cz, offsetX: round3(spot.x - cellToWorld(cx)), offsetZ: round3(spot.z - cellToWorld(cz)), exact: true };
     if (level) entry.level = level;
     if (spot.deck && !level) {
       entry.deck = spot.deck;
@@ -60,27 +66,23 @@ export default {
     return entry;
   },
 
-  freeDeckOf(spot) {
-    return this.paintLevel ? null : (spot && spot.deck) || null;
+  freeUpstairs(spot) {
+    return !this.paintLevel && Boolean(spot && spot.deck === 'upper');
+  },
+
+  freeSameFloor(entry, spot) {
+    return levelOfEntry(entry) === this.paintLevel && (entry.deck === 'upper') === this.freeUpstairs(spot);
   },
 
   freeTargetAt(spot) {
     if (!spot || !this.layout) return null;
-    const level = this.paintLevel;
-    const deck = this.freeDeckOf(spot);
     const marked = new Set(this.freeDraft.filter((item) => item.remove).map((item) => item.entry));
-    return nearest(this.layout.decorations || [], spot, (entry) => (
-      entry && !marked.has(entry) && levelOfEntry(entry) === level && (entry.deck || null) === deck
-    ));
+    return nearest(this.layout.decorations || [], spot, (entry) => entry && !marked.has(entry) && this.freeSameFloor(entry, spot));
   },
 
   freePendingAt(spot) {
     if (!spot) return null;
-    const level = this.paintLevel;
-    const deck = this.freeDeckOf(spot);
-    return nearest(this.freeDraft, spot, (item) => (
-      levelOfEntry(item.entry) === level && (item.entry.deck || null) === deck
-    ));
+    return nearest(this.freeDraft, spot, (item) => this.freeSameFloor(item.entry, spot));
   },
 
   freeEraseAt(spot) {
@@ -92,10 +94,52 @@ export default {
   addFree(spot) {
     const entry = this.freeEntry(spot);
     if (!entry) return null;
-    this.freeDraft.push({ entry, remove: false });
-    this.freeRoll = null;
+    const carry = this.freeCarry;
+    const movedFrom = carry ? (carry.fromDraft ? carry.fromDraft.movedFrom || null : carry.item) : null;
+    this.freeDraft.push({ entry, remove: false, movedFrom });
+    if (carry) this.freeCarry = null;
+    else this.freeRoll = null;
     this.freeDraftChanged();
     return entry;
+  },
+
+  pickUpFree(spot) {
+    const pending = this.freePendingAt(spot);
+    const fromDraft = pending && !pending.remove ? pending : null;
+    const source = fromDraft ? fromDraft.entry : this.freeTargetAt(spot);
+    if (!source) return null;
+    let item = fromDraft;
+    if (fromDraft) this.freeDraft = this.freeDraft.filter((other) => other !== fromDraft);
+    else {
+      item = { entry: source, remove: true };
+      this.freeDraft.push(item);
+    }
+    const def = getDecoration(source.key);
+    const place = def ? decoPlacement(def, source) : null;
+    const { cx, cz, offsetX, offsetZ, liftY, deck, level, rotation, scale, exact, ...rest } = source;
+    const defScale = def && Number.isFinite(def.scale) ? def.scale : 1;
+    const base = { ...rest, rotation: place ? round3(place.yaw / (Math.PI / 2)) : rotation || 0 };
+    const size = place ? place.scale / defScale : scale;
+    if (Number.isFinite(size) && Math.abs(size - 1) > 0.001) base.scale = round3(size);
+    this.freeCarry = { base, item, fromDraft };
+    this.freeDraftChanged();
+    return source;
+  },
+
+  cancelCarry() {
+    const carry = this.freeCarry;
+    if (!carry) return false;
+    this.freeCarry = null;
+    if (carry.fromDraft) this.freeDraft.push(carry.fromDraft);
+    else this.freeDraft = this.freeDraft.filter((other) => other !== carry.item);
+    this.freeDraftChanged();
+    return true;
+  },
+
+  turnCarry(direction) {
+    if (!this.freeCarry) return false;
+    this.freeCarry.base.rotation = round3((this.freeCarry.base.rotation || 0) + direction * 0.5);
+    return true;
   },
 
   markFree(spot) {
@@ -120,13 +164,15 @@ export default {
   },
 
   clearFreeDraft() {
-    if (!this.freeDraft.length) return false;
+    if (!this.freeDraft.length && !this.freeCarry) return false;
     this.freeDraft = [];
+    this.freeCarry = null;
     this.freeDraftChanged();
     return true;
   },
 
   applyFreeDraft() {
+    this.cancelCarry();
     const draft = this.freeDraft;
     if (!draft.length || !this.layout) return { added: 0, removed: 0 };
     this.pushHistory([PAINT_DECORATIONS]);
@@ -137,6 +183,10 @@ export default {
     this.freeDraftChanged();
     this.repaint([PAINT_DECORATIONS]);
     return { added: added.length, removed: removed.size };
+  },
+
+  freeMoves() {
+    return this.freeDraft.filter((item) => item.movedFrom).map((item) => item.entry);
   },
 
   freeDraftChanged() {

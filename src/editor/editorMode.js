@@ -64,6 +64,7 @@ export default class EditorMode {
     this.floorLevel = 0;
     this.freeRoll = null;
     this.freeDraft = [];
+    this.freeCarry = null;
     this.onFreeDraftChange = null;
     this.floorHeight = 0;
     this.floorClearance = DEFAULT_CLEARANCE;
@@ -435,6 +436,19 @@ export default class EditorMode {
     return this.mode === 'zone' && Boolean(brush && brush.deco) && !this.brushOptionValue(this.brushKey, 'cells');
   }
 
+  get isMoveBrush() {
+    const brush = BRUSHES[this.brushKey];
+    return this.mode === 'zone' && Boolean(brush && brush.move);
+  }
+
+  get freePlacing() {
+    return this.placesFree || this.isMoveBrush || (this.mode === 'zone' && Boolean(this.freeCarry));
+  }
+
+  get freeDraftOpen() {
+    return this.freeDraft.length > 0 || Boolean(this.freeCarry);
+  }
+
   get isRiverBrush() {
     const brush = BRUSHES[this.brushKey];
     return Boolean(brush && brush.river);
@@ -652,7 +666,6 @@ export default class EditorMode {
   }
 
   cancelDraft() {
-    this.clearFreeDraft();
     if (!this.draft) return false;
     this.resetDraftDrag();
     this.resetJoin();

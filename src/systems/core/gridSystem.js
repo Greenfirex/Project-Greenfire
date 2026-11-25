@@ -18,6 +18,9 @@ const HOLO_VALID = new Color3(0.35, 0.95, 0.8);
 const HOLO_INVALID = new Color3(0.95, 0.38, 0.32);
 
 const HOLOGRAM_ALPHA = 0.45;
+const HOLO_ERASE = new Color3(1, 0.1, 0.06);
+const HOLOGRAM_ERASE_ALPHA = 0.8;
+const HOLOGRAM_ERASE_OFFSET = -3;
 const CREATURE_RADIUS_ROAM = new Color3(1, 0.82, 0.35);
 const CREATURE_RADIUS_ROAM_RING = new Color3(1, 0.86, 0.4);
 const CREATURE_RADIUS_NOTICE = new Color3(1, 0.42, 0.24);
@@ -127,24 +130,22 @@ export default class GridSystem {
       if (token !== this.hologramToken || this.hologramKey !== key) return;
       const node = instantiateModel(this.s, template, 'hologramModel');
       if (!node) return;
-      this.hologramOwnMaterials = this.hologramMaterials(node, HOLO_VALID);
+      this.hologramOwnMaterials = this.hologramMaterials(node);
       this.hologramNodes = [node];
       this.arrangeHologram();
       this.tintHologram(this.hologramValid);
     });
   }
 
-  hologramMaterials(node, color) {
+  hologramMaterials(node, erase = false) {
     return node.getChildMeshes().map((mesh) => {
       const mat = new StandardMaterial(`hologramMat_${mesh.name}`, this.s);
       const source = mesh.material;
       if (source && source.alphaTexture) mat.opacityTexture = source.alphaTexture;
       else if (source && source.useAlphaFromDiffuseTexture && source.diffuseTexture) mat.opacityTexture = source.diffuseTexture;
-      mat.diffuseColor = color.clone();
-      mat.emissiveColor = color.scale(0.6);
       mat.specularColor = new Color3(0, 0, 0);
-      mat.alpha = HOLOGRAM_ALPHA;
       mat.backFaceCulling = false;
+      this.paintHologram(mat, erase);
       mesh.material = mat;
       mesh.receiveShadows = false;
       return mat;
@@ -160,7 +161,7 @@ export default class GridSystem {
         if (token !== this.draftModelToken || !template) return;
         const node = instantiateModel(this.s, template, 'hologramDraft');
         if (!node) return;
-        this.draftModelMaterials.push(...this.hologramMaterials(node, item.remove ? HOLO_INVALID : HOLO_VALID));
+        this.draftModelMaterials.push(...this.hologramMaterials(node, item.remove));
         node.position.set(item.x, item.y, item.z);
         node.rotation.y = item.yaw;
         node.scaling.setAll(item.scale);
@@ -184,13 +185,17 @@ export default class GridSystem {
     this.hologramOwnMaterials = [];
   }
 
+  paintHologram(mat, erase) {
+    const base = erase ? HOLO_ERASE : HOLO_VALID;
+    mat.diffuseColor = base.clone();
+    mat.emissiveColor = erase ? base.clone() : base.scale(0.6);
+    mat.alpha = erase ? HOLOGRAM_ERASE_ALPHA : HOLOGRAM_ALPHA;
+    mat.zOffset = erase ? HOLOGRAM_ERASE_OFFSET : 0;
+  }
+
   tintHologram(isValid) {
     this.hologramValid = isValid;
-    const base = isValid ? HOLO_VALID.clone() : HOLO_INVALID.clone();
-    for (const mat of this.hologramOwnMaterials) {
-      mat.diffuseColor = base;
-      mat.emissiveColor = base.scale(0.6);
-    }
+    for (const mat of this.hologramOwnMaterials) this.paintHologram(mat, !isValid);
   }
 
   hideHologram() {

@@ -331,6 +331,11 @@ export default class BrushPanel {
     if (brush && brush.randomInStyle) this.buildSpecies(brush, speciesKey);
   }
 
+  setMoveList(names, carrying) {
+    this.freeCount = { moves: names || [], carrying: carrying || null };
+    this.refreshCount();
+  }
+
   setFreeCount(added, removed) {
     this.freeCount = { added: added || 0, removed: removed || 0 };
     this.refreshCount();
@@ -346,6 +351,17 @@ export default class BrushPanel {
 
   refreshCount() {
     if (!this.root || !this.count) return;
+    if (this.freeCount && this.freeCount.moves) {
+      const { moves, carrying } = this.freeCount;
+      const lines = [];
+      if (carrying) lines.push(`Neseš: ${carrying}`);
+      if (moves.length) lines.push(`Přesunuto (${moves.length}): ${moves.join(', ')}`);
+      if (!lines.length) lines.push('Klikni na věc, kterou chceš přesunout');
+      this.count.textContent = lines.join('\n');
+      const button = this.root.querySelector('.brush-panel__apply');
+      if (button) button.disabled = !moves.length;
+      return;
+    }
     if (this.freeCount) {
       const { added, removed } = this.freeCount;
       const parts = [];

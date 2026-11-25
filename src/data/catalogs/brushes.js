@@ -525,6 +525,11 @@ export const BRUSHES = {
     rotate: true,
     deco: true,
   },
+  move: {
+    label: 'Přesun',
+    note: 'Klikni na věc v mapě a zvedne se; dalším klikem ji polož jinam. R natáčí, Esc nebo pravé tlačítko nesení zruší. Přesuny se zapíšou tlačítkem Aplikovat (Enter).',
+    move: true,
+  },
   spawn: {
     label: 'Start hráče',
     note: 'Určí buňku, na které hráč začíná. Klikni na jednu buňku a potvrď.',
@@ -582,7 +587,7 @@ export function brushPaintParts(brushKey) {
 }
 
 export function brushOptions(brush) {
-  if (!brush) return [];
+  if (!brush || brush.move) return [];
   const list = [...(Array.isArray(brush.options) ? brush.options : (brush.option ? [brush.option] : []))];
   if (brush.join || brush.bridge || brush.creature || brush.creatureSettings || brush.spawn || brush.lake || brush.river) return list;
   if (brush.deco) list.push(CELLS_OPTION);

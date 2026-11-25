@@ -103,7 +103,7 @@ export default class InputSystem {
         const cell = this.cellAtPointer();
         if (cell) {
           this.lastCell = cell;
-          if (this.onPaintStart) this.onPaintStart(cell);
+          if (this.onPaintStart) this.onPaintStart({ ...cell, shift: evt.shiftKey });
         }
         return;
       }

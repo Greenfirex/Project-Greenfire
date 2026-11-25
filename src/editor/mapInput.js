@@ -37,7 +37,14 @@ export default {
         evt.preventDefault();
         return;
       }
-      if (this.mode.draftStarted || this.riverStroke) {
+      if (this.mode.freeCarry) {
+        this.mode.cancelCarry();
+        this.hud.setReadout('Přenášení zrušeno — věc zůstala na místě');
+        this.s.handleHover(this.s.hoverCell);
+        evt.preventDefault();
+        return;
+      }
+      if (this.mode.draftStarted || this.riverStroke || this.mode.freeDraftOpen) {
         this.clearBrushDraft();
         evt.preventDefault();
         return;
@@ -59,7 +66,7 @@ export default {
         evt.preventDefault();
         return;
       }
-      if (this.mode.hasDraft) {
+      if (this.mode.hasDraft || this.mode.freeDraftOpen) {
         this.applyBrushDraft();
         evt.preventDefault();
       }
@@ -108,6 +115,11 @@ export default {
       return;
     }
     if (evt.key === 'r' || evt.key === 'R') {
+      if (this.mode.turnCarry(evt.shiftKey ? -1 : 1)) {
+        this.s.handleHover(this.s.hoverCell);
+        evt.preventDefault();
+        return;
+      }
       if (this.mode.rotateDeco(evt.shiftKey ? -1 : 1)) {
         this.refreshBrushOptions();
         this.s.handleHover(this.s.hoverCell);
@@ -137,7 +149,13 @@ export default {
     else if (this.mode.mode === 'height') {
       this.mode.beginHeightStroke();
       this.mode.paint(cell.cx, cell.cz);
-    } else if (!this.mode.hasBrush) {
+    } else if (this.mode.freeCarry) this.placeFreeAt(cell);
+    else if (this.mode.isMoveBrush) this.pickUpFreeAt(cell);
+    else if (cell.shift) {
+      this.hud.onBrush('move');
+      this.pickUpFreeAt(cell);
+    }
+    else if (!this.mode.hasBrush) {
       if (!this.pickBrushFrom(cell)) this.hud.setReadout(NO_BRUSH_HINT);
     } else if (this.mode.placesFree) this.placeFreeAt(cell);
     else if (this.mode.isJoinBrush) this.pickJoinCell(cell);
@@ -149,7 +167,11 @@ export default {
   },
 
   pickBrushFrom(cell) {
-    const entry = this.mode.decorationAt(cell.cx, cell.cz, cell.point);
+    const entry = this.mode.freeTargetAt(this.s.editorPlaceSpot(cell)) || this.mode.decorationAt(cell.cx, cell.cz, cell.point);
+    return this.openBrushFor(entry);
+  },
+
+  openBrushFor(entry) {
     const match = entry ? brushForDecoration(entry.key) : null;
     if (!match) return false;
     const tab = HUD_TABS.find((item) => tabBrushes(item).includes(match.brushKey));
@@ -173,7 +195,8 @@ export default {
       this.hud.setReadout('Mimo hrací plochu — přepni na Plochu');
       return;
     }
-    const erasing = this.mode.erasing;
+    const carrying = Boolean(this.mode.freeCarry);
+    const erasing = this.mode.erasing && !carrying;
     const entry = erasing ? this.mode.markFree(spot) : this.mode.addFree(spot);
     if (!entry) {
       this.hud.setReadout(erasing ? 'Pod myší není nic ke smazání' : 'Sem nejde nic položit');
@@ -182,17 +205,42 @@ export default {
     const def = getDecoration(entry.key);
     const name = def && def.displayName ? def.displayName : entry.key;
     const where = entry.deck === 'upper' ? ' — patro stavby' : entry.deck === 'lower' ? ' — přízemí stavby' : '';
-    this.hud.setReadout(`${erasing ? 'Do návrhu ke smazání' : 'Do návrhu'}: ${name}${where} · Enter nebo Aplikovat zapíše`);
+    const verb = carrying ? 'Přeneseno do návrhu' : erasing ? 'Do návrhu ke smazání' : 'Do návrhu';
+    this.hud.setReadout(`${verb}: ${name}${where} · Enter zapíše`);
+  },
+
+  pickUpFreeAt(cell) {
+    const entry = this.mode.pickUpFree(this.s.editorPlaceSpot(cell));
+    if (!entry) {
+      this.hud.setReadout('Pod myší není nic k přesunutí');
+      return;
+    }
+    const def = getDecoration(entry.key);
+    const name = def && def.displayName ? def.displayName : entry.key;
+    this.hud.setReadout(`Neseš: ${name} · klik položí · R natočí · Esc nebo pravé tlačítko vrátí zpět`);
   },
 
   unmarkFreeAt(cell) {
+    if (this.mode.cancelCarry()) {
+      this.hud.setReadout('Přenášení zrušeno — věc zůstala na místě');
+      return;
+    }
     const entry = this.mode.unmarkFree(this.s.editorPlaceSpot(cell));
     this.hud.setReadout(entry ? 'Odebráno z návrhu' : 'Tady v návrhu nic není');
   },
 
   showFreeDraft() {
     const draft = this.mode.freeDraft;
-    this.brushPanel.setFreeCount(draft.filter((item) => !item.remove).length, draft.filter((item) => item.remove).length);
+    if (this.mode.isMoveBrush) {
+      const nameOf = (entry) => {
+        const def = getDecoration(entry.key);
+        return def && def.displayName ? def.displayName : entry.key;
+      };
+      const carry = this.mode.freeCarry;
+      this.brushPanel.setMoveList(this.mode.freeMoves().map(nameOf), carry ? nameOf(carry.base) : null);
+    } else {
+      this.brushPanel.setFreeCount(draft.filter((item) => !item.remove).length, draft.filter((item) => item.remove).length);
+    }
     this.s.showFreeDraft(draft);
   },
 
@@ -280,8 +328,9 @@ export default {
       this.mode.unmarkHeightCell(cell.cx, cell.cz);
       return;
     }
-    if (this.mode.placesFree) {
+    if (this.mode.freePlacing) {
       this.unmarkFreeAt(cell);
+      this.s.handleHover(cell);
       return;
     }
     if (!this.mode.canEditCell(cell.cx, cell.cz)) return;

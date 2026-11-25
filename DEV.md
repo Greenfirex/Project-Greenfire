@@ -1289,7 +1289,11 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
       paprsek z kamery (`deckOnRay`, v pohledu Přízemí bez patra), jinak terén. Na podlaze má dekorace
       `deck: 'lower' | 'upper'` a výšku bere ze stavby (`deckAt`), ne z terénu; v patře neblokuje chůzi v přízemí
       a schová se spolu s patrem (`showDeckDecorations`). Překážky dekorací už počítají s posunem v políčku.
-      Zatím ne: kokosy a listy kolem palem, vejce v hnízdě, posouvání položené věci, jemnější otáčení než po 45°,
+      Přenášení: štětec Přesun (`move`, mezi `COMMON_BRUSHES`) nebo Shift + klik zvedne nejbližší věc (`pickUpFree`);
+      originál jde do návrhu ke smazání, nesená kopie (`freeCarry`, otočení a velikost převzaté z `decoPlacement`)
+      se položí klikem jako nový kus s odkazem `movedFrom`, podle kterého panel vypisuje přesuny (`freeMoves`).
+      Návrh volného pokládání nezávisí na štětci: změna štětce ho nezahodí, jen Esc, Do buněk a zavření editoru.
+      Zatím ne: kokosy a listy kolem palem, vejce v hnízdě, jemnější otáčení než po 45°,
       dekorace v patře jako překážka v patře.
    3. Stavění po dílech (rozhodnuto, cesta B): podlaha po buňkách, stěny po hranách, otvory, patro; zábradlí,
       schody a střechu dopočítá stavba; nábytek jako volně položené dekorace.

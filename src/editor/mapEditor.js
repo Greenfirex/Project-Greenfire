@@ -265,6 +265,7 @@ export default class MapEditor {
 
   clearWorkspace() {
     this.mode.cancelDraft();
+    this.mode.clearFreeDraft();
     this.mode.cancelHeightDraft();
     this.mode.clearAreaSelection();
     this.mode.setBrush(null);
@@ -509,12 +510,12 @@ export default class MapEditor {
   }
 
   applyBrushDraft() {
-    if (this.mode.freeDraft.length) {
+    if (this.mode.freeDraftOpen) {
       const { added, removed } = this.mode.applyFreeDraft();
       const parts = [];
       if (added) parts.push(`položeno ${added}`);
       if (removed) parts.push(`smazáno ${removed}`);
-      this.hud.setReadout(`Aplikováno: ${parts.join(' · ')}`);
+      this.hud.setReadout(parts.length ? `Aplikováno: ${parts.join(' · ')}` : 'Návrh je prázdný');
       this.refreshUndoButton();
       this.s.handleHover(this.s.hoverCell);
       return;
@@ -650,7 +651,7 @@ export default class MapEditor {
     const shape = this.mode.heightDraftShape(draft);
     const slopeCount = shape ? shape.slope.length : 0;
     const rimCount = shape && shape.rim ? shape.rim.length : 0;
-    if (this.mode.placesFree) this.showFreeDraft();
+    if (this.mode.freePlacing) this.showFreeDraft();
     else this.brushPanel.setCount(draft.cells.size, slopeCount, rimCount);
     this.refreshUndoButton();
     this.refreshZoneOverlay();
