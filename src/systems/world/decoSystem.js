@@ -671,6 +671,20 @@ export default class DecoSystem {
     }
     return nodes;
   }
+  felledParts(anchor) {
+    if (!anchor || anchor.isDisposed()) return [];
+    const prefixes = [`stump_${anchor.name}`, `log_${anchor.name}_`, `frond_${anchor.name}_`];
+    return anchor.getChildren().filter((node) => prefixes.some((prefix) => node.name.startsWith(prefix)));
+  }
+
+  restoreFelled(anchor) {
+    if (!anchor || anchor.isDisposed()) return;
+    for (const node of this.felledParts(anchor)) node.dispose(false, false);
+    if (anchor.metadata) anchor.metadata.stump = null;
+    const model = anchor.metadata ? anchor.metadata.model : null;
+    if (model && !model.isDisposed()) model.setEnabled(true);
+  }
+
   isBroken(node) {
     return !!(node && node.metadata && node.metadata.broken);
   }

@@ -1,9 +1,49 @@
 // Část herní scény: vybavení — nasazení předmětu z batohu do slotu, sundání zpět, model na postavě a co z toho plyne pro staty.
-// Taky tasení a zandávání zbraně a rozhodnutí, co má postava v ruce.
+// Taky tasení a zandávání zbraně a rozhodnutí, co má postava v ruce. Modely věcí, které hráč má,
+// připraví předem na pozadí, aby se hra při prvním nasazení nebo jídle nezasekla.
 // Patří ke GameScene (sdílí její this); jen ji dělí, aby hlavní soubor zůstal přehledný.
 import { ITEM_TYPES, EQUIP_SLOTS, gearBonus, itemFood, itemWeight, toolForItem, getTool, hotbarTool } from '../data/catalogs/items.js';
 
 export default {
+  warmOwnedItems() {
+    if (!this.playerSystem.ready) return Promise.resolve();
+    const owned = [...Object.keys(this.inventorySystem.items || {}), ...Object.values(this.equipmentSystem.slots || {})];
+    for (const key of owned) {
+      if (!key || this.warmedItems.has(key)) continue;
+      this.warmedItems.add(key);
+      this.warmQueue.push(key);
+    }
+    if (!this.warmRunning) this.warmRunning = this.drainWarmQueue().finally(() => { this.warmRunning = null; });
+    return this.warmRunning;
+  },
+
+  async drainWarmQueue() {
+    while (this.warmQueue.length) {
+      const key = this.warmQueue.shift();
+      try {
+        await this.warmItem(key);
+      } catch (err) {
+        console.warn(`[výbava] Model předmětu „${key}“ se nepodařilo připravit předem.`, err);
+      }
+    }
+  },
+
+  async warmItem(itemKey) {
+    const def = ITEM_TYPES[itemKey];
+    if (!def) return;
+    const tool = toolForItem(itemKey);
+    const food = itemFood(itemKey);
+    const warm = await this.playerSystem.itemWarmup({
+      tools: tool ? [tool] : [],
+      wears: def.wear ? [def.wear] : [],
+      meals: food && food.hold ? [food.hold] : [],
+    });
+    this.revealSystem.attachPending();
+    const meshes = warm.meshes.filter((mesh) => mesh.material && !mesh.isDisposed());
+    await Promise.all(meshes.map((mesh) => mesh.material.forceCompilationAsync(mesh).catch(() => null)));
+    warm.dispose();
+  },
+
   equipItem(itemKey, slot) {
     const def = ITEM_TYPES[itemKey];
     if (!def || def.slot !== slot) return false;

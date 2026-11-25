@@ -258,6 +258,20 @@ export default class CreatureSystem {
     return this.creatures;
   }
 
+  clearAll() {
+    for (const corpse of [...this.corpses]) this.disposeCorpse(corpse);
+    for (const slot of this.slots.values()) {
+      if (slot.creature) this.despawn(slot.creature);
+    }
+    this.slots.clear();
+    this.creatures = [];
+    this.hovered = null;
+    this.selected = null;
+    this.hoveredCorpse = null;
+    this.cues = [];
+    if (this.onRosterChange) this.onRosterChange();
+  }
+
   dropSlot(slot) {
     for (const corpse of [...this.corpses]) {
       if (corpse.creature && corpse.creature.slotKey === slot.key) this.disposeCorpse(corpse);

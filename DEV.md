@@ -51,8 +51,13 @@ src/
   mechaniky se hlásí přes `simSystem.subscribe`.
 - Ukládání je obecný sběrač stavu; vlastníci se připojují přes
   `saveSystem.register` (`serialize`, `apply`, `defaultState`).
-- Načtení savu hru znovu spustí a stav se navrství na čerstvě postavený svět —
-  proto je u načtení vidět načítací obrazovka. Samo se nic nenačítá.
+- Načtení z menu staví svět a stav se navrství na čerstvě postavený svět. Načtení
+  během hry (`sceneReload.js`) svět nestaví: vrátí ho do stavu z mapy (uhasí ohně,
+  obnoví pokácené a posbírané, odklidí tvory i mrtvoly a postaví je znovu, zruší
+  rozdělané akce hráče) a pak nanese uložení stejnými `apply` jako při startu.
+  Každý nový trvalý stav proto musí umět i tenhle návrat, jinak po načtení zůstane
+  ze hry před ním. V editoru, s neuloženou mapou nebo při chybě se načítá postaru
+  obnovením stránky. Samo se nic nenačítá.
 - Pozice uložení jsou v `SAVE_SLOTS` (`saveSchema.js`): rychlé (F5/F9, klíč zůstal
   po starém jediném uložení), automatické a pět pojmenovaných. Uložení nese kromě
   stavu nepovinné `meta` (název, úroveň, herní čas) pro okno s pozicemi; stav se tím
@@ -60,9 +65,12 @@ src/
 - Automatické uložení se zapíše každých `AUTOSAVE_INTERVAL_S` hraní, jen když je klid
   (ne v boji, při umírání, v editoru, s otevřeným oknem, vleže); jinak počká.
   Každé jiné uložení odpočet vynuluje.
-- Start: nejdřív hlavní menu (`mainMenu.js`) a svět se staví až po volbě. Načtení
-  během hry a „Do hlavního menu“ obnoví stránku; načtení nechá v `sessionStorage`
-  značku s pozicí a menu se pak přeskočí.
+- Start: nejdřív hlavní menu (`mainMenu.js`) a svět se staví až po volbě.
+  „Do hlavního menu“ obnoví stránku. Záložní načtení obnovením stránky nechá
+  v `sessionStorage` značku s pozicí a menu se pak přeskočí.
+- Mezi kousky stavby světa se čeká přes `releaseFrame` (`assetLoader.js`). V kartě
+  na pozadí čeká přes `MessageChannel`, protože časovače tam prohlížeč brzdí až na
+  1 s a stavba by se táhla desítky vteřin.
 - Pozadí menu a načítání (`menuBackdrop.js`) je smyčka `menu-loop.mp4`. Šev smyčky
   je zapečený přímo ve videu (poslední 1,5 s se prolíná do začátku), prohlížeč ho jen
   opakuje. Původní video z Gemini, logo na purpurovém pozadí a krajina bez loga jsou
@@ -643,7 +651,12 @@ přes všechno nasazené. Rukavice zatím nejsou (rovné prsty z Meshy
 nesedí na pokrčenou ruku).
 `bonus` u předmětu (např. `{ defense: 1 }`) se sečte přes nasazené věci (`gearBonus`)
 a `playerStatsSystem.setGear` ho přičte k základu z `player.js`; nic z toho se
-neukládá, po načtení se přepočítá z výbavy. Náhled v okně postavy (zeleně lepší,
+neukládá, po načtení se přepočítá z výbavy. Modely věcí, které hráč má (batoh i výbava), se připravují předem
+(`warmOwnedItems` v `sceneEquipment.js`, volá se z `refreshInventory` a při startu):
+stáhne se model nástroje, oblečení nebo jídla v ruce, připojí se rentgen
+(`revealSystem.attachPending`) a materiály se sestaví (`forceCompilationAsync`), až pak
+první nasazení nebo jídlo nezasekne hru. Každý předmět jen jednou, po jednom na pozadí;
+s velikostí katalogu to neroste. Náhled v okně postavy (zeleně lepší,
 červeně horší) počítá `previewStats`: u oblečení výměnu v jeho slotu, u zbraně držení
 v ruce. `weight` u předmětu a `carryWeight` v `player.js` se zatím jen ukazují
 (`carriedLoad`, počítá batoh i výbavu), přetížení nemá žádný důsledek.
@@ -764,7 +777,11 @@ hran, hra nemá MSAA), výřez se smaže do průhledna a po vykreslení se zkop�
 (`drawImage`) do `<canvas>` v okně. Kopie místo „díry“ v okně, protože pozadí okna by
 plátno hry zakrylo. Po vykreslení se `scene.activeCamera` vrací na hlavní kameru,
 jinak by klikání a voda počítaly s portrétní. Druhá kamera prochází jen díly postavy
-(vlastní `getActiveMeshCandidates`).
+(vlastní `getActiveMeshCandidates`). Dvojník je na seznamu modelů, které rentgen
+v jeskyni nechá vidět (`setKeptMeshes`), nemá mlhu (`applyFog`) a po dobu jeho kreslení
+scéna nastaví denní světlo a ostatní světla zhasne (`portraitLightOn/Off`); světla se
+nahrávají pro každou kameru zvlášť, takže hlavní obraz to neovlivní. Mlha se přepíná
+jen na dvojníkovi: přepnutí na celé scéně by dvakrát za snímek přepočítalo všechny materiály.
 
 ## Klikání ve světě
 

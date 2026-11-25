@@ -388,19 +388,50 @@ export default class PlayerSystem {
 
   prefetchTool(key) {
     const tool = TOOL_TYPES[key];
-    if (!tool || !tool.model || this.toolTemplates[tool.model] !== undefined) return;
-    if (this.toolLoading && this.toolLoading[tool.model]) return;
-    if (!this.toolLoading) this.toolLoading = {};
-    this.toolLoading[tool.model] = true;
-    loadModel(this.s, toolModelUrl(tool)).then((template) => {
+    if (!tool || !tool.model) return Promise.resolve(null);
+    if (this.toolTemplates[tool.model] !== undefined) return Promise.resolve(this.toolTemplates[tool.model]);
+    if (this.toolLoading[tool.model]) return this.toolLoading[tool.model];
+    this.toolLoading[tool.model] = loadModel(this.s, toolModelUrl(tool)).then((template) => {
       this.toolTemplates[tool.model] = template;
-      this.toolLoading[tool.model] = false;
+      this.toolLoading[tool.model] = null;
       if (this.heldToolKey === key) this.refreshToolNode();
       else if (this.offHandKey === key) this.refreshOffNode();
       if (this.sheathedKey === key) this.refreshSheathNode();
+      return template;
     }).catch(() => {
-      this.toolLoading[tool.model] = false;
+      this.toolLoading[tool.model] = null;
+      return null;
     });
+    return this.toolLoading[tool.model];
+  }
+
+  async itemWarmup({ tools = [], wears = [], meals = [] }) {
+    const meshes = [];
+    const temporary = [];
+    const templates = await Promise.all([
+      ...tools.map((key) => this.prefetchTool(key)),
+      ...meals.map((hold) => this.prefetchMeal(hold)),
+    ]);
+    for (const template of templates) {
+      if (template) meshes.push(...template.getChildMeshes());
+    }
+    for (const wear of wears) {
+      if (wear.fitted) {
+        const mesh = this.mesh ? await this.fittedMesh(wear.fitted) : null;
+        if (mesh) meshes.push(mesh);
+        continue;
+      }
+      const template = wear.model ? await loadModel(this.s, wear.model) : null;
+      const node = template ? instantiateModel(this.s, template, 'playerWornWarmup') : null;
+      if (!node) continue;
+      node.setEnabled(false);
+      for (const mesh of node.getChildMeshes()) {
+        mesh.receiveShadows = true;
+        meshes.push(mesh);
+      }
+      temporary.push(node);
+    }
+    return { meshes, dispose: () => temporary.forEach((node) => node.dispose(false, false)) };
   }
 
   async attachToolNode() {
@@ -1709,15 +1740,27 @@ export default class PlayerSystem {
   }
 
   revive(x, z) {
-    this.dead = false;
-    this.lying = false;
-    this.waking = false;
-    this.wakeTimer = 0;
-    this.flinchTimer = 0;
-    this.stopEating();
+    this.resetActions();
     if (Number.isFinite(x) && Number.isFinite(z)) this.apply({ x, z, facing: 0 });
     this.play(this.idleAnim(), true);
     return true;
+  }
+
+  resetActions() {
+    this.dead = false;
+    this.autoWalk = null;
+    this.dodgeTimer = 0;
+    this.lying = false;
+    this.waking = false;
+    this.wakeTimer = 0;
+    this.strikeTimer = 0;
+    this.pickupTimer = 0;
+    this.igniteTimer = 0;
+    this.igniteImpactAt = 0;
+    this.flinchTimer = 0;
+    this.useTimer = 0;
+    this.stopEating();
+    this.releaseKeys();
   }
 
   ensurePlaying() {

@@ -1,5 +1,6 @@
 // Živá postava v okně postavy — dvojník hráče v klidové póze, kterého vidí jen kamera okna, zkopírovaný do rámečku.
 // Dvojník sdílí model i textury s hráčem; kreslí se jen při otevřeném okně a hlavní kamera ho nevidí.
+// Nemá mlhu a světlo mu na dobu kreslení nastaví scéna (onLightOn/onLightOff), aby nebyl tmavý v noci ani v jeskyni.
 import '@babylonjs/core/Cameras/targetCamera';
 import { TargetCamera } from '@babylonjs/core/Cameras/targetCamera';
 import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -29,6 +30,12 @@ export default class PortraitSystem {
     this.baseCandidates = null;
     this.drawing = false;
     this.double = null;
+    this.onLightOn = null;
+    this.onLightOff = null;
+  }
+
+  meshes() {
+    return this.drawing && this.double ? this.candidates.data : [];
   }
 
   create() {
@@ -39,10 +46,14 @@ export default class PortraitSystem {
     camera.layerMask = PORTRAIT_LAYER;
     camera.viewport = new Viewport(0, 0, 0, 0);
     this.s.onBeforeCameraRenderObservable.add((cam) => {
-      if (cam === camera) this.clearRegion();
+      if (cam !== camera) return;
+      this.clearRegion();
+      if (this.onLightOn) this.onLightOn();
     });
     this.s.onAfterRenderCameraObservable.add((cam) => {
-      if (cam === camera) this.copyRegion();
+      if (cam !== camera) return;
+      if (this.onLightOff) this.onLightOff();
+      this.copyRegion();
     });
     this.camera = camera;
   }
@@ -91,6 +102,7 @@ export default class PortraitSystem {
       mesh.layerMask = PORTRAIT_LAYER;
       mesh.isPickable = false;
       mesh.receiveShadows = false;
+      mesh.applyFog = false;
       mesh.alwaysSelectAsActiveMesh = true;
       const skeleton = mesh.skeleton;
       if (!skeleton) continue;

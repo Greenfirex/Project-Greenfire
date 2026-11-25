@@ -323,6 +323,20 @@ export default class GatherSystem {
     }
   }
 
+  restoreAll() {
+    for (const item of this.entries) {
+      Object.assign(item, { left: item.total, hits: 0, sway: 0, fall: null });
+      const anchor = item.anchor;
+      if (!anchor || anchor.isDisposed()) continue;
+      anchor.rotation.x = 0;
+      anchor.rotation.z = 0;
+    }
+    this.target = null;
+    this.pending = null;
+    this.cooldown = 0;
+    this.falls = [];
+  }
+
   markTaken(anchor) {
     for (const item of this.entries) {
       if (item.anchor !== anchor) continue;

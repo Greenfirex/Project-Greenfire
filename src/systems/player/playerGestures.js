@@ -81,9 +81,7 @@ export default {
     if (!meal) return Promise.resolve(null);
     if (!this.mealTemplates) this.mealTemplates = new Map();
     if (this.mealTemplates.has(meal.model)) return Promise.resolve(this.mealTemplates.get(meal.model));
-    return loadModel(this.s, meal.model).then(async (template) => {
-      const meshes = template ? template.getChildMeshes().filter((mesh) => mesh.material) : [];
-      await Promise.all(meshes.map((mesh) => mesh.material.forceCompilationAsync(mesh).catch(() => null)));
+    return loadModel(this.s, meal.model).then((template) => {
       this.mealTemplates.set(meal.model, template);
       return template;
     });

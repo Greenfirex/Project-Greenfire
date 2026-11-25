@@ -89,6 +89,7 @@ export default class CampfireFire {
     this.dayness = 1;
     this.scale = 1;
     this.sputter = 0;
+    this.emitting = null;
     this.spread = [CORE.spread, TONGUE.spread, SPARKS.spread];
   }
 
@@ -117,9 +118,11 @@ export default class CampfireFire {
   }
 
   emit(on) {
+    if (this.emitting === on) return;
+    this.emitting = on;
     for (const system of this.layers) {
-      if (on && !system.isStarted()) system.start();
-      if (!on && system.isStarted()) system.stop();
+      if (on) system.start();
+      else system.stop();
     }
   }
 

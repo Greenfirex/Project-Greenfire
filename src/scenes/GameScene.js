@@ -78,7 +78,7 @@ import JournalWindow from '../ui/journalWindow.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
-import { ITEM_KEYS, ITEM_TYPES, RECIPE_STATIONS, barEntry, getTool, itemFood, toolForItem } from '../data/catalogs/items.js';
+import { ITEM_TYPES, RECIPE_STATIONS, barEntry, getTool, itemFood, toolForItem } from '../data/catalogs/items.js';
 import { worldToCellCoords, CELL_SIZE } from '../utils/gridMath.js';
 import { DEFAULT_MAP, getMap } from '../data/catalogs/maps.js';
 import { collectStartupUrls, CREATURE_MODEL_URLS, PLAYER_ASSET_URLS } from '../data/catalogs/modelCatalog.js';
@@ -100,6 +100,7 @@ import sceneCraftingParts from './sceneCrafting.js';
 import sceneFoodParts from './sceneFood.js';
 import sceneProgressParts from './sceneProgress.js';
 import sceneSaveParts from './sceneSave.js';
+import sceneReloadParts from './sceneReload.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -265,6 +266,9 @@ export default class GameScene {
     this.log = new LogPanel();
     this.characterPanel = new CharacterPanel();
     this.portraitSystem = new PortraitSystem(scene);
+    this.portraitSystem.onLightOn = () => this.portraitLightOn();
+    this.portraitSystem.onLightOff = () => this.portraitLightOff();
+    this.portraitLight = null;
     this.lootWindow = new LootWindow();
     this.lootSource = null;
     this.vitalsBar = new VitalsBar();
@@ -299,6 +303,10 @@ export default class GameScene {
     this.menuKeyHandler = null;
     this.gameStarted = false;
     this.pendingLoadSlot = null;
+    this.reloadingSave = false;
+    this.warmedItems = new Set();
+    this.warmQueue = [];
+    this.warmRunning = null;
     this.defaultMaxFPS = undefined;
     this.options = mergeSavedOptions(readJSON(OPTIONS_STORAGE_KEY));
     this.renderScale = 1;
@@ -521,7 +529,8 @@ export default class GameScene {
     this.gainXp(350);
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
-    for (const key of ITEM_KEYS) if (itemFood(key)) this.playerSystem.prefetchMeal(itemFood(key).hold);
+    this.loader.floatProgress(1, 1, 'Balím výbavu…');
+    await this.warmOwnedItems();
     await this.setupCreatures();
     this.loader.floatProgress(1, 1, 'Seju trávu…');
     this.grassModelList = await this.loadGrassModels();
@@ -895,7 +904,7 @@ export default class GameScene {
   }
 
   async setupPlayer() {
-    this.playerSystem.inputBlocked = () => this.dialog.open || this.dying;
+    this.playerSystem.inputBlocked = () => this.dialog.open || this.dying || this.reloadingSave;
     this.playerSystem.moveBlocked = () => this.editor.active;
     this.playerSystem.walkable = (x, z, level) => this.isWalkableAt(x, z, level);
     this.playerSystem.stepLevel = (fromX, fromZ, level, toX, toZ) => this.stepLevel(fromX, fromZ, level, toX, toZ);
@@ -1202,6 +1211,27 @@ export default class GameScene {
     if (this.waterSystem.quality !== this.options.quality) this.withBusy('Přepočítávám vodu…', () => this.renderWater());
   }
 
+  portraitLightOn() {
+    const day = this.dayNightSystem;
+    if (!day.sunLight || !day.light) return;
+    this.portraitLight = {
+      levels: this.s.lights.map((light) => [light, light.intensity]),
+      sunDiffuse: day.sunLight.diffuse.clone(),
+    };
+    for (const light of this.s.lights) light.intensity = 0;
+    day.sunLight.intensity = day.light.sunIntensity;
+    if (day.sunDiffuse) day.sunLight.diffuse.copyFrom(day.sunDiffuse);
+    if (day.skyLight) day.skyLight.intensity = day.light.hemiIntensity;
+  }
+
+  portraitLightOff() {
+    const saved = this.portraitLight;
+    if (!saved) return;
+    this.portraitLight = null;
+    for (const [light, intensity] of saved.levels) light.intensity = intensity;
+    this.dayNightSystem.sunLight.diffuse.copyFrom(saved.sunDiffuse);
+  }
+
   storeOptions(values) {
     this.options = { ...values };
     writeJSON(OPTIONS_STORAGE_KEY, values);
@@ -1317,7 +1347,7 @@ export default class GameScene {
     } else if (under || this.revealSystem.isOpen()) {
       const viewer = { x: root.position.x, y: root.position.y, z: root.position.z, level };
       const seen = ({ x, y, z }, floor) => this.navigation.seesAcrossFloors(viewer, { x, y, z, level: floor });
-      const own = [...root.getChildMeshes(false), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen), ...this.attackArcMeshes()];
+      const own = [...root.getChildMeshes(false), ...this.portraitSystem.meshes(), ...this.terrainSystem.roofMeshes, ...this.decoSystem.caveDecoInSight(seen), ...this.attackArcMeshes()];
       for (const creature of this.creatureSystem.bodies()) {
         const floor = creature.level || 0;
         const y = this.creatureSystem.groundAt(creature.x, creature.z, floor, creature.y);
@@ -1626,6 +1656,7 @@ export default class GameScene {
   }
 
   refreshInventory() {
+    this.warmOwnedItems();
     this.characterPanel.updateInventory(this.inventorySystem, this.carriedLoad());
     this.hotbar.setAvailable((key) => this.ownsBarItem(key));
     if (this.heldItemSystem.key && !this.ownsTool(this.heldItemSystem.key)) this.heldItemSystem.set(null);
@@ -2095,4 +2126,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSaveParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSaveParts, sceneReloadParts);

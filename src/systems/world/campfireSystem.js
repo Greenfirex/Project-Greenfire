@@ -188,6 +188,15 @@ export default class CampfireSystem {
     }
   }
 
+  extinguishAll() {
+    this.cancel();
+    for (const item of this.fires) {
+      item.lit = false;
+      delete item.entry.lit;
+      item.fire.shutdown();
+    }
+  }
+
   dropFire(item) {
     if (this.onLightSource) this.onLightSource(item.fire.source, false);
     item.fire.dispose();

@@ -14,7 +14,25 @@ import { CELL_SIZE } from './gridMath.js';
 
 registerBuiltInLoaders();
 
+const hiddenWaiters = [];
+let hiddenChannel = null;
+
+function hiddenTick() {
+  if (!hiddenChannel) {
+    hiddenChannel = new MessageChannel();
+    hiddenChannel.port1.onmessage = () => {
+      const resolve = hiddenWaiters.shift();
+      if (resolve) resolve();
+    };
+  }
+  return new Promise((resolve) => {
+    hiddenWaiters.push(resolve);
+    hiddenChannel.port2.postMessage(0);
+  });
+}
+
 export function releaseFrame() {
+  if (typeof document !== 'undefined' && document.hidden && typeof MessageChannel !== 'undefined') return hiddenTick();
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 

@@ -37,6 +37,13 @@ export default class PlayerAttackSystem {
     return Number.isFinite(value) && value >= 0 ? value : 0;
   }
 
+  reset() {
+    this.cooldown = 0;
+    this.pending = null;
+    this.impactTimer = 0;
+    this.impactDelay = 0;
+  }
+
   setAttributeBonus(bonus) {
     const source = bonus || {};
     this.baseAttack = Math.max(0, this.number(PLAYER_BASE.attack) + (Number(source.attack) || 0));

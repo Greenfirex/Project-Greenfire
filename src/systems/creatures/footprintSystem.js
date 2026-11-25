@@ -176,6 +176,13 @@ export default class FootprintSystem {
     item.mesh.scaling.set(style.width * scale * (mirror ? -1 : 1), 1, style.length * scale);
   }
 
+  clear() {
+    for (const item of this.items) {
+      item.life = 0;
+      item.mesh.setEnabled(false);
+    }
+  }
+
   update(dt) {
     const seconds = Number.isFinite(dt) && dt > 0 ? Math.min(dt, 0.25) : 0;
     if (!seconds) return;

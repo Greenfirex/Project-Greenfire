@@ -147,7 +147,7 @@ export default {
   },
 
   canSaveNow() {
-    if (!this.loaded) return false;
+    if (!this.loaded || this.reloadingSave) return false;
     if (this.dying) {
       this.dialog.tell({ title: 'Teď uložit nejde', text: 'Během umírání se hra uložit nedá.' });
       return false;
@@ -200,7 +200,7 @@ export default {
       text: `„${this.saveTitle(info)}“ (${this.formatSaveTime(info.savedAt)})\nCo jsi od posledního uložení udělal, se ztratí.`,
       confirmLabel: 'Načíst',
       cancelLabel: 'Zrušit',
-      onConfirm: () => this.reloadFromSave(slot),
+      onConfirm: () => this.loadInPlace(slot),
     });
   },
 
@@ -259,7 +259,7 @@ export default {
   },
 
   canAutosave() {
-    if (!this.loaded || this.editor.active || this.dying || this.paused || this.dialog.open) return false;
+    if (!this.loaded || this.reloadingSave || this.editor.active || this.dying || this.paused || this.dialog.open) return false;
     if (!this.playerSystem.root || this.playerSystem.lying) return false;
     return !this.playerSystem.inCombat();
   },
