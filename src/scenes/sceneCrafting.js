@@ -14,8 +14,19 @@ export default {
     if (this.cookingWindow.open && !this.stationReady('fire')) this.cookingWindow.close();
   },
 
+  discoverRecipes(itemKeys) {
+    const found = this.recipeBook.notice(itemKeys);
+    if (!found.length) return;
+    const names = found.map((key) => {
+      const station = RECIPE_STATIONS[RECIPES[key].station];
+      return station ? `${ITEM_TYPES[key].displayName} (${station.title})` : ITEM_TYPES[key].displayName;
+    }).join(', ');
+    this.log.add(`${found.length === 1 ? 'Nový recept' : 'Nové recepty'}: ${names}`, 'gain');
+    this.toasts.push(found.length === 1 ? 'Nový recept' : 'Nové recepty', names);
+  },
+
   craftingRecipes(station = null) {
-    return RECIPE_KEYS.filter((key) => (RECIPES[key].station || null) === station).map((key) => {
+    return RECIPE_KEYS.filter((key) => (RECIPES[key].station || null) === station && this.recipeBook.knows(key)).map((key) => {
       const cost = Object.entries(RECIPES[key].cost).map(([itemKey, need]) => ({
         key: itemKey,
         name: ITEM_TYPES[itemKey] ? ITEM_TYPES[itemKey].displayName : itemKey,
@@ -50,6 +61,7 @@ export default {
     const station = RECIPE_STATIONS[recipe.station];
     this.log.add(`${station ? station.done : 'Vyrobeno'}: ${ITEM_TYPES[key].displayName}`, 'action');
     this.audioSystem.play('craft');
+    this.discoverRecipes([key]);
     this.refreshInventory();
     return true;
   },

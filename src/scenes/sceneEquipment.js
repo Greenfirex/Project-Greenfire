@@ -5,10 +5,13 @@
 import { ITEM_TYPES, EQUIP_SLOTS, gearBonus, itemFood, itemWeight, toolForItem, getTool, hotbarTool } from '../data/catalogs/items.js';
 
 export default {
+  ownedItemKeys() {
+    return [...Object.keys(this.inventorySystem.items || {}), ...Object.values(this.equipmentSystem.slots || {})];
+  },
+
   warmOwnedItems() {
     if (!this.playerSystem.ready) return Promise.resolve();
-    const owned = [...Object.keys(this.inventorySystem.items || {}), ...Object.values(this.equipmentSystem.slots || {})];
-    for (const key of owned) {
+    for (const key of this.ownedItemKeys()) {
       if (!key || this.warmedItems.has(key)) continue;
       this.warmedItems.add(key);
       this.warmQueue.push(key);

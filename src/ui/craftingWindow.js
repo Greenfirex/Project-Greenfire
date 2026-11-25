@@ -47,6 +47,13 @@ export default class CraftingWindow {
 
   render() {
     const body = this.frame.body;
+    if (!this.recipes.length) {
+      const empty = document.createElement('div');
+      empty.className = 'craft-empty';
+      empty.textContent = 'Zatím neznáš žádný recept. Objeví se, až najdeš suroviny.';
+      body.replaceChildren(empty);
+      return;
+    }
     body.replaceChildren(...this.recipes.map((recipe) => this.recipeRow(recipe)));
   }
 

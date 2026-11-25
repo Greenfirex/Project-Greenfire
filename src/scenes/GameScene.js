@@ -46,6 +46,7 @@ import HarvestSystem from '../systems/gathering/harvestSystem.js';
 import FootprintSystem from '../systems/creatures/footprintSystem.js';
 import SandBurstSystem from '../systems/creatures/sandBurstSystem.js';
 import InventorySystem from '../systems/player/inventorySystem.js';
+import RecipeBookSystem from '../systems/player/recipeBookSystem.js';
 import HeldItemSystem from '../systems/player/heldItemSystem.js';
 import PortraitSystem from '../systems/player/portraitSystem.js';
 import WaveSpraySystem from '../systems/water/waveSpraySystem.js';
@@ -53,6 +54,7 @@ import AudioSystem from '../systems/atmosphere/audioSystem.js';
 import CharacterPanel from '../ui/characterPanel.js';
 import LootWindow from '../ui/lootWindow.js';
 import LogPanel from '../ui/logPanel.js';
+import ToastNotices from '../ui/toastNotices.js';
 import FloatingNumbers from '../ui/floatingNumbers.js';
 import { itemIcon } from '../ui/itemIcons.js';
 import Hud from '../ui/hud.js';
@@ -243,6 +245,7 @@ export default class GameScene {
     this.sandBursts = new SandBurstSystem(scene);
     this.audioSystem = new AudioSystem(scene);
     this.inventorySystem = new InventorySystem();
+    this.recipeBook = new RecipeBookSystem();
     this.saveSystem = new SaveSystem(this);
     this.hud = new Hud();
     this.tooltipPanel = new TooltipPanel();
@@ -264,6 +267,7 @@ export default class GameScene {
     this.craftingWindow = new CraftingWindow();
     this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', ...RECIPE_STATIONS.fire });
     this.log = new LogPanel();
+    this.toasts = new ToastNotices();
     this.characterPanel = new CharacterPanel();
     this.portraitSystem = new PortraitSystem(scene);
     this.portraitSystem.onLightOn = () => this.portraitLightOn();
@@ -552,6 +556,7 @@ export default class GameScene {
     this.s.loaded = true;
     this.s.paused = false;
     this.optionsPanel.setButtonVisible(true);
+    this.toasts.release();
     if (this.saveHintAfterLoad) {
       const notice = this.saveHintAfterLoad;
       this.saveHintAfterLoad = null;
@@ -1530,6 +1535,7 @@ export default class GameScene {
     this.refreshProgress();
     this.creatureHealthBar.mount();
     this.log.mount();
+    this.toasts.onShow = () => this.audioSystem.play('notice');
     this.hoverHint.mount();
     this.deathScreen.onRespawn = () => this.respawnPlayer();
     this.deathScreen.mount();
@@ -1629,6 +1635,7 @@ export default class GameScene {
       const def = ITEM_TYPES[itemKey];
       if (fresh && def && def.slot === 'weapon' && !this.equipmentSystem.get('weapon')) this.equipItem(itemKey, 'weapon');
     }
+    this.discoverRecipes(yields.map(({ itemKey }) => itemKey));
     this.refreshInventory();
     this.logGain(yields);
   }
@@ -1741,6 +1748,16 @@ export default class GameScene {
       },
       defaults: () => this.equipmentSystem.defaultState(),
       order: 9,
+    });
+    this.saveSystem.register('recipeBook', {
+      serialize: () => this.recipeBook.serialize(),
+      apply: (data) => {
+        this.recipeBook.apply(data);
+        this.recipeBook.notice(this.ownedItemKeys());
+        this.refreshCrafting();
+      },
+      defaults: () => this.recipeBook.defaultState(),
+      order: 10,
     });
   }
 

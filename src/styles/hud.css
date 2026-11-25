@@ -605,6 +605,45 @@
   color: var(--text-dim);
 }
 
+/* Zlaté oznámení uprostřed obrazovky — nová úroveň, nové recepty; zmizí kliknutím nebo samo. */
+#hud-layer > .hud-toast {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  z-index: 30;
+  min-width: 260px;
+  max-width: 520px;
+  padding: 14px 48px 16px;
+  transform: translate(-50%, -8px) scale(0.96);
+  background: radial-gradient(ellipse at center, rgba(12, 9, 4, 0.72) 0%, rgba(12, 9, 4, 0.45) 55%, rgba(12, 9, 4, 0) 75%);
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+#hud-layer > .hud-toast.is-on {
+  transform: translate(-50%, 0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hud-toast__title {
+  font-family: var(--font-title);
+  font-size: 30px;
+  color: var(--title-gold);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 14px rgba(227, 194, 122, 0.35);
+}
+
+.hud-toast__text {
+  margin-top: 4px;
+  font-family: var(--font-title);
+  font-size: 17px;
+  color: #f1dfb0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
 /* Okna batohu, postavy, bestiáře a kořisti — kamenný rám s drahokamem a ozdobným nadpisem. */
 .side-window {
   position: absolute;
@@ -669,6 +708,13 @@
   align-self: center;
   min-width: 170px;
   padding: 7px 14px;
+}
+
+.craft-empty {
+  padding: 10px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
 }
 
 .craft-recipe {

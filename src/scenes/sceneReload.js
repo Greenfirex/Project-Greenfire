@@ -71,6 +71,7 @@ export default {
     this.mutedFocus = null;
     this.impactTimer = 0;
     this.floatingNumbers.clear();
+    this.toasts.clear();
     this.footprintSystem.clear();
     this.hoverHint.hide();
   },

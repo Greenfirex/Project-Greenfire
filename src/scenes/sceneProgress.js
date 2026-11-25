@@ -8,6 +8,7 @@ export default {
     const gained = this.playerStats.gainXp(amount);
     if (gained) {
       this.log.add(`Nová úroveň ${this.playerStats.level}! Body k rozdělení: ${this.playerStats.points} (okno postavy, C)`, 'gain');
+      this.toasts.push(`Nová úroveň ${this.playerStats.level}`, `Body k rozdělení: ${this.playerStats.points} · okno postavy (C)`);
     }
     return gained;
   },
