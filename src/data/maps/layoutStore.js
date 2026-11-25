@@ -20,7 +20,13 @@ export function deriveBlocked(entries) {
     const def = getDecoration(entry.key);
     if (!def || def.blocks === false) continue;
     const place = decoPlacement(def, entry);
-    out.push({ cx: entry.cx, cz: entry.cz, offsetX: place.offsetX - place.jitterX, offsetZ: place.offsetZ - place.jitterZ, radius: decoRadius(def) });
+    const shape = { cx: entry.cx, cz: entry.cz, offsetX: place.offsetX - place.jitterX, offsetZ: place.offsetZ - place.jitterZ, radius: decoRadius(def) };
+    if (def.box) {
+      const size = place.scale / (def.scale || 1);
+      shape.box = [def.box[0] * size, def.box[1] * size];
+      shape.yaw = place.yaw;
+    }
+    out.push(shape);
   }
   return out;
 }

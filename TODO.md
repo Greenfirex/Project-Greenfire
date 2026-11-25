@@ -104,11 +104,9 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
 - [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; chůze dovnitř, dveře, nábytek a knihovna na páku hotové (`DEV.md`, etapa 3). V editoru hotový pohled do staveb, volné pokládání dekorací i na podlahy srubu a štětec Přesun (Shift + klik). Později zvuk odsouvání knihovny a vybavení z Meshy (chodba −21,12 se dá v editoru prodloužit). Okenice ne (piráti na tropickém ostrově je neřešili).
-  - [ ] Nábytek srubu jako dekorace (dnes se staví jako součást srubu v `buildingFurniture.js`, `buildingPirate.js`, `buildingProps.js` podle `furniture` a `props` v katalogu staveb). Navržené etapy, ještě neschválené:
-    1. Volně stojící kusy: stůl, židle (i převržená), truhla, sudy, bedny, kotva, stočené lano, loďka, lavička — vlastní štětce a modely, překážka jako dnes, uložená hra beze změny.
+  - [ ] Nábytek srubu jako dekorace. Volně stojící kusy jsou hotové jako pokus (štětec Nábytek, `DEV.md`, „Nábytek jako dekorace"); vyzkoušet ve hře a v editoru. Další etapy:
     2. Drobnosti na nábytku (hrnky, láhve, mapa, lucerna, dalekohled, kompas) — editor musí umět položit věc na desku stolu či ponku.
     3. Pracovní místa: ponk (výroba) a lucerny (světlo); lucerny mění formát uložené hry.
     4. Ve srubu zatím zůstává knihovna s pákou (tajné dveře), houpací síť, police, sítě a vlajka — vyřeší stavění po dílech (`DEV.md`, etapa 5.3).
-  - [ ] Rozhodnout: nábytek jako dekorace ztratí stárnutí podle místa ve srubu (mech, špína) — stačí pevné opotřebení, nebo počítat podle místa položení?
   - [ ] Doplňky volného pokládání: jemnější otáčení než po 45°, dekorace v patře jako překážka v patře, kokosy a listy kolem palem a vejce v hnízdě i při volném pokládání.
 - [ ] Rozhodnout o šířce plynulého okraje pláže.

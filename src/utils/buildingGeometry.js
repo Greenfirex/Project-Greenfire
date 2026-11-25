@@ -1,8 +1,9 @@
-// Tvary pro stavby skládané z mnoha kusů do jednoho tělesa: křivá kláda (i sud z prken), její čelo, prkno,
-// plachta a mechový polštář.
+// Tvary pro stavby a nábytek skládané z mnoha kusů do jednoho tělesa: křivá kláda (i sud z prken), její čelo,
+// prkno, natočený kvádr, válec, obruč, plachta a mechový polštář.
 // Každý kus dostane barvu po bodech (stáří, mech), celek se pak vytvoří jako jeden model.
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 
 export function insideOutline(points, x, z) {
   let inside = false;
@@ -171,6 +172,76 @@ export function pushBox(buffer, box, paint, tile) {
     }
     buffer.indices.push(first, first + 2, first + 1, first, first + 3, first + 2);
   }
+}
+
+export const flatPaint = (color) => () => color;
+
+export function turnPoint(place, [ox, oy, oz]) {
+  const tilt = place.tilt || 0;
+  const yaw = place.yaw || 0;
+  const y1 = oy * Math.cos(tilt) - oz * Math.sin(tilt);
+  const z1 = oy * Math.sin(tilt) + oz * Math.cos(tilt);
+  return new Vector3(place.x + ox * Math.cos(yaw) + z1 * Math.sin(yaw), place.y + y1, place.z - ox * Math.sin(yaw) + z1 * Math.cos(yaw));
+}
+
+export function pushPiece(buffer, place, offset, size, paint, tile, rng) {
+  const center = turnPoint(place, offset);
+  pushBox(buffer, {
+    center: [center.x, center.y, center.z],
+    size,
+    tiltX: place.tilt || 0,
+    yaw: place.yaw || 0,
+    shiftU: rng ? rng() : 0,
+    shiftV: rng ? rng() : 0,
+  }, paint, tile);
+}
+
+export function pushPlacedBox(buffer, place, offset, size, paint, extra = {}, tile = 1) {
+  const center = turnPoint(place, offset);
+  pushBox(buffer, {
+    center: [center.x, center.y, center.z],
+    size,
+    yaw: (place.yaw || 0) + (extra.yaw || 0),
+    tiltX: (place.tilt || 0) + (extra.tiltX || 0),
+    tiltZ: extra.tiltZ || 0,
+  }, paint, tile);
+}
+
+export function pushCylinder(buffer, place, from, to, radius, paint, options = {}) {
+  const a = turnPoint(place, from);
+  const b = turnPoint(place, to);
+  const axis = b.subtract(a);
+  const length = axis.length();
+  if (length < 1e-5) return;
+  const dir = axis.scale(1 / length);
+  const ref = Math.abs(dir.y) > 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
+  const side = Vector3.Cross(dir, ref).normalize();
+  const up = Vector3.Cross(side, dir).normalize();
+  const at = (along, lift, across) => [
+    a.x + dir.x * along + up.x * lift + side.x * across,
+    a.y + dir.y * along + up.y * lift + side.y * across,
+    a.z + dir.z * along + up.z * lift + side.z * across,
+  ];
+  const log = {
+    from: 0, to: length, radius, startLift: 0, endLift: 0, sag: 0, bow: 0, taper: options.taper || 0,
+    bulge: options.bulge || 0, bulgeWaves: 1, bulgePhase: 0, segments: options.segments || 2, sides: options.sides || 10, shiftU: 0, shiftV: 0,
+  };
+  const rings = pushLog(buffer, log, at, paint, options.tile || 1);
+  if (options.caps === false) return;
+  pushLogEnd(buffer, rings[0], log.sides, 0, -1, at, paint);
+  pushLogEnd(buffer, rings[rings.length - 1], log.sides, 0, 1, at, paint);
+}
+
+export function pushHoop(buffer, place, center, radius, thickness, plane, paint, count = 14) {
+  const point = (k) => {
+    const angle = (k / count) * Math.PI * 2;
+    const u = Math.cos(angle) * radius;
+    const v = Math.sin(angle) * radius;
+    if (plane === 'xy') return [center[0] + u, center[1] + v, center[2]];
+    if (plane === 'yz') return [center[0], center[1] + v, center[2] + u];
+    return [center[0] + u, center[1], center[2] + v];
+  };
+  for (let k = 0; k < count; k += 1) pushCylinder(buffer, place, point(k), point(k + 1), thickness, paint, { caps: false, sides: 6 });
 }
 
 export function pushMossPad(buffer, pad, paint, tile) {

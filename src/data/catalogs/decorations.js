@@ -2,6 +2,7 @@
 // Drží jen deklarace (model, měřítko, blokace) a resolve helpery, žádné rozvržení mapy.
 import { ASSET_DIRS } from './assetPaths.js';
 import { MOSS_CLUMPS } from './moss.js';
+import { FURNITURE_PIECES } from './furniture.js';
 
 const LOOSE_PLANK = { width: 0.22, thickness: 0.035, tint: [0.52, 0.45, 0.37], shadeSpread: 0.2, tile: 2, tilt: 0.08, splinter: 0.14 };
 const LOOSE_PLANKS = {
@@ -446,6 +447,19 @@ export const DECORATION_TYPES = {
     flat: true,
     swatch: '#4d6b2e',
     kind: 'ground',
+  }])),
+  ...Object.fromEntries(Object.entries(FURNITURE_PIECES).map(([key, piece]) => [key, {
+    displayName: piece.displayName,
+    furniture: piece,
+    scale: 1,
+    radius: piece.box ? Math.max(...piece.box) : 0.3,
+    box: piece.box || null,
+    height: piece.height || 0,
+    blocks: Boolean(piece.box),
+    castsShadow: true,
+    noReflection: true,
+    noTint: true,
+    kind: 'furniture',
   }])),
   ...Object.fromEntries(['green', 'dry'].map((look) => [`palm_frond_${look}`, {
     displayName: 'Palmový list',

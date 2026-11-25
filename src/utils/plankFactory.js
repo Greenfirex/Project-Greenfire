@@ -11,7 +11,7 @@ import { PLANKS_TEXTURE, PLANKS_TEXTURE_PLANKS } from '../data/catalogs/assetPat
 const templates = new WeakMap();
 const materials = new WeakMap();
 
-function plankMaterial(scene) {
+export function plankMaterial(scene) {
   const cached = materials.get(scene);
   if (cached) return cached;
   const material = new StandardMaterial('loosePlankMat', scene);

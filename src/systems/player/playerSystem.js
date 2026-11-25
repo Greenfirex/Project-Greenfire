@@ -1844,7 +1844,7 @@ export default class PlayerSystem {
         const { cx, cz } = worldToCellCoords(x, z);
         if (this.blockedTest(cx, cz)) return false;
       }
-      const contact = this.decoSystem.nearestContact(x, z, BODY_RADIUS + BODY_MARGIN, 0, this.level);
+      const contact = this.decoSystem.nearestContact(x, z, BODY_RADIUS + BODY_MARGIN, 0, this.level, this.root.position.y);
       if (!contact) return i > 0;
       const nLen = Math.sqrt(contact.nx * contact.nx + contact.nz * contact.nz);
       if (!Number.isFinite(nLen) || nLen < 0.0001) return false;
@@ -1857,7 +1857,7 @@ export default class PlayerSystem {
       if (!Number.isFinite(nextX) || !Number.isFinite(nextZ)) return false;
       this.root.position = this.positionAt(nextX, nextZ);
     }
-    return !this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level);
+    return !this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level, this.root.position.y);
   }
 
   levelAt(x, z) {
@@ -1874,12 +1874,12 @@ export default class PlayerSystem {
   }
 
   tryMove(x, z, dirX, dirZ, step) {
-    if (this.decoSystem && this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level)) this.pushOut();
+    if (this.decoSystem && this.decoSystem.overlaps(this.root.position.x, this.root.position.z, BODY_RADIUS + BODY_MARGIN, this.level, this.root.position.y)) this.pushOut();
     if (this.commit(x, z)) return true;
     const startX = this.root.position.x;
     const startZ = this.root.position.z;
     if (this.decoSystem) {
-      const contact = this.decoSystem.nearestContact(startX, startZ, BODY_RADIUS, SLIDE_LOOKAHEAD, this.level);
+      const contact = this.decoSystem.nearestContact(startX, startZ, BODY_RADIUS, SLIDE_LOOKAHEAD, this.level, this.root.position.y);
       const dot = contact ? dirX * contact.nx + dirZ * contact.nz : 0;
       if (contact && dot < 0) {
         const slideX = dirX - contact.nx * dot;

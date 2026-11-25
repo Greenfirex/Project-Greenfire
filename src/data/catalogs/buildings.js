@@ -1,6 +1,7 @@
 // Stavby skládané z dílů na mřížce — rozměr v buňkách, prkenná podlaha a stěny z klád s otvory.
 // Strany a otvory jsou v neotočené stavbě; otočení z mapy se použije na celek. Plán je v DEV.md, sekce „Stavby".
 import { ASSET_DIRS, PLANKS_TEXTURE, PLANKS_TEXTURE_PLANKS, LOG_TEXTURE, LOG_NORMAL } from './assetPaths.js';
+import { LOG_END_COLORS } from './furniture.js';
 
 export const BUILDINGS = {
   pirate_cabin: {
@@ -95,7 +96,7 @@ export const BUILDINGS = {
       vineChance: 0.7,
       vineDrape: 0.3,
       vineGap: 0.04,
-      ends: { wood: '#9c8468', ring: '#5c4636', crack: '#3a2c22', bark: '#3b3029' },
+      ends: LOG_END_COLORS,
       outline: [[-4, -3], [4, -3], [4, 0.75], [2, 0.75], [2, 3], [-2, 3], [-2, 0.75], [-4, 0.75]],
       posts: { at: [[3.86, 2.86], [-3.86, 2.86]], radius: 0.13, sink: 0.25, lean: 0.06, above: 0.2 },
       openings: [
@@ -160,8 +161,6 @@ export const BUILDINGS = {
     },
     furniture: {
       styles: {
-        table: { size: [1.5, 0.78, 0.85], plank: 0.22, top: 0.05, leg: 0.07, inset: 0.1, rail: 0.18, tint: [0.66, 0.57, 0.47], shadeSpread: 0.15, tile: 1.2 },
-        chair: { size: [0.44, 0.95, 0.42], seat: 0.45, top: 0.04, leg: 0.045, slat: 0.07, slats: [0.45, 0.85], tint: [0.66, 0.57, 0.47], shadeSpread: 0.25, tile: 1.2 },
         workbench: {
           size: [1.9, 0.88, 0.65], top: 0.08, leg: 0.09, inset: 0.08, shelf: 0.22, tint: [0.62, 0.53, 0.43], shadeSpread: 0.15, tile: 1.2,
           tools: [
@@ -180,9 +179,6 @@ export const BUILDINGS = {
           glass: [0.75, 0.72, 0.6], glassAlpha: 0.35, glassGlow: [0.9, 0.62, 0.3], flameGlow: [1, 0.78, 0.4],
           light: { color: [1, 0.68, 0.36], range: 7, day: 0.15, night: 1.4, flicker: 0.12, shadowDarkness: 0.5 },
         },
-        anchor: { size: [0.8, 1.3, 0.35], block: true, iron: [0.2, 0.17, 0.15], thick: 0.045, height: 1.3, width: 0.8, ring: 0.08 },
-        rope: { size: [0.5, 0.15, 0.5], block: true, rope: [0.55, 0.45, 0.3], thick: 0.03, loops: [[0.24, 0.03], [0.2, 0.08], [0.15, 0.13]] },
-        boat: { size: [3.0, 0.95, 1.15], block: true, depth: 0.42, trestle: 0.55, tint: [0.6, 0.48, 0.36] },
         map: {
           size: [0.5, 0, 0.36], curl: 0.012, dagger: [0.17, 0.11], daggerTilt: 0.25, steel: [0.55, 0.56, 0.58], grip: [0.25, 0.15, 0.08],
           colors: { paper: '#c9b48a', burn: 'rgba(70,40,15,0.75)', stain: 'rgba(90,60,25,0.18)', land: '#b69a62', ink: '#3b2a1a', mark: '#8e1b12' },
@@ -192,8 +188,6 @@ export const BUILDINGS = {
         wheel: { radius: 0.42, rim: 0.03, spokes: 8, spoke: 0.02, handle: 0.13, hub: 0.07, peg: 0.09, tint: [0.6, 0.48, 0.36] },
         spyglass: { brass: [0.72, 0.56, 0.26], tubes: [[0.18, 0.032], [0.15, 0.026], [0.12, 0.02]] },
         compass: { brass: [0.72, 0.56, 0.26], face: [0.85, 0.8, 0.65], needle: [0.6, 0.1, 0.08], radius: 0.06, height: 0.025 },
-        bench: { size: [1.7, 0.45, 0.35], block: true, seat: 0.16, stump: 0.14 },
-        chest: { size: [1.0, 0.58, 0.56], block: true, lid: 0.1, bands: [-0.32, 0.32], tint: [0.5, 0.38, 0.28], iron: [0.2, 0.18, 0.16] },
         shelf: {
           depth: 0.22, board: 0.035, bracket: 0.22, tint: [0.56, 0.47, 0.38],
           colors: { jar: [0.55, 0.6, 0.5], lid: [0.3, 0.22, 0.15], candle: [0.88, 0.82, 0.68], wick: [0.1, 0.08, 0.07], gold: [0.85, 0.66, 0.22], iron: [0.2, 0.18, 0.16], paper: [0.8, 0.72, 0.55], tie: [0.45, 0.12, 0.1] },
@@ -222,12 +216,7 @@ export const BUILDINGS = {
       },
       items: [
         { kind: 'bookcase', at: [1.0, -2.62], slide: 1.7 },
-        { kind: 'table', at: [-1.0, 0.6] },
         { kind: 'lantern', at: [-0.55, 0.42], lift: 0.78, yaw: 0.3, use: { kind: 'lamp', onHint: 'rozsvítit lucernu', offHint: 'zhasnout lucernu' } },
-        { kind: 'chair', at: [-1.3, -0.15] },
-        { kind: 'chair', at: [-0.7, 1.35], yaw: 3.0 },
-        { kind: 'chair', at: [-2.2, 0.2], yaw: 1.45 },
-        { kind: 'chair', at: [-1.35, 2.2], yaw: 0.6, tilt: -1.5708, lift: 0.21 },
         { kind: 'workbench', at: [-2.88, -2.51], use: { kind: 'crafting', hint: 'pracovat u ponku' } },
         { kind: 'spyglass', at: [-3.0, -2.3], lift: 0.88, yaw: 0.3 },
         { kind: 'compass', at: [-3.62, -2.22], lift: 0.88 },
@@ -268,11 +257,6 @@ export const BUILDINGS = {
             { kind: 'coins', at: 0.36, stacks: [[0, 0, 4], [0.04, -0.03, 2]] },
           ],
         },
-        { kind: 'anchor', at: [3.2, 1.2], tilt: -0.25 },
-        { kind: 'rope', at: [2.45, 1.6] },
-        { kind: 'boat', at: [6.3, 0.6], on: 'ground', yaw: 1.5708 },
-        { kind: 'bench', at: [3.0, 8.3], on: 'ground' },
-        { kind: 'chest', on: 'upper', at: [1.2, -2.2], yaw: 0.05 },
         { kind: 'lantern', on: 'upper', at: [1.45, -2.25], lift: 0.59, yaw: -0.4, use: { kind: 'lamp', onHint: 'rozsvítit lucernu', offHint: 'zhasnout lucernu' } },
         {
           kind: 'shelf', on: 'upper', at: [-1.6, -2.45], lift: 1.5, length: 1.2,
@@ -286,7 +270,6 @@ export const BUILDINGS = {
         },
         { kind: 'bottle', on: 'upper', at: [-0.3, -0.25], broken: true, yaw: 2.1 },
         { kind: 'mug', on: 'upper', at: [-0.12, -0.02], yaw: 0.7 },
-        { kind: 'rope', on: 'upper', at: [-3.05, -0.9] },
         { kind: 'hammock', on: 'upper', at: [0, 0.35], span: [-3.56, -0.5], anchorTop: [1.6, 1.55], post: true },
       ],
     },
@@ -317,34 +300,6 @@ export const BUILDINGS = {
         droop: 0.22,
         wave: 0.1,
         colors: { cloth: '#1c1a19', stain: '#5a4a38', bone: '#d8cfba' },
-      },
-      barrels: {
-        style: {
-          height: 0.95, radius: 0.3, bulge: 0.14, sides: 16, staves: 16, texturePlanks: PLANKS_TEXTURE_PLANKS, tile: 1,
-          hoops: [0.1, 0.32, 0.68, 0.9], hoopWidth: 0.05, hoopOut: 0.008,
-          tint: [0.78, 0.64, 0.5], hoopTint: [0.2, 0.18, 0.17], shadeSpread: 0.25,
-        },
-        items: [
-          { at: [-3.52, 4.62], on: 'porch' },
-          { at: [-2.88, 4.72], on: 'porch', scale: 0.9 },
-          { at: [3.3, 6.4], on: 'ground', lying: 'x' },
-          { at: [-5.0, 1.75], on: 'ground', lying: 'z', scale: 0.95 },
-          { at: [2.5, -0.85], on: 'upper', scale: 0.9 },
-          { at: [-2.75, 1.45], on: 'upper', scale: 0.85 },
-        ],
-      },
-      crates: {
-        style: { size: 0.6, thickness: 0.03, tile: 1.2, tint: [0.82, 0.7, 0.55], shadeSpread: 0.25 },
-        items: [
-          { at: [3.5, 4.62], on: 'porch', yaw: 0.3, open: true },
-          { at: [3.55, 3.95], on: 'porch', yaw: -0.2, scale: 0.8 },
-          { at: [-4.4, 1.3], on: 'ground', yaw: 0.4, scale: 0.7 },
-          { at: [-4.45, 2.15], on: 'ground', yaw: -0.25, scale: 0.6 },
-          { at: [2.5, -1.45], on: 'upper', yaw: 0.1 },
-          { at: [2.52, -1.45], on: 'upper', lift: 0.6, yaw: 0.5, scale: 0.6 },
-          { at: [-1.95, 1.45], on: 'upper', yaw: 0.05, scale: 0.9 },
-          { at: [-1.35, 1.42], on: 'upper', yaw: -0.3, scale: 0.7 },
-        ],
       },
       netColors: { rope: '#8c7a58', float: '#a0703a' },
       nets: [

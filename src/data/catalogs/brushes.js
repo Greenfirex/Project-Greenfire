@@ -6,8 +6,10 @@ import { GRASS_MIXES } from './grass.js';
 import { CREATURE_KEYS, CREATURE_TYPES } from './creatures/index.js';
 import { HEIGHT_STEP, formatMeters } from '../maps/layoutStore.js';
 import { FISH_KEYS, FISH_TYPES } from './fish.js';
+import { FURNITURE_PIECES } from './furniture.js';
 
 const SURFACES = surfaceEntries();
+const FURNITURE_KEYS = Object.keys(FURNITURE_PIECES);
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
@@ -94,7 +96,7 @@ function eraserBrush(erase, label, note) {
 
 const ERASER_BRUSHES = {
   erase_plants: eraserBrush('plants', 'Guma: rostliny', 'Smaže stromy, keře, houby, květiny i trávu.'),
-  erase_objects: eraserBrush('objects', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály, táborák, truhly a kostlivce.'),
+  erase_objects: eraserBrush('objects', 'Guma: objekty', 'Smaže kameny, dřevo, suť, mušle, korály, táborák, truhly, kostlivce a nábytek.'),
   erase_path: eraserBrush('path', 'Guma: cesta', 'Smaže jen vrstvu cesty.'),
   erase_terrain: eraserBrush('terrain', 'Guma: terén', 'Srovná zem na nulu, zruší označení útesu a smaže most.'),
   erase_creatures: eraserBrush('creatures', 'Guma: tvorové', 'Smaže tvora nebo hejno ryb z buňky.'),
@@ -522,6 +524,17 @@ export const BRUSHES = {
     note: 'Posadí kostlivce zády ke kraji buňky; jde jednou prohledat. Natočením určíš, ke kterému kraji.',
     shape: 'blob',
     pool: ['loot_skeleton'],
+    rotate: true,
+    deco: true,
+  },
+  furniture: {
+    label: 'Nábytek',
+    note: 'Postaví kus starého pirátského nábytku; je to překážka (převržená židle ne). Tlačítkem vybereš kus, natočením směr; položí se přesně pod myš, i na podlahu srubu.',
+    shape: 'blob',
+    style: FURNITURE_KEYS[0],
+    styles: FURNITURE_KEYS,
+    styleLabels: Object.fromEntries(FURNITURE_KEYS.map((key) => [key, FURNITURE_PIECES[key].displayName])),
+    poolByStyle: Object.fromEntries(FURNITURE_KEYS.map((key) => [key, [key]])),
     rotate: true,
     deco: true,
   },

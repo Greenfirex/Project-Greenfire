@@ -146,8 +146,8 @@ export default class NavigationSystem {
     if (relaxed) return true;
     if (!this.isWalkableAt(x, z, level)) return false;
     if (this.objectGapAt) {
-      const gap = this.objectGapAt(x, z, reach, level);
-      if (gap < 0 && gap < this.objectGapAt(here.x, here.z, reach, here.level)) return false;
+      const gap = this.objectGapAt(x, z, reach, level, here.feetY);
+      if (gap < 0 && gap < this.objectGapAt(here.x, here.z, reach, here.level, here.feetY)) return false;
     }
     if (this.isPassageAt(x, z, level)) return true;
     const worse = (measure) => {

@@ -10,6 +10,7 @@ import { bushTemplate } from './bushFactory.js';
 import { campfireTemplate } from './campfireFactory.js';
 import { mossTemplate } from './mossFactory.js';
 import { plankTemplate } from './plankFactory.js';
+import { furnitureTemplate } from './furnitureFactory.js';
 import { resolveModel } from './assetLoader.js';
 import { getTreeRecipe } from '../data/catalogs/trees.js';
 import { ASSET_DIRS } from '../data/catalogs/assetPaths.js';
@@ -116,6 +117,7 @@ function proceduralTemplate(scene, def) {
   if (def.bush) return bushTemplate(scene, def.bush);
   if (def.moss) return mossTemplate(scene, def.moss);
   if (def.plank) return plankTemplate(scene, def.plank);
+  if (def.furniture) return furnitureTemplate(scene, def.furniture);
   return null;
 }
 

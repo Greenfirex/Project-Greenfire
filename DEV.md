@@ -1161,10 +1161,8 @@ pro každou stranu) a dolů na zem (`stairs.run`). Dveře z plošiny a dveře z 
 stěnách patra (`upper.openings`).
 Terasa je jen na jižní straně neotočené stavby (strana dveří), rybářské sítě (`props.nets`, barvy jednou v `props.netColors`, sdílí je i houpací síť) visí na přední stěně přízemí
 a na přední stěně místnosti v patře (`on: upper`, `wall` = poloha stěny). Věci na pavlači stojí u stěn místnosti,
-aby podél zábradlí zůstal průchod; bednu jde položit na jinou (`lift`).
-Sudy (`props.barrels`: stojící i povalené, prkna po obvodu přes `log.staves`, tmavé obruče) a bedny
-(`props.crates`, i otevřená s víkem vedle) jsou zatím kreslené v kódu; stojí na terase (`on: porch`),
-na zemi (`ground`) nebo na pavlači (`upper`). Detailnější pirátské věci se udělají v Meshy.
+aby podél zábradlí zůstal průchod.
+**Volně stojící nábytek je dekorace v mapě**, ne součást stavby (viz **Nábytek jako dekorace** níže).
 Rostliny kolem srubu a listí na terase jsou obyčejné dekorace v mapě (dají se upravit v editoru).
 Stáří (`age`): barva po bodech — mech dole, na horních plochách klád a u stěn na podlaze,
 špína u země; skvrny podle šumu. Klády (`walls.weather`) mají navíc oprýskaná vybledlá místa
@@ -1238,11 +1236,22 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    Tvor a zavřené dveře: když je mezi tvorem a postavou zeď (`walledOff`), ověří si cestu i ve stejné výšce
    (`canGetTo`). Bez cesty je zmatený (otazníky, `giveUpConfused`), vzdá to na 12 s navíc (`WALLED_GIVE_UP_SECONDS`)
    a jde domů; když se dveře otevřou, cesta se najde a honička pokračuje. Později možná obléhání nebo vyražení dveří.
-   **Nábytek** (hotovo jako pokus, `buildingFurniture.js`, data `furniture` v katalogu: `styles` vzhled podle druhu,
-   `items` druh, místo v neotočené stavbě, `yaw`, `on: 'upper'`, převržení `tilt` + `lift`): stůl, židle (jedna
-   převržená), ponk s nářadím, v místnosti v patře síťová houpací síť mezi stěnou a sloupkem
-   (síť má materiál sítě na stěně). Každý kus má vlastní náhodu, nábytek je překážka (`furnitureBlock`, obdélník
-   jako blok zdi; převržená židle ne).
+   **Zabudovaný nábytek** (`buildingFurniture.js`, data `furniture` v katalogu staveb: `styles` vzhled podle druhu,
+   `items` druh, místo v neotočené stavbě, `yaw`, `on: 'upper'`): ponk s nářadím, knihovna, lucerny,
+   v místnosti v patře síťová houpací síť mezi stěnou a sloupkem (síť má materiál sítě na stěně). Každý kus má
+   vlastní náhodu; ponk a knihovna jsou překážka (`furnitureBlock`, obdélník jako blok zdi).
+   **Nábytek jako dekorace** (etapa 1 ze čtyř v `TODO.md`): stůl, židle (i převržená), okovaná truhla, sud (i povalený),
+   bedna (i otevřená a dvě na sobě), kotva, stočené lano, převrácená loďka a lavička z kulatiny. Vzhled a seznam kusů
+   jsou v `catalogs/furniture.js` (`FURNITURE_STYLES`, `FURNITURE_PIECES`), dekorace z nich dělá `catalogs/decorations.js`
+   (`furniture: kus`), tvar staví `utils/furnitureFactory.js` (jedna šablona na kus, materiál prken sdílí s volnými prkny).
+   Opotřebení je pevné (`FURNITURE_WEAR`, stejná barva po bodech jako stavby, `utils/agePaint.js`): mech a špína dole,
+   skvrny pečené do tvaru — stejné kusy mají stejné fleky (záměr: nábytek časem nahradí modely). V editoru štětec
+   Nábytek (Předměty → Tábor a poklady), kladený volně i na podlahy srubu (`deck`). Překážka je obdélník (`box`
+   = poloviny délky a hloubky, otočený s kusem; `decoSystem.boxContact` dá vzdálenost i směr odtlačení); převržená
+   židle překážka není. Kus na podlaze přízemí (`deck: 'lower'`) má i vršek (`top`) a postava či tvor, jehož chodidla
+   jsou výš (`DECK_FEET_CLEAR`), ho nevidí — jinak by stůl v přízemí zastavil postavu v patře nad ním. Kusy v patře
+   (`deck: 'upper'`) zatím překážka nejsou. Původní kusy ze srubu převedl jednorázový skript na stejná místa v mapě.
+   Drobnosti na stole (lucerna, mapa, láhve, hrnky) zůstaly ve srubu na pevných místech; když se stůl posune, zůstanou viset.
    **Pracovní místa:** kus nábytku s `use` (`{ kind, hint }`) má vlastní mesh (`finishStations`), pod myší zlatý obrys
    (`stationAt`, společné `pickInteractive`, `inReach` a `updateInteractive` s dveřmi) a klik ho použije
    (`GameScene`, interakce `station`). Ponk v severozápadním rohu podél zdi s knihovnou (mimo dráhu jejího
@@ -1254,14 +1263,13 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    bliká (`light` ve stylu).
    Rozsvícené lucerny se ukládají spolu s dveřmi (`lit`, verze savu 11).
    **Pirátské věci** (`buildingPirate.js`, položky v `furniture.items` s druhem z `PIRATE_KINDS`, vzhled v `styles`):
-   kotva opřená o ustoupenou stěnu v pravém rohu zápraží a stočené lano, převrácená loďka na kozách vedle srubu
-   (pláž u srubu není, srub je na plošině), mapa pokladu na stole přišpendlená dýkou (`treasureMapTexture`
+   mapa pokladu na stole přišpendlená dýkou (`treasureMapTexture`
    v `utils/pirateCloth.js`), láhve od rumu (na stole, v knihovně, rozbitá na zemi) a cínové hrnky, kormidelní kolo
-   na východní stěně, dalekohled a kompas na ponku, lavička z kulatiny na dvou špalcích u táboráku −14,11.
+   na východní stěně, dalekohled a kompas na ponku. Válce, kvádry a obruče pro ně (i pro nábytek) jsou v `utils/buildingGeometry.js`.
    Tři police na stěnách (`kind: shelf`, prkno na dvou konzolích; zadní stěna, levá nad ponkem, vnitřní u dveří)
    nesou položky `items` s polohou podél police: láhve, hrnky, sklenice, svíčky, mince, truhličku, svitek.
-   V místnosti v patře: velká okovaná truhla (`kind: chest`) s druhou lucernou, police na zadní stěně, rozbitá láhev
-   a hrnek u houpací sítě, stočené lano u západních dveří.
+   V místnosti v patře: druhá lucerna (na okované truhle, ta je dekorace), police na zadní stěně, rozbitá láhev
+   a hrnek u houpací sítě.
    **Uvolněná prkna** kolem srubu jsou obyčejné dekorace v mapě (`loose_plank_a…d`, tvar z kódu `utils/plankFactory.js`,
    vzhled `LOOSE_PLANKS` v `decorations.js`), sbírají se rukou jako 1 dřevo; v editoru je štětec Prkna. Počet prken
    v textuře prken je jednou v `PLANKS_TEXTURE_PLANKS` (`assetPaths.js`).

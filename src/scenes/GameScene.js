@@ -218,8 +218,8 @@ export default class GameScene {
     this.navigation.wallRiseAt = (x, z, radius, level) => this.terrainSystem.riseNear(x, z, radius, level, this.standHeightAt(x, z, level));
     this.navigation.cliffOverlapAt = (x, z, level) => (this.onBuildingDeck(x, z, level) ? -Infinity : this.terrainSystem.cliffOverlap(x, z, level));
     this.navigation.buildingGapAt = (x, z, feetY, level) => ((level || 0) === 0 ? this.buildingSystem.wallGapAt(x, z, feetY) : Infinity);
-    this.navigation.objectGapAt = (x, z, radius, level) => {
-      const contact = this.decoSystem.nearestContact(x, z, radius, 0, level);
+    this.navigation.objectGapAt = (x, z, radius, level, feetY) => {
+      const contact = this.decoSystem.nearestContact(x, z, radius, 0, level, feetY);
       return contact ? contact.gap : Infinity;
     };
     this.navigation.stepLimit = STEP_LIMIT;

@@ -1,28 +1,12 @@
-// Část staveb: nábytek uvnitř — stůl s lucernou, židle (i převržená), ponk s nářadím, síťová houpací síť v patře a knihovna
-// s přihrádkami a pár drobnostmi před tajným vchodem; knihovnu odsune skrytá páka. Nábytek je pro postavu i tvory
-// překážka; kus s `use` je pracovní místo (zvýrazní se pod myší, klik ho použije). Patří k BuildingSystem (sdílí jeho this).
+// Část staveb: zabudovaný nábytek — lucerna na stole, ponk s nářadím, síťová houpací síť v patře a knihovna
+// s přihrádkami a pár drobnostmi před tajným vchodem; knihovnu odsune skrytá páka. Ponk a knihovna jsou pro postavu
+// i tvory překážka; kus s `use` je pracovní místo (zvýrazní se pod myší, klik ho použije). Patří k BuildingSystem (sdílí jeho this).
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { createBuffer, meshFromBuffer, pushBox, pushSheet, pushLog, roughLog, placeAlongX, placeUpright } from '../../utils/buildingGeometry.js';
+import { createBuffer, meshFromBuffer, pushSheet, pushLog, roughLog, placeAlongX, placeUpright, pushPiece as piece } from '../../utils/buildingGeometry.js';
 import { fishingNetTexture } from '../../utils/pirateCloth.js';
 import { PIRATE_KINDS } from './buildingPirate.js';
 import { createRng, seedFor } from '../../utils/rng.js';
-
-function piece(buffer, place, offset, size, paint, tile, rng) {
-  const [ox, oy, oz] = offset;
-  const tilt = place.tilt || 0;
-  const yaw = place.yaw || 0;
-  const y1 = oy * Math.cos(tilt) - oz * Math.sin(tilt);
-  const z1 = oy * Math.sin(tilt) + oz * Math.cos(tilt);
-  pushBox(buffer, {
-    center: [place.x + ox * Math.cos(yaw) + z1 * Math.sin(yaw), place.y + y1, place.z - ox * Math.sin(yaw) + z1 * Math.cos(yaw)],
-    size,
-    tiltX: tilt,
-    yaw,
-    shiftU: rng ? rng() : 0,
-    shiftV: rng ? rng() : 0,
-  }, paint, tile);
-}
 
 export default {
   buildFurniture(plan, furniture) {
@@ -36,7 +20,6 @@ export default {
       const place = { x: item.at[0], y: base + (item.lift || 0), z: item.at[1], yaw: item.yaw || 0, tilt: item.tilt || 0 };
       if (PIRATE_KINDS.has(item.kind)) {
         this.pirateProp(plan, style, item, place);
-        if (style.block) this.furnitureBlock(plan, { ...place, tilt: 0 }, style.size, base, style.size[1]);
         continue;
       }
       const shade = 1 + (rng() - 0.5) * style.shadeSpread;
@@ -48,12 +31,11 @@ export default {
       }
       const shared = plan.planks;
       if (item.use) plan.planks = createBuffer();
-      if (item.kind === 'table') this.furnitureTable(plan, style, place, paint, rng);
-      else if (item.kind === 'chair') this.furnitureChair(plan, style, place, paint, rng);
-      else if (item.kind === 'workbench') this.furnitureWorkbench(plan, style, place, paint, rng);
-      else if (item.kind === 'hammock') this.furnitureHammock(plan, style, item, base, rng);
+      if (item.kind === 'workbench') {
+        this.furnitureWorkbench(plan, style, place, paint, rng);
+        this.furnitureBlock(plan, place, style.size, base, style.size[1]);
+      } else if (item.kind === 'hammock') this.furnitureHammock(plan, style, item, base, rng);
       else if (item.kind === 'bookcase') this.furnitureBookcase(plan, style, item, base, paint, rng);
-      if (item.kind !== 'hammock' && item.kind !== 'bookcase' && !item.tilt) this.furnitureBlock(plan, place, style.size, base, style.size[1]);
       if (item.use) {
         const middle = Vector3.TransformCoordinates(new Vector3(place.x, base, place.z), plan.world);
         plan.stationList.push({ id: `${plan.name}:${item.kind}:${index}`, use: item.use, buffer: plan.planks, part: plan.layer, mesh: null, x: middle.x, y: middle.y, z: middle.z });
@@ -144,35 +126,6 @@ export default {
       half: (alongX ? sz : sx) / 2,
       door,
     });
-  },
-
-  furnitureTable(plan, style, place, paint, rng) {
-    const [w, h, d] = style.size;
-    const planks = Math.max(2, Math.round(d / style.plank));
-    for (let k = 0; k < planks; k += 1) {
-      const z = -d / 2 + (d / planks) * (k + 0.5);
-      piece(plan.planks, place, [0, h - style.top / 2 + (rng() - 0.5) * 0.008, z], [w + (rng() - 0.5) * 0.04, style.top, d / planks - 0.008], paint, style.tile, rng);
-    }
-    const lx = w / 2 - style.inset;
-    const lz = d / 2 - style.inset;
-    for (const [x, z] of [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]]) {
-      piece(plan.planks, place, [x, (h - style.top) / 2, z], [style.leg, h - style.top, style.leg], paint, style.tile, rng);
-    }
-    for (const z of [-lz, lz]) piece(plan.planks, place, [0, style.rail, z], [w - style.inset * 2, style.leg * 0.7, style.leg * 0.5], paint, style.tile, rng);
-  },
-
-  furnitureChair(plan, style, place, paint, rng) {
-    const [w, , d] = style.size;
-    const seat = style.seat;
-    piece(plan.planks, place, [0, seat, 0], [w, style.top, d], paint, style.tile, rng);
-    const lx = w / 2 - style.leg / 2;
-    const lz = d / 2 - style.leg / 2;
-    for (const [x, z] of [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]]) {
-      piece(plan.planks, place, [x, seat / 2, z], [style.leg, seat, style.leg], paint, style.tile, rng);
-    }
-    const back = style.size[1] - seat;
-    for (const x of [-lx, lx]) piece(plan.planks, place, [x, seat + back / 2, -lz], [style.leg, back, style.leg], paint, style.tile, rng);
-    for (const share of style.slats) piece(plan.planks, place, [0, seat + back * share, -lz], [w - style.leg, style.slat, style.leg * 0.6], paint, style.tile, rng);
   },
 
   furnitureWorkbench(plan, style, place, paint, rng) {

@@ -22,6 +22,7 @@ const FLAT_SINK = 0.015;
 const AREA_WORLD = CELL_SIZE * 8;
 const AREA_VIEW_MARGIN = 26;
 const AREA_VIEW_HYSTERESIS = 4;
+const DECK_FEET_CLEAR = 0.25;
 
 function entryMatchKey(entry) {
   return `${levelOfEntry(entry)}|${entry.key}|${entry.cx}|${entry.cz}|${entry.offsetX || 0}|${entry.offsetZ || 0}|${entry.scale || 1}|${entry.rotation || 0}`;
@@ -35,10 +36,33 @@ function liesFlat(def) {
 function hasModelDef(def) {
   if (!def) return false;
   return Boolean(def.model || def.tree || def.log || def.branch || def.driftwood
-    || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire || def.moss || def.plank);
+    || def.rock || def.shell || def.coral || def.flower || def.bush || def.campfire || def.moss || def.plank || def.furniture);
+}
+
+function boxContact(shape, x, z) {
+  const c = Math.cos(shape.yaw || 0);
+  const s = Math.sin(shape.yaw || 0);
+  const lx = x * c - z * s;
+  const lz = x * s + z * c;
+  const qx = Math.abs(lx) - shape.box[0];
+  const qz = Math.abs(lz) - shape.box[1];
+  const gap = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0);
+  let nlx = Math.sign(lx) * Math.max(qx, 0);
+  let nlz = Math.sign(lz) * Math.max(qz, 0);
+  if (gap <= 0) {
+    nlx = qx > qz ? Math.sign(lx) || 1 : 0;
+    nlz = qx > qz ? 0 : Math.sign(lz) || 1;
+  }
+  const length = Math.hypot(nlx, nlz) || 1;
+  return { gap, nx: (nlx * c + nlz * s) / length, nz: (-nlx * s + nlz * c) / length };
+}
+
+function underFeet(shape, feetY) {
+  return feetY + DECK_FEET_CLEAR >= shape.top;
 }
 
 function cellGap(shape, x, z) {
+  if (shape.box) return boxContact(shape, x, z).gap;
   if (shape.footprint) {
     const t = shape.turn || 0;
     const edge = CELL_SIZE / 2;
@@ -211,7 +235,7 @@ export default class DecoSystem {
       layout.floor || [],
       layout.path || [],
       layout.clearing || [],
-      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0 && entry.deck !== 'upper'),
+      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0 && !entry.deck),
     );
     for (const entry of layout.decorations || []) {
       if (!entry || levelOfEntry(entry) !== 0) continue;
@@ -220,6 +244,11 @@ export default class DecoSystem {
     }
     for (const shape of deriveBlocked(entries)) this.addBlockedShape(shape);
     for (const cell of layout.blocked || []) this.addBlockedShape(cell);
+    for (const entry of layout.decorations || []) {
+      if (!entry || entry.deck !== 'lower' || levelOfEntry(entry) !== 0) continue;
+      const top = this.entryHeight(entry) + decoHeight(getDecoration(entry.key) || {});
+      for (const shape of deriveBlocked([entry])) this.addBlockedShape({ ...shape, top });
+    }
     for (const entry of layout.decorations || []) {
       const level = levelOfEntry(entry);
       if (!entry || level === 0) continue;
@@ -243,6 +272,9 @@ export default class DecoSystem {
       radius: cell.radius || 0,
       footprint: cell.footprint || null,
       turn: cell.turn || 0,
+      box: cell.box || null,
+      yaw: cell.yaw || 0,
+      top: Number.isFinite(cell.top) ? cell.top : Infinity,
       offsetX: cell.offsetX || 0,
       offsetZ: cell.offsetZ || 0,
     };
@@ -732,7 +764,7 @@ export default class DecoSystem {
     this.columnTop.delete(key);
   }
 
-  overlaps(x, z, bodyRadius, level = 0) {
+  overlaps(x, z, bodyRadius, level = 0, feetY = -Infinity) {
     const blocked = this.blockedOn(level);
     const { cx, cz } = indexToCellCoords(x, z);
     for (let ix = cx - 2; ix <= cx + 2; ix++) {
@@ -740,6 +772,7 @@ export default class DecoSystem {
         const shapes = blocked.get(cellKey(ix, iz));
         if (!shapes) continue;
         for (const shape of shapes) {
+          if (underFeet(shape, feetY)) continue;
           const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
           const dz = z - shape.cz * CELL_SIZE - shape.offsetZ;
           if (cellGap(shape, dx, dz) < bodyRadius) return true;
@@ -749,7 +782,7 @@ export default class DecoSystem {
     return false;
   }
 
-  nearestContact(x, z, bodyRadius, reachOut, level = 0) {
+  nearestContact(x, z, bodyRadius, reachOut, level = 0, feetY = -Infinity) {
     const blocked = this.blockedOn(level);
     const { cx, cz } = indexToCellCoords(x, z);
     let best = null;
@@ -758,8 +791,16 @@ export default class DecoSystem {
         const shapes = blocked.get(cellKey(ix, iz));
         if (!shapes) continue;
         for (const shape of shapes) {
+          if (underFeet(shape, feetY)) continue;
           const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
           const dz = z - shape.cz * CELL_SIZE - shape.offsetZ;
+          if (shape.box) {
+            const contact = boxContact(shape, dx, dz);
+            const gap = contact.gap - bodyRadius;
+            if (gap > reachOut || (best && gap >= best.gap)) continue;
+            best = { nx: contact.nx, nz: contact.nz, gap };
+            continue;
+          }
           const gap = cellGap(shape, dx, dz) - bodyRadius;
           if (gap > reachOut) continue;
           if (best && gap >= best.gap) continue;
