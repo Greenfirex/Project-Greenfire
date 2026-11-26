@@ -22,6 +22,10 @@ const FALL_OUT = 0.2;
 const LIP_ROWS = [[FALL_OUT - LIP_REACH, 0.01], [0.05, 0]];
 const FALL_COLUMN = 0.3;
 const TWO_PI = Math.PI * 2;
+const LIP_PROBE = 0.15;
+const LIP_PROBE_STEP = 0.05;
+const LIP_WET_MARGIN = 0.02;
+const LIP_MIN_WIDTH = 0.6;
 const FALL_LEAN = 0.35;
 const FALL_LEAN_PER_METER = 0.06;
 const POOL_LENGTH = 2.4;
@@ -84,8 +88,12 @@ export default {
     const sideZ = fall.dx;
     const lipX = fall.cx * CELL_SIZE + fall.dx * half;
     const lipZ = fall.cz * CELL_SIZE + fall.dz * half;
-    const at = (forward, across) => [lipX + fall.dx * forward + sideX * across, lipZ + fall.dz * forward + sideZ * across];
-    const width = fall.width * CELL_SIZE * FALL_SPAN;
+    const cellAt = (forward, across) => [lipX + fall.dx * forward + sideX * across, lipZ + fall.dz * forward + sideZ * across];
+    const cellHalf = fall.width * CELL_SIZE * FALL_SPAN / 2;
+    const [wetLeft, wetRight] = this.lipSpan(cellAt, cellHalf, fall.top);
+    const shift = (wetRight - wetLeft) / 2;
+    const at = (forward, across) => cellAt(forward, across + shift);
+    const width = wetLeft + wetRight;
     const top = fall.top - WATER_SINK;
     const bottom = fall.bottom - WATER_SINK;
     const length = top - bottom;
@@ -99,7 +107,9 @@ export default {
     const addRow = (forwardAt, y, down, rowWidth) => {
       for (let col = 0; col <= cols; col += 1) {
         const s = col / cols;
-        const [x, z] = at(forwardAt(1 - (2 * s - 1) ** 2), (s - 0.5) * rowWidth);
+        const from = Math.max(-cellHalf, shift - rowWidth / 2);
+        const to = Math.min(cellHalf, shift + rowWidth / 2);
+        const [x, z] = cellAt(forwardAt(1 - (2 * s - 1) ** 2), from + (to - from) * s);
         positions.push(x, y, z);
         uvs.push(s, down);
       }
@@ -192,6 +202,26 @@ export default {
       x: lipX, z: lipZ, halfWidth: width / 2, impactX: mistX, impactZ: mistZ, level: fall.bottom,
       seed, landing: fallFlight(length), mistRate: mist.emitRate, sprayRate: spray.emitRate,
     };
+  },
+
+  lipSpan(at, half, level) {
+    const groundAt = this.groundAt;
+    if (typeof groundAt !== 'function') return [half, half];
+    const wet = (across) => {
+      const [x, z] = at(-LIP_PROBE, across);
+      const ground = groundAt(x, z);
+      return !Number.isFinite(ground) || ground < level - LIP_WET_MARGIN;
+    };
+    if (!wet(0)) return [half, half];
+    const reach = (sign) => {
+      let edge = 0;
+      while (edge + LIP_PROBE_STEP <= half && wet(sign * (edge + LIP_PROBE_STEP))) edge += LIP_PROBE_STEP;
+      return edge;
+    };
+    const left = reach(-1);
+    const right = reach(1);
+    if (left + right < LIP_MIN_WIDTH) return [half, half];
+    return [left, right];
   },
 
   addPlungeFlow(flows, vertex, x, z, level) {

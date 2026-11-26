@@ -130,6 +130,7 @@ function spreadValues(values, inReach, width, height) {
     }
     filled = next;
   }
+  return filled;
 }
 
 export default {
@@ -178,13 +179,16 @@ export default {
     const count = (cols + 1) * (rows + 1);
     const positions = [];
     const flows = new Float32Array(count * 3);
+    const onSurface = new Uint8Array(count);
     for (let j = 0; j <= rows; j += 1) {
       for (let i = 0; i <= cols; i += 1) {
         const x = x0 + i * dx;
         const z = z0 + j * dz;
         const vertex = j * (cols + 1) + i;
         let level = this.fieldValue(field, x, z, 0);
-        if (this.fieldSpread(field, x, z) > FALL_BLEND_LIMIT) level = levelAcrossStep(all, x, z, level);
+        const spread = this.fieldSpread(field, x, z);
+        if (spread > FALL_BLEND_LIMIT) level = levelAcrossStep(all, x, z, level);
+        onSurface[vertex] = spread >= 0 ? 1 : 0;
         positions.push(x, level - WATER_SINK, z);
         flows[vertex * 3] = this.fieldValue(field, x, z, 1);
         flows[vertex * 3 + 1] = this.fieldValue(field, x, z, 2);
@@ -193,6 +197,7 @@ export default {
       }
     }
     const indices = [];
+    const stepFlows = [];
     for (let j = 0; j < rows; j += 1) {
       for (let i = 0; i < cols; i += 1) {
         if (!all.has(cellOf(x0 + (i + 0.5) * dx, z0 + (j + 0.5) * dz))) continue;
@@ -200,8 +205,19 @@ export default {
         const b = a + 1;
         const c = a + cols + 2;
         const d = a + cols + 1;
-        const heights = [a, b, c, d].map((vertex) => positions[vertex * 3 + 1]);
-        if (Math.max(...heights) - Math.min(...heights) > FALL_BLEND_LIMIT) continue;
+        const corners = [a, b, c, d];
+        const heights = corners.map((vertex) => positions[vertex * 3 + 1]);
+        const overStep = Math.max(...heights) - Math.min(...heights) > FALL_BLEND_LIMIT;
+        if (overStep && corners.every((vertex) => onSurface[vertex])) {
+          const low = Math.min(...heights);
+          const base = positions.length / 3;
+          for (const vertex of corners) {
+            positions.push(positions[vertex * 3], low, positions[vertex * 3 + 2]);
+            stepFlows.push(flows[vertex * 3], flows[vertex * 3 + 1], flows[vertex * 3 + 2]);
+          }
+          indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+          continue;
+        }
         indices.push(a, c, b, a, d, c);
       }
     }
@@ -211,14 +227,18 @@ export default {
     }
     const mesh = new Mesh(`waterBody${index}`, this.s);
     const data = new VertexData();
+    const total = positions.length / 3;
+    const allFlows = new Float32Array(total * 3);
+    allFlows.set(flows);
+    allFlows.set(stepFlows, count * 3);
     data.positions = positions;
     data.indices = indices;
     data.applyToMesh(mesh);
-    mesh.setVerticesData('waveAmp', new Float32Array(count), false, 1);
-    mesh.setVerticesData('waveDist', new Float32Array(count).fill(LAKE_OPEN_DIST), false, 1);
-    mesh.setVerticesData('waveDir', new Float32Array(count * 2), false, 2);
-    mesh.setVerticesData('waveCliff', new Float32Array(count), false, 1);
-    mesh.setVerticesData('waveFlow', flows, false, 3);
+    mesh.setVerticesData('waveAmp', new Float32Array(total), false, 1);
+    mesh.setVerticesData('waveDist', new Float32Array(total).fill(LAKE_OPEN_DIST), false, 1);
+    mesh.setVerticesData('waveDir', new Float32Array(total * 2), false, 2);
+    mesh.setVerticesData('waveCliff', new Float32Array(total), false, 1);
+    mesh.setVerticesData('waveFlow', allFlows, false, 3);
     mesh.isPickable = false;
     mesh.alphaIndex = 2;
 
@@ -263,7 +283,7 @@ export default {
       }
     }
     smoothValues(values, inReach, width, height);
-    spreadValues(values, inReach, width, height);
+    const filled = spreadValues(values, inReach, width, height);
     const raw = new Float32Array(size);
     for (let j = 0; j < height; j += 1) {
       for (let i = 0; i < width; i += 1) {
@@ -319,7 +339,7 @@ export default {
     const texture = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_RGBA, this.s, false, false, Texture.BILINEAR_SAMPLINGMODE);
     texture.wrapU = Texture.CLAMP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-    return { texture, mask, values, width, height, x0, z0, stepX, stepZ };
+    return { texture, mask, values, filled, width, height, x0, z0, stepX, stepZ };
   },
 
   ownWithin(own, x, z, reach) {
@@ -340,8 +360,11 @@ export default {
     const i0 = Math.floor(fx);
     const j0 = Math.floor(fz);
     const near = [[i0, j0], [Math.min(field.width - 1, i0 + 1), j0], [i0, Math.min(field.height - 1, j0 + 1)],
-      [Math.min(field.width - 1, i0 + 1), Math.min(field.height - 1, j0 + 1)]].map(([i, j]) => field.values[(j * field.width + i) * VALUES]);
-    return Math.max(...near) - Math.min(...near);
+      [Math.min(field.width - 1, i0 + 1), Math.min(field.height - 1, j0 + 1)]]
+      .map(([i, j]) => j * field.width + i)
+      .filter((index) => field.filled[index])
+      .map((index) => field.values[index * VALUES]);
+    return near.length ? Math.max(...near) - Math.min(...near) : -1;
   },
 
   fieldValue(field, x, z, channel) {
