@@ -90,7 +90,7 @@ export default class TerrainSystem {
     this.materials = new Map();
     this.blendPlugins = new Map();
     this.reliefPlugins = new Map();
-    this.reliefTextures = new Map();
+    this.reliefLayers = null;
     this.blendTextures = new Map();
     this.weightTextures = [];
     this.causticPlugins = [];
@@ -317,11 +317,7 @@ export default class TerrainSystem {
       });
       return ranked.slice(0, SURFACE_BLEND_SLOTS).map(([other]) => other);
     };
-    const weightCache = new Map();
     const weightsFor = (key, partner) => {
-      const cacheId = `${key}|${partner}`;
-      const cached = weightCache.get(cacheId);
-      if (cached) return cached;
       const ownConfig = this.surfaceConfig(key);
       const blendRadius = ownConfig && Number.isFinite(ownConfig.blendRadius)
         ? ownConfig.blendRadius
@@ -467,13 +463,19 @@ export default class TerrainSystem {
           data[j * width + i] = weight;
         }
       }
-      const texture = new RawTexture(data, width, height, Constants.TEXTUREFORMAT_R, this.s, false, false, Texture.BILINEAR_SAMPLINGMODE);
+      return { data, width, height, origin: new Vector2(x0, z0), scale: new Vector2(1 / spanX, 1 / spanZ) };
+    };
+    const packWeights = (layers) => {
+      const { width, height, origin, scale } = layers[0];
+      const packed = new Uint8Array(width * height * 4);
+      layers.forEach((layer, channel) => {
+        for (let p = 0; p < width * height; p += 1) packed[p * 4 + channel] = layer.data[p];
+      });
+      const texture = new RawTexture(packed, width, height, Constants.TEXTUREFORMAT_RGBA, this.s, false, false, Texture.BILINEAR_SAMPLINGMODE);
       texture.wrapU = Texture.CLAMP_ADDRESSMODE;
       texture.wrapV = Texture.CLAMP_ADDRESSMODE;
       this.weightTextures.push(texture);
-      const result = { texture, origin: new Vector2(x0, z0), scale: new Vector2(1 / spanX, 1 / spanZ) };
-      weightCache.set(cacheId, result);
-      return result;
+      return { texture, origin, scale };
     };
     const groupFor = (key, cx, cz, roof = false) => {
       const chunkX = Math.floor(cx / SURFACE_CHUNK);
@@ -690,6 +692,7 @@ export default class TerrainSystem {
     for (const group of groups.values()) floorKinds.add(group.key);
     for (const key of floorKinds) {
       const partners = [];
+      const layers = [];
       for (const partner of partnerFor(key)) {
         const cfg = this.surfaceConfig(partner);
         if (!cfg || !cfg.texture) continue;
@@ -697,10 +700,10 @@ export default class TerrainSystem {
           key: partner,
           tile: cfg.tile || 1,
           color: this.surfaceColor(partner, map),
-          weights: weightsFor(key, partner),
         });
+        layers.push(weightsFor(key, partner));
       }
-      blends.set(key, partners.length ? { partners } : null);
+      blends.set(key, partners.length ? { partners, weights: packWeights(layers) } : null);
     }
 
     const borderNormals = new Map();

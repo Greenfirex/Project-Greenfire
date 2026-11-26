@@ -30,10 +30,11 @@ const RELIEF_DEFINES = {
 const asFloat = (value) => Number(value).toFixed(3);
 
 const RELIEF_CODE = `
-uniform sampler2D reliefMapA;
-uniform sampler2D reliefMapB;
-uniform sampler2D reliefNeighbour;
-uniform sampler2D reliefNeighbourB;
+uniform highp sampler2DArray reliefLayers;
+
+vec3 reliefTexel(vec2 uv, float layer) {
+  return texture(reliefLayers, vec3(uv, layer)).xyz * 2.0 - 1.0;
+}
 
 float reliefHash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -72,8 +73,9 @@ vec3 reliefNormal(vec3 base, vec3 texel, float strength, float angle) {
 
 export default class TerrainReliefPlugin extends MaterialPluginBase {
 
-  constructor(material, setup) {
+  constructor(material, setup, layers) {
     super(material, 'TerrainRelief', 120, RELIEF_DEFINES, true, true);
+    this.layers = layers;
     this.primary = setup.primary;
     this.detail = setup.detail || null;
     this.strength = setup.strength;
@@ -129,16 +131,20 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
   }
 
   getSamplers(samplers) {
-    samplers.push('reliefMapA', 'reliefMapB', 'reliefNeighbour', 'reliefNeighbourB');
+    samplers.push('reliefLayers');
+  }
+
+  getUniforms() {
+    return { ubo: [{ name: 'reliefLayer', size: 4, type: 'vec4' }] };
   }
 
   bindForSubMesh(ubo) {
     const neighbour = this.neighbour;
-    ubo.setTexture('reliefMapA', this.primary.texture);
-    ubo.setTexture('reliefMapB', this.detail ? this.detail.texture : this.primary.texture);
-    ubo.setTexture('reliefNeighbour', neighbour ? neighbour.primary.texture : this.primary.texture);
-    const neighbourDetail = neighbour && neighbour.detail ? neighbour.detail.texture : null;
-    ubo.setTexture('reliefNeighbourB', neighbourDetail || this.primary.texture);
+    const own = this.primary.layer;
+    const neighbourLayer = neighbour ? neighbour.primary.layer : own;
+    const neighbourDetail = neighbour && neighbour.detail ? neighbour.detail.layer : own;
+    ubo.updateFloat4('reliefLayer', own, this.detail ? this.detail.layer : own, neighbourLayer, neighbourDetail);
+    ubo.setTexture('reliefLayers', this.layers);
   }
 
   getCustomCode(shaderType) {
@@ -150,14 +156,14 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
         vec3 reliefBase = normalize(normalW);
         vec3 reliefResult = reliefNormal(
           reliefBase,
-          texture2D(reliefMapA, reliefTurn(reliefWorld / RELIEF_TILE_A, RELIEF_ANGLE_A)).xyz * 2.0 - 1.0,
+          reliefTexel(reliefTurn(reliefWorld / RELIEF_TILE_A, RELIEF_ANGLE_A), reliefLayer.x),
           RELIEF_STRENGTH,
           RELIEF_ANGLE_A
         );
         #ifdef RELIEF_DETAIL
           vec3 reliefSecond = reliefNormal(
             reliefBase,
-            texture2D(reliefMapB, reliefTurn(reliefWorld / RELIEF_TILE_B, RELIEF_ANGLE_B)).xyz * 2.0 - 1.0,
+            reliefTexel(reliefTurn(reliefWorld / RELIEF_TILE_B, RELIEF_ANGLE_B), reliefLayer.y),
             RELIEF_STRENGTH,
             RELIEF_ANGLE_B
           );
@@ -170,14 +176,14 @@ export default class TerrainReliefPlugin extends MaterialPluginBase {
           float reliefAmount = texture2D(blendWeightSampler, reliefWeightUv).r;
           vec3 reliefOther = reliefNormal(
             reliefBase,
-            texture2D(reliefNeighbour, reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE, RELIEF_NEIGHBOUR_ANGLE)).xyz * 2.0 - 1.0,
+            reliefTexel(reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE, RELIEF_NEIGHBOUR_ANGLE), reliefLayer.z),
             RELIEF_NEIGHBOUR_STRENGTH,
             RELIEF_NEIGHBOUR_ANGLE
           );
           #ifdef RELIEF_NEIGHBOUR_DETAIL
             vec3 reliefOtherSecond = reliefNormal(
               reliefBase,
-              texture2D(reliefNeighbourB, reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE_B, RELIEF_NEIGHBOUR_ANGLE_B)).xyz * 2.0 - 1.0,
+              reliefTexel(reliefTurn(reliefWorld / RELIEF_NEIGHBOUR_TILE_B, RELIEF_NEIGHBOUR_ANGLE_B), reliefLayer.w),
               RELIEF_NEIGHBOUR_STRENGTH,
               RELIEF_NEIGHBOUR_ANGLE_B
             );

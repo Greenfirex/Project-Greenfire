@@ -1,4 +1,4 @@
-// Vlastní program pro vodu — vlny, odlesk slunce, odraz okolí, barva podle hloubky a pěna.
+// Vlastní program pro vodu — vlny, odlesk slunce, odraz okolí, barva podle hloubky, pěna a světlo ohně.
 // Vlny se počítají ze vzdálenosti od břehu, takže hřebeny jdou na každé straně k ostrovu.
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
@@ -12,6 +12,7 @@ import {
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
 import { WATER_SINK, FLOW_CYCLE, FLOW_TIME_WRAP } from './waterSettings.js';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
+import { FIRE_LIGHTS, FIRE_UNIFORM_NAMES, FIRE_SAMPLERS } from '../../utils/fireGlsl.js';
 
 const FOAM_DIR = ASSET_DIRS.textures;
 const FOAM_FILES = {
@@ -132,6 +133,7 @@ uniform sampler2D foamFineNormal;
 uniform sampler2D foamCoarseColor;
 uniform sampler2D foamCoarseOpacity;
 ${REVEAL_UNIFORMS}
+${FIRE_LIGHTS}
 
 varying vec3 vPosition;
 varying float vDist;
@@ -272,7 +274,8 @@ void main(void) {
   vec3 base = mix(shallowColor, deepColor, clamp(scatter.r, 0.0, 1.0));
 
   vec3 ambient = vec3(0.1, 0.15, 0.18) * daylight;
-  vec3 color = base * (ambient + sunColor * sunIntensity * (0.34 + sun * 0.66));
+  vec3 fire = fireLightAt(vPosition, shadeNormal, 0.0);
+  vec3 color = base * (ambient + sunColor * sunIntensity * (0.34 + sun * 0.66) + fire);
 
   vec3 reflected = skyColor;
   if (reflectionOn > 0.5) {
@@ -335,7 +338,7 @@ void main(void) {
   foam *= smoothstep(0.0, 0.03, wet) * max(shoreCut, cliffFill) * inside;
   float foamAmount = clamp(foam, 0.0, 1.0);
   vec3 foamTint = foamColor * layers.rgb * (0.5 + 0.6 * dayness);
-  color = mix(color, foamTint, foamAmount);
+  color = mix(color, foamTint + foamColor * layers.rgb * fire, foamAmount);
   color += foamColor * crash * 0.1 * dayness;
 
   float alpha = mix(0.62, 0.96, t) * visible;
@@ -381,6 +384,7 @@ uniform vec3 foamColor;
 uniform float dayness;
 uniform float waterTime;
 ${REVEAL_UNIFORMS}
+${FIRE_LIGHTS}
 
 varying vec2 vUV;
 varying vec3 vPosition;
@@ -406,7 +410,7 @@ void main(void) {
   float pattern = noise(vec2(vPosition.x * 0.7, vPosition.z * 0.7 - waterTime * 0.05));
   float foam = (1.0 - smoothstep(0.02, 0.22, t)) * (0.3 + 0.7 * pattern);
   color = mix(color, foamColor, clamp(foam, 0.0, 1.0) * 0.45);
-  color *= 0.45 + 0.55 * dayness;
+  color *= 0.45 + 0.55 * dayness + fireLightAt(vPosition, vec3(0.0, 1.0, 0.0), 1.0);
   ${revealBlock('color', 'vPosition', REVEAL_WATER)}
   gl_FragColor = vec4(color, 0.94);
 }
@@ -427,13 +431,14 @@ export function createWaterMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSurfaceMat', scene, { vertex: 'water', fragment: 'water' }, {
     attributes: ['position', 'waveDist', 'waveAmp', 'waveDir', 'waveCliff', 'waveFlow'],
-    samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER],
+    samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, ...FIRE_SAMPLERS],
     uniforms: [
       'viewProjection', 'waterTime', 'sunDir', 'sunColor', 'sunIntensity', 'skyColor',
       'cameraDir', 'shallowColor', 'deepColor', 'foamColor', 'dayness', 'maxDepth',
       'reflectionSampler', 'reflectionViewProjection', 'flowTime', 'swellScale',
       'depthMap', 'reflectionOn', 'detailPixel', 'depthOrigin', 'depthScale', 'depthRange', 'foamDir',
       ...REVEAL_UNIFORM_NAMES,
+      ...FIRE_UNIFORM_NAMES,
     ],
   });
   material.backFaceCulling = false;
@@ -468,8 +473,8 @@ export function createWaterSideMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial('waterSideMat', scene, { vertex: 'waterSide', fragment: 'waterSide' }, {
     attributes: ['position', 'uv', 'waveDist', 'waveAmp'],
-    uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness', ...REVEAL_UNIFORM_NAMES],
-    samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER],
+    uniforms: ['viewProjection', 'waterTime', 'surfaceColor', 'deepColor', 'foamColor', 'dayness', ...REVEAL_UNIFORM_NAMES, ...FIRE_UNIFORM_NAMES],
+    samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, ...FIRE_SAMPLERS],
   });
   material.backFaceCulling = false;
   material.alpha = 0.999;

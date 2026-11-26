@@ -1,9 +1,10 @@
 // Program pro vodopád — clona z jemných vláken stékajících dolů a vířící pěna na hladině pod ní.
-// Clona má roztřepené okraje, dole se rozšiřuje a místy se trhá; světlo bere ze slunce a denní doby.
+// Clona má roztřepené okraje, dole se rozšiřuje a místy se trhá; světlo bere ze slunce, denní doby a ohně.
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
+import { FIRE_LIGHTS, FIRE_UNIFORM_NAMES, FIRE_SAMPLERS } from '../../utils/fireGlsl.js';
 import { REVEAL_WATER } from './waterShader.js';
 
 const VERTEX = `
@@ -38,6 +39,7 @@ uniform float sunIntensity;
 uniform vec3 waterColor;
 uniform vec3 foamColor;
 ${REVEAL_UNIFORMS}
+${FIRE_LIGHTS}
 
 varying vec2 vUV;
 varying vec3 vPosition;
@@ -97,7 +99,7 @@ void main(void) {
     alpha = foam * 0.92;
   }
   float daylight = 0.55 + 0.45 * dayness;
-  color *= vec3(0.16, 0.2, 0.24) * daylight + sunColor * sunIntensity * 0.75;
+  color *= vec3(0.16, 0.2, 0.24) * daylight + sunColor * sunIntensity * 0.75 + fireLightAt(vPosition, vec3(0.0, 1.0, 0.0), 1.0);
   ${revealBlock('color', 'vPosition', REVEAL_WATER)}
   gl_FragColor = vec4(color, alpha);
 }
@@ -116,11 +118,12 @@ export function createWaterfallMaterial(scene, { waterColor, foamColor, width, l
   registerShaders();
   const material = new ShaderMaterial(pool ? 'waterfallPoolMat' : 'waterfallMat', scene, { vertex: 'waterfall', fragment: 'waterfall' }, {
     attributes: ['position', 'uv'],
-    samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER],
+    samplers: [REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, ...FIRE_SAMPLERS],
     uniforms: [
       'viewProjection', 'fallTime', 'fallWidth', 'fallLength', 'fallSpread', 'pool', 'dayness',
       'sunColor', 'sunIntensity', 'waterColor', 'foamColor',
       ...REVEAL_UNIFORM_NAMES,
+      ...FIRE_UNIFORM_NAMES,
     ],
   });
   material.backFaceCulling = false;

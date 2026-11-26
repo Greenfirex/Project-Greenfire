@@ -223,12 +223,17 @@ jednou za buňku, ne za každý bod obrázku; buňky bez přechodu se přeskoč�
 se počítají pro každé patro, jeskyně se berou jako suché (voda je jen na povrchu).
 Materiál jeskyně s přechodem má v klíči i číslo patra (`Cave-1|…`), aby si patra
 nepřepisovala váhové obrázky; jeskynní materiál bez přechodu je dál společný (`Cave|…`).
+Váhy až tří sousedů jsou v jednom obrázku (`packWeights`: kanál R = první soused, G = druhý,
+B = třetí); všechny mají stejný obdélník celé mapy, takže sloučení nic nemění a šetří dvě textury.
 Přes práh vchodu se povrchy míchají taky: `thresholdKeys` (`terrainCaves.js`) podle spojení
 mezi patry řekne buňce u prahu, jaká podlaha je za ním v druhém patře, a ta se pro přechod
 bere jako soused (bez kontroly schodu, práh je srovnaný). Mění se jen barva a nerovnosti.
 
 - **Reliéf povrchu** (`terrainReliefPlugin.js`) čte normálové mapy ve formátu GL
-  (zelená = +V) s texturou načtenou standardně (`invertY`), takže bitangenta míří
+  (zelená = +V). Všechny mapy reliéfu z katalogu povrchů jsou vrstvy jednoho
+  vrstveného obrázku (`createReliefLayers` v `terrainMaterials.js`, `sampler2DArray`, jedna textura
+  místo čtyř); musí mít 1024 × 1024 (`RELIEF_SIZE`). Řádky se při skládání otáčejí jako u
+  běžné textury (`invertY`), takže bitangenta míří
   k +Z (`cross(tangent, n)`). Natočení vrstvy (`angle`) se musí otočit i ve sklonech
   z mapy, jinak stín nesedí na tvar. Do 17. 11. 2026 byla osa Z obrácená a vlnky
   písku vypadaly dopoledne ploše. `cavity` v nastavení povrchu ztmaví boky nerovností
@@ -358,11 +363,14 @@ jen osvětlené okolí vchodu podle mapy `caveLightMap` a tma od 8–14 m.
 
 **Světla ohně** (`atmosphere/fireLightSystem.js`): pochodeň, táboráky i lucerny jsou jen zdroje (`source`:
 poloha, barva, síla, dosah, `shadow` none/prefer/need, patro, `refresh`, `dirty`, vlastní meshe `own`);
-skutečná světla jsou dvě a každý snímek (`GameScene.fireFocus` = postava, v editoru střed kamery) dostanou
-nejbližší hořící zdroje v dosahu a ve stejném patře: první se stínem (nejbližší táborák nebo lucerna), druhé
-bez stínu (pochodeň, jinak další táborák; lucerna bez stínu ne, svítila by skrz stěny). Přechod mezi zdroji
-je plynulý (0,25 s). Obloha + slunce + 2 = 4 světla = výchozí strop materiálu, takže nic nevypadne a zdrojů
-může být libovolně. Přidat nebo ubrat světlo by přepočítalo všechny materiály, proto světla existují
+skutečná světla jsou čtyři a každý snímek (`GameScene.fireFocus` = postava, v editoru střed kamery) dostanou
+nejbližší hořící zdroje v dosahu a ve stejném patře: tři se stínem (`SHADOWED_LIGHTS`, nejbližší táboráky
+a lucerny), čtvrté bez stínu (pochodeň, jinak další táborák; lucerna bez stínu ne, svítila by skrz stěny).
+Čtvrtá a další lucerna v dosahu proto dál zhasne. Přechod mezi zdroji je plynulý (0,25 s).
+Výchozí strop materiálu jsou 4 světla; `lightingSystem.fitMaterials` ho každému materiálu zvedne na počet
+světel scény (nové materiály přes `utils/newMaterials.js` ještě před prvním kreslením, aby se nesestavovaly
+dvakrát). Obloha a slunce mají přednost (`renderPriority`), takže jsou v pořadí světel první a o slunce
+materiál nepřijde, ani když by strop někde nestačil. Přidat nebo ubrat světlo by přepočítalo všechny materiály, proto světla existují
 pořád a zdroje jen mění sílu. Stín (krychlová mapa 512) vrhají boky, stěny a stropy terénu (`metadata.volume`,
 ploché podlahy ne, jinak pruhy pod ostrým úhlem) a díly staveb v dosahu (`GameScene.fireCastersNear`, bez `own`);
 při jeho kreslení se na okamžik zapnou i schované díly staveb. Překreslí se při přeskoku na jiný zdroj,
@@ -375,11 +383,15 @@ pochodeň a lucerna přes sebe trhaně přeblikávaly. Zdroj může mít `darkne
 lucerna i táborák mají 0 — lucerna dřív 0,5 a polovina světla pak prosvítala zdí ven. Babylon dá stín světla
 do programu materiálu jen tehdy, když má jeho mapa při sestavení programu nějaké meshe; proto je v seznamu stínících
 meshů vždy vypnutý zástupný mesh (`fireShadowStub`) — materiály mají stín ohně od načtení a rozsvícení nic
-nepřestavuje (dřív bez něj stín nepřijal nikdo). Světlo se stínem je jen jedno (`SHADOWED_LIGHTS`): s druhým
-by materiály země měly 17 textur (limit 16, každý stín ohně je jedna) a nábytek či tvorové s `maxSimultaneousLights` 4
-by přišli o slunce. Materiály země jsou blízko limitu 16 textur, proto je
-Půda jen z jedné textury a další textura na zemi se musí pohlídat. Nejhorší
-materiál země dnes používá 15 textur (včetně mapy dohledu).
+nepřestavuje (dřív bez něj stín nepřijal nikdo). Každý stín ohně stojí materiál jednu texturu z limitu 16.
+Materiály země ušetřily pět textur sloučením váhových map přechodů a map reliéfu (viz povrch terénu výš);
+se třemi stíny ohně používá nejhorší materiál země 13 textur, modely nejvýš 11 (včetně mapy dohledu).
+Vlastní programy (tráva, hladina a boky vody, vodopády) světla Babylonu nedostávají; `fireLightSystem` jim
+každý snímek posílá polohu, barvu se silou a dosah všech čtyř světel a stínové mapy (`FIRE_UNIFORM_NAMES`,
+`FIRE_SAMPLERS`), výpočet je v `utils/fireGlsl.js` (`fireLightAt`) a odpovídá Babylonu: slábnutí k okraji
+dosahu a stín ze 4 vzorků krychlové mapy, takže zdi světlo lucerny ven nepustí. Program se přihlásí tím,
+že má ve `uniforms` jména z `FIRE_UNIFORM_NAMES`; nové se najdou přes `utils/newMaterials.js` ještě před
+prvním kreslením. Počty světel se stínem a blízká mez stínu jsou jen ve `fireGlsl.js`.
 
 **Dohled postavy** (`world/sightSystem.js`, výpočet v `utils/revealGlsl.js`). Z očí
 postavy (`PLAYER_EYE_HEIGHT`) kreslí neviditelné bodové světlo krychlovou mapu
@@ -398,6 +410,13 @@ stín táboráku a překresluje se při každém posunu očí. Pravidla:
 - Model na vyšší zemi venku zešedne jen v místech, kam čáru od očí zakrývá skála
   (`revealSightBlocked` pro bod modelu). Kmen palmy pod hranou útesu je v oparu,
   koruna nad hranou je vidět. Zem na vyšší zemi se řídí dál jen výškou.
+
+**Připojení rentgenu k materiálům** (`revealSystem.attachPending`): před každým výběrem viditelných modelů
+(`onBeforeActiveMeshesEvaluationObservable`) připojí rentgen materiálům, které od minula přibyly
+(`utils/newMaterials.js`: vyšší `uniqueId`, než jaké už zná). Na `onNewMaterialAddedObservable` spoléhat nejde: Babylon ho hlásí se zpožděním
+(přes `setTimeout`), a nový materiál (třeba kruh útoku) se mezitím nakreslil bez rentgenu. Program sestavený
+v té chvíli navíc mohl do kódu dostat rentgen bez přidělených obrázků a grafická karta hlásila
+„Two textures of different types use the same sampler location“.
 
 **Průhled ke kameře** (`revealPeekAt` v `utils/revealGlsl.js`, stav v `revealSystem.setPeek`, zapíná
 `GameScene.updateReveal` jen na povrchu a mimo editor, náběh 0,3 s). Od kamery k hrudi postavy vede trubka

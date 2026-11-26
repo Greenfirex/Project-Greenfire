@@ -1,10 +1,11 @@
-// Vlastní program pro trávu — textura z modelu, ohýbání ve větru a ztmavení u země.
+// Vlastní program pro trávu — textura z modelu, ohýbání ve větru, ztmavení u země a světlo ohně.
 // Stébla jednoho trsu se ohýbají podle výšky, každý trs má nepatrně jiný odstín.
 import { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 import { Effect } from '@babylonjs/core/Materials/effect';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { WAVE_TIME_WRAP } from '../../utils/waterWaves.js';
 import { REVEAL_UNIFORMS, REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, revealBlock } from '../../utils/revealGlsl.js';
+import { FIRE_LIGHTS, FIRE_UNIFORM_NAMES, FIRE_SAMPLERS } from '../../utils/fireGlsl.js';
 
 const VERTEX = `
 precision highp float;
@@ -24,6 +25,7 @@ uniform float clumpHeight;
 varying vec2 vUV;
 varying vec3 vNormal;
 varying vec3 vRoot;
+varying vec3 vWorld;
 varying float vHeight;
 
 void main(void) {
@@ -48,6 +50,7 @@ void main(void) {
 
   vUV = uv;
   vRoot = rootPos;
+  vWorld = worldPos;
   vHeight = h;
   gl_Position = viewProjection * vec4(worldPos, 1.0);
 }
@@ -66,10 +69,12 @@ uniform float patchPick;
 uniform float groundMode;
 uniform float groundTile;
 ${REVEAL_UNIFORMS}
+${FIRE_LIGHTS}
 
 varying vec2 vUV;
 varying vec3 vNormal;
 varying vec3 vRoot;
+varying vec3 vWorld;
 varying float vHeight;
 
 void main(void) {
@@ -92,6 +97,7 @@ void main(void) {
   color *= 0.9 + blade * 0.2;
   color *= mix(0.55, 1.0, smoothstep(0.0, 0.22, vHeight));
   color *= mix(1.0, 1.18, smoothstep(0.5, 1.0, vHeight));
+  vec3 albedo = color;
 
   float daylight = 0.24 + 0.76 * dayness;
   color *= daylight;
@@ -99,6 +105,7 @@ void main(void) {
   vec3 n = normalize(vNormal);
   float wrap = clamp(dot(n, lightDir) * 0.5 + 0.5, 0.0, 1.0);
   color *= 0.62 + wrap * 0.62 * dayness;
+  color += albedo * fireLightAt(vWorld, n, 0.0);
 
   ${revealBlock('color', 'vRoot', { above: '1.0', hide: '1.0', keep: '0.0', inside: '0.0', restore: '1.0' })}
   gl_FragColor = vec4(color, 1.0);
@@ -118,8 +125,8 @@ export function createGrassMaterial(scene, options) {
   registerShaders();
   const material = new ShaderMaterial(options.name || 'wildGrassMat', scene, { vertex: 'grass', fragment: 'grass' }, {
     attributes: ['position', 'normal', 'uv', 'world0', 'world1', 'world2', 'world3'],
-    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTile', ...REVEAL_UNIFORM_NAMES],
-    samplers: ['diffuseSampler', REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER],
+    uniforms: ['viewProjection', 'grassTime', 'clumpHeight', 'baseTint', 'lightDir', 'dayness', 'uvFlip', 'uvScale', 'patchPick', 'groundMode', 'groundTile', ...REVEAL_UNIFORM_NAMES, ...FIRE_UNIFORM_NAMES],
+    samplers: ['diffuseSampler', REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, ...FIRE_SAMPLERS],
   });
   const tint = options.tint || [1, 1, 1];
   const uvScale = Number(options.uvScale) || 1;

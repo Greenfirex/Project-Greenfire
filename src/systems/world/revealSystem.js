@@ -17,6 +17,7 @@ import { Scene } from '@babylonjs/core/scene';
 import RevealPlugin from '../materials/revealPlugin.js';
 import { CLIFF_TEXTURE, CLIFF_NORMAL } from '../../data/catalogs/assetPaths.js';
 import { REVEAL_UNIFORM_NAMES, REVEAL_SAMPLER, REVEAL_SIGHT_SAMPLER, REVEAL_CUT_ABOVE_FLOOR, PEEK, peekAmount } from '../../utils/revealGlsl.js';
+import { newMaterialsOf } from '../../utils/newMaterials.js';
 
 const FADE_SECONDS = 0.4;
 const PEEK_RADIUS = 2.2;
@@ -71,7 +72,7 @@ export default class RevealSystem {
     this.paramsVector = new Vector4(0, 0, 0, 0);
     this.progress = 0;
     this.wasOpen = false;
-    this.pending = [];
+    this.newMaterials = newMaterialsOf(scene);
     this.shaders = new Set();
     this.backdrop = null;
     this.cap = null;
@@ -92,14 +93,16 @@ export default class RevealSystem {
   }
 
   watchMaterials() {
-    this.pending.push(...this.s.materials);
-    this.s.onNewMaterialAddedObservable.add((material) => this.pending.push(material));
     this.s.onMaterialRemovedObservable.add((material) => this.shaders.delete(material));
+    this.s.onBeforeActiveMeshesEvaluationObservable.add(() => {
+      if (this.attachPending()) this.pushShaderUniforms();
+    });
   }
 
   attachPending() {
-    if (!this.pending.length) return;
-    for (const material of this.pending.splice(0)) this.attach(material);
+    const found = this.newMaterials();
+    for (const material of found) this.attach(material);
+    return found.length > 0;
   }
 
   attach(material) {

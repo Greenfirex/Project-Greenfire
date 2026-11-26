@@ -3,7 +3,9 @@
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
-import { getDecoration, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
+import { RawTexture2DArray } from '@babylonjs/core/Materials/Textures/rawTexture2DArray';
+import { Constants } from '@babylonjs/core/Engines/constants';
+import { getDecoration, surfaceEntries, DEFAULT_FLOOR } from '../../data/catalogs/decorations.js';
 import { ASSET_DIRS, CLIFF_TEXTURE, CLIFF_NORMAL } from '../../data/catalogs/assetPaths.js';
 import TerrainBlendPlugin from './terrainBlendPlugin.js';
 import TerrainReliefPlugin from './terrainReliefPlugin.js';
@@ -19,6 +21,7 @@ const CLIFF_MOSS_TEXTURE = `${ASSET_DIRS.textures}Rock063_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_TEXTURE = `${ASSET_DIRS.textures}Ground071_1K-JPG_Color.jpg`;
 const CLAY_CLIFF_NORMAL = `${ASSET_DIRS.textures}Ground071_1K-JPG_NormalGL.jpg`;
 const DRESS_MOSS_TEXTURE = `${ASSET_DIRS.textures}Grass001_1K-JPG_Color.jpg`;
+const RELIEF_SIZE = 1024;
 const DRESS_STONE_SHADE = 0.8;
 const FRAME_STONE_SHADE = 0.85;
 
@@ -191,17 +194,12 @@ export default {
   },
 
   blendSetupFor(blend) {
-    const blends = blend.partners.map((partner) => {
-      return {
-        texture: this.blendTextureFor(partner.key),
-        weights: partner.weights.texture,
-        tile: partner.tile,
-        color: partner.color,
-        origin: partner.weights.origin,
-        scale: partner.weights.scale,
-      };
-    });
-    return { blends };
+    const blends = blend.partners.map((partner) => ({
+      texture: this.blendTextureFor(partner.key),
+      tile: partner.tile,
+      color: partner.color,
+    }));
+    return { blends, weights: blend.weights };
   },
 
   bandMaterialFor(key, map) {
@@ -249,7 +247,7 @@ export default {
       material.diffuseColor = this.surfaceDiffuse(cfg, map);
       this.materials.set(cacheKey, material);
       const relief = this.reliefSetupFor(key, blend);
-      if (relief) this.reliefPlugins.set(cacheKey, new TerrainReliefPlugin(material, relief));
+      if (relief) this.reliefPlugins.set(cacheKey, new TerrainReliefPlugin(material, relief, this.reliefLayers.texture));
       if (!underground) {
         this.causticPlugins.push(new TerrainCausticPlugin(material, this.seaDry));
         this.wetPlugins.push(new TerrainWetPlugin(material, cfg.wet === undefined ? 0.4 : cfg.wet));
@@ -284,7 +282,7 @@ export default {
 
   reliefMapFor(map) {
     return {
-      texture: this.reliefTexture(map.texture),
+      layer: this.reliefLayer(map.texture),
       tile: map.tile || 1,
       angle: map.angle || 0,
       mix: map.mix === undefined ? 1 : map.mix,
@@ -305,17 +303,46 @@ export default {
     };
   },
 
-  reliefTexture(url) {
-    let texture = this.reliefTextures.get(url);
-    if (!texture) {
-      texture = new Texture(url, this.s);
-      texture.wrapU = Texture.WRAP_ADDRESSMODE;
-      texture.wrapV = Texture.WRAP_ADDRESSMODE;
-      texture.gammaSpace = false;
-      texture.anisotropicFilteringLevel = 8;
-      this.reliefTextures.set(url, texture);
+  reliefLayer(url) {
+    if (!this.reliefLayers) this.reliefLayers = this.createReliefLayers();
+    return Math.max(0, this.reliefLayers.urls.indexOf(url));
+  },
+
+  createReliefLayers() {
+    const urls = [];
+    for (const surface of surfaceEntries()) {
+      const relief = surface.relief;
+      if (!relief || !relief.map) continue;
+      for (const map of [relief.map, relief.detail]) {
+        if (map && !urls.includes(map.texture)) urls.push(map.texture);
+      }
     }
-    return texture;
+    const layerBytes = RELIEF_SIZE * RELIEF_SIZE * 4;
+    const data = new Uint8Array(layerBytes * Math.max(1, urls.length));
+    for (let p = 0; p < data.length; p += 4) {
+      data[p] = 128;
+      data[p + 1] = 128;
+      data[p + 2] = 255;
+      data[p + 3] = 255;
+    }
+    const texture = new RawTexture2DArray(data, RELIEF_SIZE, RELIEF_SIZE, Math.max(1, urls.length), Constants.TEXTUREFORMAT_RGBA, this.s, true, false, Texture.TRILINEAR_SAMPLINGMODE);
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.gammaSpace = false;
+    texture.anisotropicFilteringLevel = 8;
+    const layers = { urls, texture };
+    Promise.all(urls.map((url) => readReliefPixels(url))).then((images) => {
+      if (this.reliefLayers !== layers) return;
+      images.forEach((pixels, index) => {
+        const offset = index * layerBytes;
+        const row = RELIEF_SIZE * 4;
+        for (let y = 0; y < RELIEF_SIZE; y += 1) {
+          data.set(pixels.subarray((RELIEF_SIZE - 1 - y) * row, (RELIEF_SIZE - y) * row), offset + y * row);
+        }
+      });
+      texture.update(data);
+    }).catch((error) => console.warn('Reliéf země se nenačetl', error));
+    return layers;
   },
 
   surfaceColor(key, map) {
@@ -373,10 +400,8 @@ export default {
     this.reliefPlugins.clear();
     this.causticPlugins.length = 0;
     this.wetPlugins.length = 0;
-    for (const texture of this.reliefTextures.values()) {
-      if (texture) texture.dispose();
-    }
-    this.reliefTextures.clear();
+    if (this.reliefLayers) this.reliefLayers.texture.dispose();
+    this.reliefLayers = null;
     for (const texture of this.blendTextures.values()) {
       if (texture) texture.dispose();
     }
@@ -398,3 +423,15 @@ export default {
     return [tone[0] * 2, tone[1] * 2, tone[2] * 2];
   },
 };
+
+async function readReliefPixels(url) {
+  const response = await fetch(url);
+  const bitmap = await createImageBitmap(await response.blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const canvas = document.createElement('canvas');
+  canvas.width = RELIEF_SIZE;
+  canvas.height = RELIEF_SIZE;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(bitmap, 0, 0, RELIEF_SIZE, RELIEF_SIZE);
+  bitmap.close();
+  return new Uint8Array(context.getImageData(0, 0, RELIEF_SIZE, RELIEF_SIZE).data.buffer);
+}

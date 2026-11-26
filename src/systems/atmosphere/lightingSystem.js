@@ -12,12 +12,14 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Scene } from '@babylonjs/core/scene';
 import { bothSidesMaterial } from '../../utils/bothSidesMaterial.js';
+import { newMaterialsOf } from '../../utils/newMaterials.js';
 
 const SHADOW_FRUSTUM = 70;
 const SHADOW_MIN_Z = 1;
 const SHADOW_MAX_Z = 180;
 const SHADOW_REACH_MARGIN = 20;
 const SIMPLE_SHADOW_SIZE = 1024;
+const DAYLIGHT_PRIORITY = 1;
 
 function sameMeshes(first, second) {
   if (first.length !== second.length) return false;
@@ -46,17 +48,33 @@ export default class LightingSystem {
     this.fullShadowSize = 0;
     this.simpleShadows = false;
     this.softShadows = false;
+    this.newMaterials = newMaterialsOf(scene);
+    scene.onBeforeActiveMeshesEvaluationObservable.add(() => this.fitNewMaterials());
+    scene.onNewLightAddedObservable.add(() => this.fitMaterials(this.s.materials));
+  }
+
+  fitNewMaterials() {
+    this.fitMaterials(this.newMaterials());
+  }
+
+  fitMaterials(materials) {
+    const count = this.s.lights.length;
+    for (const material of materials) {
+      if ('maxSimultaneousLights' in material && material.maxSimultaneousLights < count) material.maxSimultaneousLights = count;
+    }
   }
 
   create(light, camera) {
     this.fullShadowSize = light.shadowMapSize;
     const hemi = new HemisphericLight('skyLight', new Vector3(0.3, 1, 0.2), this.s);
     hemi.intensity = light.hemiIntensity;
+    hemi.renderPriority = DAYLIGHT_PRIORITY;
     hemi.groundColor = new Color3(light.hemiGround[0], light.hemiGround[1], light.hemiGround[2]);
 
     const dir = new DirectionalLight('sunLight', new Vector3(light.sunDirection[0], light.sunDirection[1], light.sunDirection[2]), this.s);
     dir.position = new Vector3(light.sunPosition[0], light.sunPosition[1], light.sunPosition[2]);
     dir.intensity = light.sunIntensity;
+    dir.renderPriority = DAYLIGHT_PRIORITY;
     if (light.sunColor) dir.diffuse = new Color3(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
     dir.autoUpdateExtends = false;
     dir.shadowFrustumSize = SHADOW_FRUSTUM;

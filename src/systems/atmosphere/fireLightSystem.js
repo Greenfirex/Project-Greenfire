@@ -1,20 +1,20 @@
-// Světla ohně — pochodeň, táboráky i lucerny jsou jen zdroje (poloha, barva, síla, dosah); skutečná světla jsou dvě
-// a hra je přiděluje nejbližším hořícím zdrojům kolem postavy. Jedno vrhá stín (táborák, lucerna), druhé ne (pochodeň),
-// takže žádný materiál nemá víc než čtyři světla (obloha, slunce a tato dvě). Přechod mezi zdroji je plynulý.
+// Světla ohně — pochodeň, táboráky i lucerny jsou jen zdroje (poloha, barva, síla, dosah); skutečná světla jsou čtyři
+// a hra je přiděluje nejbližším hořícím zdrojům kolem postavy. Tři vrhají stín (táboráky, lucerny), čtvrté ne (pochodeň).
+// Přechod mezi zdroji je plynulý. Vlastním programům (tráva, voda) posílá stejná světla i se stíny.
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { bothSidesMaterial } from '../../utils/bothSidesMaterial.js';
+import { newMaterialsOf } from '../../utils/newMaterials.js';
+import { FIRE_SHADOWED_LIGHTS, FIRE_LIGHT_SLOTS, FIRE_SHADOW_NEAR, FIRE_UNIFORM_NAMES, FIRE_SAMPLERS } from '../../utils/fireGlsl.js';
 
 const SLOT_FADE_SECONDS = 0.25;
 const REACH_MARGIN = 4;
 const SHADOW_SIZE = 512;
 const SHADOW_BIAS = 0.006;
-const SHADOW_NEAR = 0.05;
-const SHADOWED_LIGHTS = 1;
 
 export default class FireLightSystem {
 
@@ -26,8 +26,52 @@ export default class FireLightSystem {
     this.stub.isPickable = false;
     this.stub.setEnabled(false);
     this.slots = [];
-    for (let k = 0; k < SHADOWED_LIGHTS; k += 1) this.slots.push(this.createSlot(`fireLightShadow${k}`, true));
+    for (let k = 0; k < FIRE_SHADOWED_LIGHTS; k += 1) this.slots.push(this.createSlot(`fireLightShadow${k}`, true));
     this.slots.push(this.createSlot('fireLightPlain', false));
+    this.shaders = new Set();
+    this.lightPos = new Array(FIRE_LIGHT_SLOTS * 4).fill(0);
+    this.lightColor = new Array(FIRE_LIGHT_SLOTS * 4).fill(0);
+    this.shadowInfo = new Vector4(0, 0, 0, 0);
+    this.newMaterials = newMaterialsOf(scene);
+    scene.onMaterialRemovedObservable.add((material) => this.shaders.delete(material));
+    scene.onBeforeActiveMeshesEvaluationObservable.add(() => this.watchShaders());
+  }
+
+  watchShaders() {
+    let found = false;
+    for (const material of this.newMaterials()) {
+      const uniforms = material.getClassName() === 'ShaderMaterial' && material.options && material.options.uniforms;
+      if (!uniforms || !uniforms.includes(FIRE_UNIFORM_NAMES[0])) continue;
+      this.shaders.add(material);
+      found = true;
+    }
+    if (found) this.pushShaders();
+  }
+
+  pushShaders() {
+    if (!this.shaders.size) return;
+    this.slots.forEach((slot, index) => {
+      const { light } = slot;
+      const lit = slot.source && light.intensity > 0;
+      this.lightPos[index * 4] = light.position.x;
+      this.lightPos[index * 4 + 1] = light.position.y;
+      this.lightPos[index * 4 + 2] = light.position.z;
+      this.lightPos[index * 4 + 3] = lit ? light.range : 0;
+      this.lightColor[index * 4] = light.diffuse.r * light.intensity;
+      this.lightColor[index * 4 + 1] = light.diffuse.g * light.intensity;
+      this.lightColor[index * 4 + 2] = light.diffuse.b * light.intensity;
+      this.lightColor[index * 4 + 3] = slot.shadowed ? 1 : 0;
+    });
+    const { shadows } = this.slots[0];
+    const map = shadows.getShadowMap();
+    this.shadowInfo.set(map.textureType === 0 ? 1 : 0, shadows.blurScale / map.getSize().width, 0, 0);
+    const maps = this.slots.filter((slot) => slot.shadowed).map((slot) => slot.shadows.getShadowMap());
+    for (const material of this.shaders) {
+      material.setArray4(FIRE_UNIFORM_NAMES[0], this.lightPos);
+      material.setArray4(FIRE_UNIFORM_NAMES[1], this.lightColor);
+      material.setVector4(FIRE_UNIFORM_NAMES[2], this.shadowInfo);
+      maps.forEach((shadowMap, index) => material.setTexture(FIRE_SAMPLERS[index], shadowMap));
+    }
   }
 
   createSlot(name, shadowed) {
@@ -41,7 +85,7 @@ export default class FireLightSystem {
       light.shadowEnabled = false;
       return slot;
     }
-    light.shadowMinZ = SHADOW_NEAR;
+    light.shadowMinZ = FIRE_SHADOW_NEAR;
     const shadows = new ShadowGenerator(SHADOW_SIZE, light);
     shadows.usePoissonSampling = true;
     shadows.bias = SHADOW_BIAS;
@@ -90,6 +134,7 @@ export default class FireLightSystem {
     for (const slot of this.slots) {
       if (!slot.shadowed) this.drive(slot, plain, dt);
     }
+    this.pushShaders();
   }
 
   choose(focus) {
@@ -101,7 +146,7 @@ export default class FireLightSystem {
       .filter((item) => item.gap <= item.source.range + REACH_MARGIN)
       .sort((a, b) => a.gap - b.gap)
       .map((item) => item.source);
-    const shadowed = near.filter((source) => source.shadow !== 'none').slice(0, SHADOWED_LIGHTS);
+    const shadowed = near.filter((source) => source.shadow !== 'none').slice(0, FIRE_SHADOWED_LIGHTS);
     const plain = near.find((source) => !shadowed.includes(source) && source.shadow === 'none')
       || near.find((source) => !shadowed.includes(source) && source.shadow === 'prefer')
       || null;

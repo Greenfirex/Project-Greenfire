@@ -7,7 +7,6 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Odolnosti tvorů (jedna silná, jedna slabá) vyzkoušet v boji a doladit. Zbroj má zatím jen kajmanka; pozor, odečítá se od každé rány a hráč dnes dává 1–7.
 
 ### Editor
-- [ ] Při kontrole editoru pater (`tools/checkConsole.cjs`) hlásí grafická karta občas „Two textures of different types use the same sampler location“ (4–9×). Bylo i před 23. 11. 2026; nejspíš značky editoru v podzemí (překryvy v rentgenu). Zjistit, který materiál to je.
 - [ ] Ověřit, jestli se předměty hýbou s buňkou při změně výšky (tak nejspíš zapadly léčivé byliny).
 - [ ] Liana u nově vykopaného vchodu: objeví se hned, nebo až po znovunačtení?
 - [ ] Slabý obrys povrchu při kopání do prázdného patra, pokud bude chybět.

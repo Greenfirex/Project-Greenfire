@@ -42,6 +42,7 @@ export default {
       meals: food && food.hold ? [food.hold] : [],
     });
     this.revealSystem.attachPending();
+    this.lighting.fitNewMaterials();
     const meshes = warm.meshes.filter((mesh) => mesh.material && !mesh.isDisposed());
     await Promise.all(meshes.map((mesh) => mesh.material.forceCompilationAsync(mesh).catch(() => null)));
     warm.dispose();
