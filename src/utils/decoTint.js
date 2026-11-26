@@ -10,7 +10,10 @@ const builtMaterials = new Set();
 
 export function tintTemplate(template, def, colors, section = 'deco') {
   if (def.noTint || !colors) return;
-  const key = `${section}|${def.kind}|${def.tintColor ? def.tintColor.join(',') : ''}|${def.tintShade ? def.tintShade.join(',') : ''}`;
+  const shade = pieceShade(def, section);
+  const tint = tintFor(def, colors, shade.level);
+  if (!tint) return;
+  const key = `${section}|${def.kind}|${def.tintColor ? def.tintColor.join(',') : ''}|${shade.level}`;
   let cached = bySection.get(key);
   if (!cached) {
     cached = new Map();
@@ -24,10 +27,12 @@ export function tintTemplate(template, def, colors, section = 'deco') {
     if (source.isDisposed && source.isDisposed()) continue;
     let built = cached.get(source);
     if (!built || (built.isDisposed && built.isDisposed())) {
-      built = makeTinted(source, def, colors, key);
+      built = source.clone(`${source.name}_tint`);
+      builtMaterials.add(built);
+      paint(built, tint);
       cached.set(source, built);
     }
-    if (built && built !== source) child.material = built;
+    child.material = built;
   }
 }
 
@@ -38,31 +43,28 @@ export function forgetTints() {
   builtMaterials.clear();
 }
 
-function makeTinted(source, def, colors, key) {
-  const mat = source.clone(`${source.name}_tint`);
-  builtMaterials.add(mat);
+function pieceShade(def, section) {
+  const levels = def.tintColor && def.tintShade && def.tintShade.length > 1 ? def.tintShade : [1];
+  const serialKey = `${section}|${def.kind}|${def.tintColor ? def.tintColor.join(',') : ''}`;
+  const step = shadeSerial.get(serialKey) || 0;
+  shadeSerial.set(serialKey, step + 1);
+  return { level: levels[step % levels.length] };
+}
+
+function tintFor(def, colors, level) {
   if (def.tintColor) {
     const [r, g, b] = def.tintColor;
-    const levels = def.tintShade && def.tintShade.length > 1 ? def.tintShade : [1];
     const strength = 0.55;
-    const base = new Color3(
+    return new Color3(
       1 - strength + r * strength,
       1 - strength + g * strength,
       1 - strength + b * strength,
-    );
-    const step = shadeSerial.get(key) || 0;
-    shadeSerial.set(key, step + 1);
-    paint(mat, base.scale(levels[step % levels.length]));
-    return mat;
+    ).scale(level);
   }
-
-  const colorKey = TINT_KINDS[def.kind];
-  const rgb = colors && colors[colorKey];
-  if (!rgb) return source;
-
+  const rgb = colors[TINT_KINDS[def.kind]];
+  if (!rgb) return null;
   const strength = colors.tintStrength ?? 1;
-  paint(mat, new Color3(rgb[0] * strength, rgb[1] * strength, rgb[2] * strength));
-  return mat;
+  return new Color3(rgb[0] * strength, rgb[1] * strength, rgb[2] * strength);
 }
 
 function paint(mat, tint) {
@@ -70,4 +72,3 @@ function paint(mat, tint) {
   mat.specularColor = new Color3(0.02, 0.02, 0.02);
   mat.ambientColor = tint.scale(0.15);
 }
-

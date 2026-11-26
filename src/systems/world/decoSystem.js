@@ -8,7 +8,7 @@ import { cellToWorldCoords, worldToCellCoords, cellKey, indexToCellCoords, CELL_
 import { getDecoration, decoHeight } from '../../data/catalogs/decorations.js';
 import { deriveBlocked } from '../../data/maps/layoutStore.js';
 import { levelOfEntry } from '../../data/maps/areaShape.js';
-import { instantiateModel, ownMaterials, whenModelsIdle } from '../../utils/assetLoader.js';
+import { instantiateModel, whenModelsIdle } from '../../utils/assetLoader.js';
 import { treeStumpTemplate, treeLogTemplate, treeFrondTemplate } from '../../utils/treeFactory.js';
 import { decorationTemplate } from '../../utils/decoTemplate.js';
 import { tintTemplate, forgetTints } from '../../utils/decoTint.js';
@@ -629,7 +629,6 @@ export default class DecoSystem {
     const { scale } = decoPlacement(def, entry);
     node.scaling = new Vector3(scale, scale, scale);
     if (((liesFlat(def) && !def.flat) || def.flower) && anchor.metadata) node.rotation.y = anchor.metadata.yaw || 0;
-    if (!def.noTint) ownMaterials(node);
     tintTemplate(node, def, this.colors, section);
     anchor.metadata.model = node;
     if (this.onDecoReady) this.onDecoReady(anchor, node, def, entry);

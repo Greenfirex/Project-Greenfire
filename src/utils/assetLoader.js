@@ -204,13 +204,4 @@ export function instantiateModel(scene, template, name) {
   return node;
 }
 
-export function ownMaterials(node) {
-  if (!node || !node.getChildMeshes) return;
-  for (const child of node.getChildMeshes()) {
-    const source = child.material;
-    if (!source) continue;
-    if (source.isDisposed && source.isDisposed()) continue;
-    child.material = source.clone(`${source.name}_own`);
-  }
-}
 
