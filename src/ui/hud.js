@@ -1,10 +1,14 @@
 // DOM HUD — panely s ovládáním a stavem. Nad canvasem, do scény sahá jen callbacky.
+// Tlačítka vlevo nahoře jsou sbalená pod jedním tlačítkem Menu; po volbě nebo kliknutí jinam se sbalí.
 import { SIM_SPEEDS } from '../systems/core/simSystem.js';
 
 export default class Hud {
 
   constructor() {
     this.layer = document.getElementById('hud-layer');
+    this.menuEl = null;
+    this.menuToggle = null;
+    this.menuOpen = false;
     this.barEl = null;
     this.helpToggle = null;
     this.saveBtn = null;
@@ -22,10 +26,29 @@ export default class Hud {
   }
 
   mount() {
+    this.menuEl = document.createElement('div');
+    this.menuEl.className = 'hud-menu';
+    this.layer.appendChild(this.menuEl);
+
+    this.menuToggle = document.createElement('button');
+    this.menuToggle.type = 'button';
+    this.menuToggle.className = 'hud-bar__btn hud-menu__toggle';
+    this.menuToggle.title = 'Menu';
+    this.menuToggle.textContent = '☰ Menu';
+    this.menuToggle.addEventListener('mousedown', (evt) => evt.preventDefault());
+    this.menuToggle.addEventListener('click', () => this.setMenuOpen(!this.menuOpen));
+    this.menuEl.appendChild(this.menuToggle);
+
     this.barEl = document.createElement('div');
     this.barEl.className = 'hud-bar';
     this.barEl.id = 'hud-bar';
-    this.layer.appendChild(this.barEl);
+    this.barEl.addEventListener('click', (evt) => {
+      if (evt.target.closest('.hud-bar__btn')) this.setMenuOpen(false);
+    });
+    this.menuEl.appendChild(this.barEl);
+    document.addEventListener('pointerdown', (evt) => {
+      if (this.menuOpen && !this.menuEl.contains(evt.target)) this.setMenuOpen(false);
+    }, true);
 
     this.helpToggle = document.createElement('button');
     this.helpToggle.type = 'button';
@@ -107,6 +130,12 @@ export default class Hud {
     btn.addEventListener('click', onClick);
     this.barEl.appendChild(btn);
     return btn;
+  }
+
+  setMenuOpen(open) {
+    this.menuOpen = Boolean(open);
+    this.menuEl.classList.toggle('is-open', this.menuOpen);
+    this.menuToggle.classList.toggle('is-open', this.menuOpen);
   }
 
   toggleHelp() {

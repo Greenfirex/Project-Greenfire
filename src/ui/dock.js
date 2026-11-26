@@ -1,6 +1,6 @@
-// Dolní lišta — společné místo, kam se skládají ukazatele s lištou nástrojů (uprostřed)
-// a tlačítka oken (vpravo). Každá část si sem jen vloží svůj prvek.
-const AREAS = ['center', 'buttons'];
+// Dolní lišta — společné místo, kam se skládají ukazatele s lištou nástrojů.
+// Každá část si sem jen vloží svůj prvek.
+const AREAS = ['center'];
 
 export function dockArea(name) {
   let dock = document.getElementById('hud-dock');

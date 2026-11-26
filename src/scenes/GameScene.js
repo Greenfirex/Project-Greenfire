@@ -68,6 +68,8 @@ import HoverHint from '../ui/hoverHint.js';
 import CreatureHealthBar from '../ui/creatureHealthBar.js';
 import PlayerOverheadBars from '../ui/playerOverheadBars.js';
 import DockButton from '../ui/dockButton.js';
+import { PANEL_ICONS } from '../ui/panelIcons.js';
+import { fitHud } from '../ui/hudFit.js';
 import MapEditor from '../editor/mapEditor.js';
 import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
@@ -134,10 +136,8 @@ const PLAYER_ZOOM_MAX = 22;
 const TIME_SKIP = { hours: 4 };
 const AMBIENT_TIME_STEP = 0.0005;
 
-const LEFT_CLICK_PREFIX = 'Levé tlačítko — ';
-
 function leftAction(detail) {
-  const text = String(detail || '').replace(LEFT_CLICK_PREFIX, '');
+  const text = String(detail || '');
   return text ? `${text.charAt(0).toLocaleUpperCase('cs')}${text.slice(1)}` : null;
 }
 
@@ -238,7 +238,7 @@ export default class GameScene {
     this.fireLights.castersNear = (source) => this.fireCastersNear(source);
     this.playerStats = new PlayerStatsSystem();
     this.playerAttackSystem = new PlayerAttackSystem();
-    this.playerAttackSystem.groundHeightAt = (x, z, level) => this.terrainSystem.walkHeightAt(x, z, Number.isFinite(level) ? level : this.playerSystem.level);
+    this.playerAttackSystem.footHeightOf = (creature) => this.creatureSystem.footY(creature);
     this.playerAttackSystem.candidates = () => this.attackCandidates();
     this.playerAttackSystem.onHit = (creature, amount, crit, graze, absorbed, detail) => this.damageCreature(creature, amount, crit, graze, absorbed, detail);
     this.playerAttackSystem.onWhiff = () => this.audioSystem.play('miss');
@@ -269,12 +269,12 @@ export default class GameScene {
     this.focusSeenAt = 0;
     this.bestiary = new BestiarySystem();
     this.hotbar = new Hotbar();
-    this.bagButton = new DockButton({ icon: '🎒', label: 'Postava a batoh', key: 'I', slot: 'bag' });
-    this.bestiaryButton = new DockButton({ icon: '📖', label: 'Bestiář', key: 'B', slot: 'bestiary' });
+    this.bagButton = new DockButton({ icon: PANEL_ICONS.bag, label: 'Postava a batoh', key: 'I', slot: 'bag' });
+    this.bestiaryButton = new DockButton({ icon: PANEL_ICONS.bestiary, label: 'Bestiář', key: 'B', slot: 'bestiary' });
     this.bestiaryWindow = new BestiaryWindow();
-    this.journalButton = new DockButton({ icon: '📜', label: 'Deník', key: 'J', slot: 'journal' });
+    this.journalButton = new DockButton({ icon: PANEL_ICONS.journal, label: 'Deník', key: 'J', slot: 'journal' });
     this.journalWindow = new JournalWindow();
-    this.craftButton = new DockButton({ icon: '🔨', label: 'Výroba', key: 'V', slot: 'craft' });
+    this.craftButton = new DockButton({ icon: PANEL_ICONS.craft, label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
     this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', ...RECIPE_STATIONS.fire });
     this.craftJob = null;
@@ -672,8 +672,7 @@ export default class GameScene {
     }
     if (moved || now - this.creaturePickAt > 250) {
       this.creaturePickAt = now;
-      const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY)
-        || this.assistCreatureAtPointer();
+      const creature = this.pointedCreature(this.s.pointerX, this.s.pointerY);
       if (creature) {
         this.pointerAction = { kind: 'creature' };
         this.decoHighlight.setHover(null);
@@ -827,7 +826,7 @@ export default class GameScene {
     this.interaction.register('creature', {
       priority: 100,
       pick: ({ pointerX, pointerY }) => {
-        const creature = this.creatureSystem.hoverAt(pointerX, pointerY) || this.assistCreatureAtPointer();
+        const creature = this.pointedCreature(pointerX, pointerY);
         if (!creature) return null;
         return {
           ref: creature,
@@ -864,10 +863,10 @@ export default class GameScene {
         if (!cell) return null;
         const onCell = (fire) => fire && fire.cx === cell.cx && fire.cz === cell.cz;
         const burning = this.campfireSystem.burning;
-        if (onCell(burning)) return { ref: burning.entry, cook: burning, detail: 'Levé tlačítko — vařit u Táboráku', inReach: true };
+        if (onCell(burning)) return { ref: burning.entry, cook: burning, detail: 'Vařit u Táboráku', inReach: true };
         const fire = this.campfireSystem.nearest;
         if (!onCell(fire)) return null;
-        return { ref: fire.entry, detail: 'Levé tlačítko — zapálit Táborák', inReach: true };
+        return { ref: fire.entry, detail: 'Zapálit Táborák', inReach: true };
       },
       act: (target) => {
         if (!target.cook) return this.campfireSystem.ignite(target.ref);
@@ -883,7 +882,7 @@ export default class GameScene {
         if (!root || this.playerSystem.level !== 0) return null;
         const door = this.buildingSystem.doorAt(this.s.pointerX, this.s.pointerY, cell ? cell.point : null);
         if (!door) return null;
-        return { ref: door, detail: `Levé tlačítko — ${this.buildingSystem.doorHint(door)}`, inReach: this.buildingSystem.inReach(door, root.position) };
+        return { ref: door, detail: leftAction(this.buildingSystem.doorHint(door)), inReach: this.buildingSystem.inReach(door, root.position) };
       },
       act: (target) => {
         this.playerSystem.useToward(target.ref.x, target.ref.z);
@@ -898,7 +897,7 @@ export default class GameScene {
         if (!root) return null;
         const station = this.stationSystem.at(this.s.pointerX, this.s.pointerY, cell ? cell.point : null, this.playerSystem.level);
         if (!station) return null;
-        return { ref: station, detail: `Levé tlačítko — ${this.stationSystem.hint(station)}`, inReach: this.stationSystem.inReach(station, root.position) };
+        return { ref: station, detail: leftAction(this.stationSystem.hint(station)), inReach: this.stationSystem.inReach(station, root.position) };
       },
       act: (target) => {
         this.playerSystem.useToward(target.ref.x, target.ref.z);
@@ -915,7 +914,7 @@ export default class GameScene {
         if (this.lootSource && this.lootSource.ref === box) return null;
         return {
           ref: box,
-          detail: `Levé tlačítko — ${box.def.lootVerb} ${box.def.displayName}`,
+          detail: leftAction(`${box.def.lootVerb} ${box.def.displayName}`),
           inReach: this.lootSystem.nearest === box,
         };
       },
@@ -940,6 +939,11 @@ export default class GameScene {
     };
     this.playerSystem.decoSystem = this.decoSystem;
     this.creatureSystem.pointerLevel = () => this.viewLevel();
+    this.creatureSystem.groundDistanceAt = (x, y) => {
+      const ray = this.s.createPickingRay(x, y, null, this.cameraSystem.camera);
+      const point = this.inputSystem.surfacePoint(ray);
+      return point ? Vector3.Distance(ray.origin, point) : Infinity;
+    };
     this.playerSystem.groundHeightAt = (x, z, level) => this.standHeightAt(x, z, level);
     this.playerSystem.onTeleport = (x, z) => this.cameraSystem.snapTo(x, z, this.playerSystem.root ? this.playerSystem.root.position.y : 0);
     this.playerSystem.onIntroChange = (lying) => {
@@ -1272,7 +1276,7 @@ export default class GameScene {
   }
 
   applyUiOptions() {
-    document.documentElement.style.setProperty('--ui-scale', String((Number(this.options.uiScale) || 100) / 100));
+    this.hotbar.setVisibleSlots(fitHud((Number(this.options.uiScale) || 100) / 100));
     document.documentElement.style.setProperty('--panel-backdrop', String(1 - (Number(this.options.panelTransparency) || 0) / 100));
   }
 
@@ -2247,6 +2251,7 @@ export default class GameScene {
 
   onResize() {
     this.cameraSystem.onResize();
+    this.applyUiOptions();
   }
 }
 

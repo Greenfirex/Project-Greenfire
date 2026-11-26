@@ -24,7 +24,7 @@ export default class PlayerAttackSystem {
     this.pending = null;
     this.impactTimer = 0;
     this.impactDelay = 0;
-    this.groundHeightAt = null;
+    this.footHeightOf = null;
     this.candidates = null;
     this.onHit = null;
     this.onWhiff = null;
@@ -88,7 +88,7 @@ export default class PlayerAttackSystem {
 
   levelOk(creature, player) {
     const root = player.root;
-    const ground = this.groundHeightAt ? this.groundHeightAt(creature.x, creature.z) : root.position.y;
+    const ground = this.footHeightOf ? this.footHeightOf(creature) : root.position.y;
     return Math.abs(root.position.y - ground) <= this.heightLimit;
   }
 

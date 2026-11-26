@@ -165,7 +165,12 @@ export default {
 
   attackCandidates() {
     const level = this.playerSystem.level || 0;
-    return this.creatureSystem.creatures.filter((creature) => creature && !creature.dead && !creature.buried && (creature.level || 0) === level);
+    return this.creatureSystem.creatures.filter((creature) => creature && !creature.dead && !creature.buried && (creature.level || 0) === level
+      && this.playerAttackSystem.levelOk(creature, this.playerSystem));
+  },
+
+  pointedCreature(x, y) {
+    return this.creatureSystem.hoverAt(x, y) || this.assistCreatureAtPointer();
   },
 
   aimPoint(creature, blow = this.playerAttackSystem.blow('primary')) {
@@ -198,6 +203,7 @@ export default {
     const reach = this.playerAttackSystem.reach + 0.35;
     for (const creature of this.creatureSystem.creatures) {
       if (!creature || creature.dead || (creature.level || 0) !== this.creatureSystem.pointerLevel()) continue;
+      if (!this.playerAttackSystem.levelOk(creature, this.playerSystem)) continue;
       const worldDistance = Math.hypot(creature.x - root.position.x, creature.z - root.position.z);
       if (worldDistance > reach) continue;
       const holderY = creature.holder && !creature.holder.isDisposed()
@@ -259,9 +265,9 @@ export default {
   hitChanceText(creature) {
     if (!creature) return '';
     const defense = creatureStat(creature.type, creature.tier, 'defense');
-    const { hit, graze } = strikeChances(this.playerAttackSystem.attack, defense);
+    const { hit } = strikeChances(this.playerAttackSystem.attack, defense);
     const percent = (value) => `${Math.round(value * 100)} %`;
-    return `Zásah ${percent(hit)} · škrábnutí ${percent(graze)}`;
+    return `Zásah ${percent(hit)}`;
   },
 
   creatureName(creature) {
@@ -338,7 +344,7 @@ export default {
   },
 
   pinCreatureAtPointer() {
-    const creature = this.creatureSystem.hoverAt(this.s.pointerX, this.s.pointerY) || this.assistCreatureAtPointer();
+    const creature = this.pointedCreature(this.s.pointerX, this.s.pointerY);
     if (creature) {
       this.pinnedCreature = creature;
       this.creatureSystem.selected = creature;

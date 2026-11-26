@@ -1,4 +1,4 @@
-// Nápověda u kurzoru — co se stane, když hráč na to místo klikne.
+// Nápověda u kurzoru — ikona levého tlačítka myši a co se stane, když hráč na to místo klikne.
 // Sám nic nehledá; dostane text a pozici, nebo pokyn se schovat.
 export default class HoverHint {
 
@@ -16,8 +16,10 @@ export default class HoverHint {
     const root = document.createElement('div');
     root.className = 'hud-hint';
     root.id = 'hud-hint';
+    const icon = document.createElement('span');
+    icon.className = 'mouse-hint__icon mouse-hint__icon--left';
     this.textEl = document.createElement('span');
-    root.appendChild(this.textEl);
+    root.append(icon, this.textEl);
     const layer = document.getElementById('hud-layer') || document.body;
     layer.appendChild(root);
     this.root = root;

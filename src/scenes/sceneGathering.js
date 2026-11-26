@@ -179,9 +179,9 @@ export default {
   },
 
   describeGatherTarget(target) {
-    if (target.def.byHand) return `Levé tlačítko — sbírat ${target.def.displayName} (${target.left}/${target.total})`;
-    const verb = target.def.kind === 'tree' ? 'kácet' : 'těžit';
-    return `Levé tlačítko — ${verb} ${target.def.displayName} (${target.left}/${target.total})`;
+    if (target.def.byHand) return `Sbírat ${target.def.displayName} (${target.left}/${target.total})`;
+    const verb = target.def.kind === 'tree' ? 'Kácet' : 'Těžit';
+    return `${verb} ${target.def.displayName} (${target.left}/${target.total})`;
   },
 
   strikeGather(item) {

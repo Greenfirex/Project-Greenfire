@@ -32,6 +32,7 @@ import { OUTLINE_GOLD, OUTLINE_CALM, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE
 import { FOOT_PLANT_RATIO, footTrack, trackFoot, releaseFoot } from '../../utils/footContact.js';
 
 const TURN_SPEED = 7;
+const PICK_GROUND_SLACK = 0.3;
 const EMERGE_TURN_SPEED = 18;
 const TURN_STEP_GAP = 0.12;
 const RENDER_SMOOTHING = 0.001;
@@ -169,6 +170,7 @@ export default class CreatureSystem {
     this.slots = new Map();
     this.containers = new Map();
     this.groundHeightAt = null;
+    this.groundDistanceAt = null;
     this.walkableAt = null;
     this.wallGapAt = null;
     this.nearBuildingAt = null;
@@ -1660,14 +1662,20 @@ export default class CreatureSystem {
     return !owner || (owner.level || 0) === level;
   }
 
+  visibleMeshAt(x, y) {
+    const pick = this.s.pick(x, y, (mesh) => this.pickableMesh(mesh));
+    if (!pick || !pick.hit) return null;
+    const ground = this.groundDistanceAt ? this.groundDistanceAt(x, y) : Infinity;
+    return pick.distance <= ground + PICK_GROUND_SLACK ? pick.pickedMesh : null;
+  }
+
   hoverAt(x, y) {
     if (!this.creatures.length || !Number.isFinite(x) || !Number.isFinite(y)) {
       this.hovered = null;
       this.hoveredCorpse = null;
       return null;
     }
-    const pick = this.s.pick(x, y, (mesh) => this.pickableMesh(mesh));
-    const mesh = pick && pick.hit ? pick.pickedMesh : null;
+    const mesh = this.visibleMeshAt(x, y);
     const owner = mesh ? this.pickOwner.get(mesh) : null;
     const creature = owner
       ? (this.creatures.includes(owner) && !owner.buried ? owner : null)
@@ -1899,8 +1907,7 @@ export default class CreatureSystem {
       this.hoveredCorpse = null;
       return null;
     }
-    const pick = this.s.pick(x, y, (mesh) => this.pickableMesh(mesh));
-    const mesh = pick && pick.hit ? pick.pickedMesh : null;
+    const mesh = this.visibleMeshAt(x, y);
     const owner = mesh ? this.pickOwner.get(mesh) : null;
     const entry = mesh
       ? this.corpses.find((item) => !item.looted && item.creature

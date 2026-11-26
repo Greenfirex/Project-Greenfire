@@ -13,6 +13,7 @@ export default class Hotbar {
     this.root = null;
     this.slotsEl = null;
     this.slotEls = [];
+    this.visibleSlots = HOTBAR_SLOTS;
     this.bar = [];
     this.heldKey = null;
     this.isAvailable = () => true;
@@ -33,6 +34,7 @@ export default class Hotbar {
     root.innerHTML = '<div class="hotbar__slots"></div>';
     this.slotsEl = root.querySelector('.hotbar__slots');
     for (let index = 0; index < HOTBAR_SLOTS; index += 1) this.slotEls.push(this.createSlot(index));
+    this.setVisibleSlots(this.visibleSlots);
     dock.appendChild(root);
     this.root = root;
     this.prompt = document.createElement('div');
@@ -40,6 +42,11 @@ export default class Hotbar {
     document.getElementById('hud-layer').appendChild(this.prompt);
     this.render();
     return root;
+  }
+
+  setVisibleSlots(count) {
+    this.visibleSlots = count;
+    this.slotEls.forEach((slot, index) => slot.classList.toggle('is-hidden', index >= count));
   }
 
   createSlot(index) {

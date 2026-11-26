@@ -148,7 +148,15 @@ stáří); hráčova rána je odečítá stejným výpočtem (`damageBreakdown` 
 Záporná odolnost je slabina a ránu zvětší (nejvýš −100 % = dvojnásobek, strop kladné 75 %).
 Volba „Výpočet zásahů v logu“ (`combatDetails`) vypíše pod každý zásah jednotlivé kroky
 výpočtu (`damageDetailText`); log ho drží jako podrobnost záznamu, takže stojí vždy přímo pod svým zásahem. Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
-a na škrábnutí (`strikeChances` v `combatRoll.js`, zbytek do sta je minutí).
+(`strikeChances` v `combatRoll.js`). Nápověda u kurzoru má vždy ikonu levého tlačítka myši,
+text proto začíná rovnou činností („Otevřít truhlu“, „Zásah 87 %“).
+Rána zasáhne tvora jen tehdy, když jeho chodidla (`creatureSystem.footY`) jsou ve výškovém
+limitu rány (`playerAttackSystem.levelOk`, `heightLimit` pěsti v `player.js`); totéž hlídají
+`attackCandidates` a přitažení míření. Dřív se měřila zem na místě tvora v nejvyšší vrstvě,
+takže šlo trefit tvora pod převisem útesu. Tvora i tělo pod kurzorem (`creatureSystem.visibleMeshAt`)
+myš vybere, jen když na ně paprsek od kamery narazí dřív než do země nebo skály
+(`groundDistanceAt` = `inputSystem.surfacePoint`, i s vyříznutým průhledem); tvor viditelný
+z útesu dole jde označit, skrz skálu ne.
 
 Výroba: recept (`RECIPES` v seznamu předmětů) drží jen cenu; jeho klíč je klíč vyráběného
 předmětu, název a ikona se berou z předmětu. Okno Výroba (`craftingWindow.js`, klávesa V)
@@ -161,16 +169,24 @@ se, když hráč od ohně odejde (`updateCraftingStations` v `sceneCrafting.js`)
 a vejce Koa'tiki. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
 Rozpracované a plánované věci jsou v `TODO.md`.
 
-Dolní lišta (`src/ui/dock.js`, `dockArea`) má uprostřed ukazatele zdraví a energie nad
-lištou nástrojů a vpravo malá tlačítka oken (`DockButton` s písmenem klávesy; skládají
-se do dvou řad a další přibývají doprava); vlevo je prázdné místo stejné šířky, aby
-lišta zůstala uprostřed. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
+Dolní lišta (`src/ui/dock.js`, `dockArea`) má ukazatele zdraví a energie nad lištou nástrojů.
+Tlačítka oken (`DockButton` s písmenem klávesy) jsou ve svislém pruhu u pravého okraje (`#hud-panels`)
+uprostřed místa mezi hodinami a panelem vpravo dole; v nízkém okně se tlačítka zmenší (`flex-shrink`
+s `aspect-ratio`, nejméně 24 px), obal pruhu kliknutí propouští. Panel připnutého tvora stojí vlevo od pruhu. Ikony jsou kresba jednou linkou
+(`src/ui/panelIcons.js`, barvu berou z textu tlačítka); pozadí tlačítka řídí volba Průhlednost panelů (`panelTransparency`, CSS `--panel-backdrop`) stejně
+jako rámeček logu, panelu vpravo dole, hodin a lišty nástrojů; ve výchozím stavu jsou vidět jen obsah a ikony. Tlačítka vlevo nahoře
+(ovládání, editor, uložit, načíst, možnosti) jsou sbalená pod tlačítkem Menu (`hud.js`); sloupec
+má dál `id="hud-bar"`, takže editor i Možnosti si do něj vkládají tlačítko stejně jako dřív.
+Po volbě nebo kliknutí mimo se sbalí. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
 na co se míří (`show`; doplněk rozdělený ` · ` jde na samostatné řádky), pod čarou
 nápověda myši (`setMouse`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní
 ji `refreshMouseHint` ve scéně podle `pointerAction`).
 
 Velikost rozhraní (volba `uiScale`, 80–140 %) zvětšuje celou vrstvu `#hud-layer` přes CSS `zoom`
-(proměnná `--ui-scale`). Věci umístěné podle bodu na obrazovce (plovoucí čísla, ukazatele nad
+(proměnná `--ui-scale`). `ui/hudFit.js` ji na úzkém okně sám sníží (do 80 %), aby se log, lišta
+a panel vpravo dole vešly vedle sebe; když to nestačí, lišta ukáže méně slotů (nejméně 5, klávesy
+schovaných slotů fungují dál), a když se nevejde ani 5 slotů, zmenšuje se dál až na 60 %
+(vejde se zhruba od šířky 600 bodů; telefon na výšku už ne). Přepočítá se při změně velikosti okna (`GameScene.onResize`). Věci umístěné podle bodu na obrazovce (plovoucí čísla, ukazatele nad
 tvory a postavou, nápověda u kurzoru) mají zoom vrácený zpět (`global.css`), aby seděly na místě;
 tažení oken (`draggable.js`) souřadnice přepočítává. Vlastní kurzor leží mimo vrstvu.
 

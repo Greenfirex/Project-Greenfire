@@ -1,6 +1,15 @@
-// Malé tlačítko vpravo v dolní liště — ikona s písmenem klávesy v rohu, otevírá okno; jméno ukáže při najetí.
+// Tlačítko okna ve svislém pruhu u pravého okraje — ikona s písmenem klávesy v rohu; jméno ukáže při najetí.
 // Jen hlásí kliknutí scéně; stav otevřeného okna si drží scéna.
-import { dockArea } from './dock.js';
+function panelStrip() {
+  let strip = document.getElementById('hud-panels');
+  if (!strip) {
+    strip = document.createElement('div');
+    strip.className = 'hud-panels';
+    strip.id = 'hud-panels';
+    (document.getElementById('hud-layer') || document.body).appendChild(strip);
+  }
+  return strip;
+}
 
 export default class DockButton {
 
@@ -24,7 +33,7 @@ export default class DockButton {
     btn.addEventListener('click', () => {
       if (this.onClick) this.onClick();
     });
-    dockArea('buttons').appendChild(btn);
+    panelStrip().appendChild(btn);
     this.btn = btn;
     return btn;
   }
