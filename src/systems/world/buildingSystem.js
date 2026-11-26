@@ -25,7 +25,6 @@ import buildingRoofParts from './buildingRoof.js';
 import buildingGrowthParts from './buildingGrowth.js';
 import buildingDoorsParts from './buildingDoors.js';
 import buildingFurnitureParts from './buildingFurniture.js';
-import buildingLampsParts from './buildingLamps.js';
 import buildingPirateParts from './buildingPirate.js';
 
 const GROUND_SAMPLE = 0.5;
@@ -49,12 +48,7 @@ export default class BuildingSystem {
     this.grass = [];
     this.decks = [];
     this.doors = [];
-    this.stations = [];
-    this.lamps = [];
     this.openDoors = new Set();
-    this.litLamps = new Set();
-    this.dayness = 1;
-    this.onLightSource = null;
     this.hovered = null;
     this.doorShutLead = 0;
     this.onDoorShut = null;
@@ -72,8 +66,6 @@ export default class BuildingSystem {
     this.grass = [];
     this.decks = [];
     this.doors = [];
-    this.stations = [];
-    this.dropLamps();
     this.hovered = null;
     this.floorKeys.clear();
   }
@@ -417,7 +409,6 @@ export default class BuildingSystem {
       walk: [],
       blocks: [],
       doorList: [],
-      stationList: [],
     };
     plan.groundAt = (x, z) => {
       const point = Vector3.TransformCoordinates(new Vector3(x, 0, z), world);
@@ -453,7 +444,6 @@ export default class BuildingSystem {
     }
     for (const sheet of plan.sheets) this.addMesh(plan, sheet.suffix, sheet.buffer, sheet.material, sheet.part || 'lower');
     this.finishDoors(plan, { planks: plankMat, paint: this.paintMaterial(`buildingPaintMat_${entry.key}`) });
-    this.finishStations(plan, { planks: plankMat, paint: this.paintMaterial(`buildingPaintMat_${entry.key}`) });
 
     const deck = {
       name,
@@ -515,4 +505,4 @@ export default class BuildingSystem {
   }
 }
 
-Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts, buildingFurnitureParts, buildingLampsParts, buildingPirateParts);
+Object.assign(BuildingSystem.prototype, buildingFloorParts, buildingWallsParts, buildingUpperParts, buildingRoofParts, buildingPorchParts, buildingPropsParts, buildingGrowthParts, buildingDoorsParts, buildingFurnitureParts, buildingPirateParts);

@@ -1,6 +1,6 @@
-// Katalog volně stojícího nábytku (stůl, židle, truhla, sudy, bedny, kotva, lano, loďka, lavička) a drobností
-// na něj (mapa, láhve, hrnek, dalekohled, kompas). Vzhled každého druhu a kusy, které jdou v editoru položit jako
-// dekorace; `surface` je výška desky, na kterou jde položit drobnost (tvary staví furnitureFactory).
+// Katalog nábytku (stůl, židle, truhla, sudy, bedny, kotva, lano, loďka, lavička), drobností na něj a pracovních míst
+// (ponk). Vzhled a kusy pro editor; `surface` je výška desky pro drobnosti, `use` dělá z kusu pracovní místo na klik
+// (výroba u ponku, rozsvícení lucerny). Tvary staví furnitureFactory.
 import { PLANKS_TEXTURE_PLANKS } from './assetPaths.js';
 
 export const LOG_END_COLORS = { wood: '#9c8468', ring: '#5c4636', crack: '#3a2c22', bark: '#3b3029' };
@@ -40,6 +40,20 @@ export const FURNITURE_STYLES = {
   mug: { radius: 0.042, height: 0.1, pewter: [0.48, 0.48, 0.5] },
   spyglass: { brass: [0.72, 0.56, 0.26], tubes: [[0.18, 0.032], [0.15, 0.026], [0.12, 0.02]] },
   compass: { brass: [0.72, 0.56, 0.26], face: [0.85, 0.8, 0.65], needle: [0.6, 0.1, 0.08], radius: 0.06, height: 0.025 },
+  workbench: {
+    size: [1.9, 0.88, 0.65], top: 0.08, leg: 0.09, inset: 0.08, shelf: 0.22, tint: [0.62, 0.53, 0.43], shadeSpread: 0.15, tile: 1.2,
+    tools: [
+      { at: [-0.55, 0.05], size: [0.32, 0.1, 0.12], yaw: 0.3 },
+      { at: [-0.4, 0.12], size: [0.04, 0.03, 0.34], yaw: 0.3 },
+      { at: [0.45, -0.08], size: [0.5, 0.025, 0.2], yaw: -0.15 },
+      { at: [0.6, 0.15], size: [0.22, 0.16, 0.18], yaw: 0.5 },
+    ],
+  },
+  lantern: {
+    size: [0.17, 0.42], metal: [0.2, 0.18, 0.16], candle: [0.85, 0.8, 0.68],
+    glass: [0.75, 0.72, 0.6], glassAlpha: 0.35, glassGlow: [0.9, 0.62, 0.3], flameGlow: [1, 0.78, 0.4],
+    light: { color: [1, 0.68, 0.36], range: 7, day: 0.15, night: 1.4, flicker: 0.12, shadowDarkness: 0.5 },
+  },
 };
 
 export const FURNITURE_PIECES = {
@@ -66,4 +80,9 @@ export const TRINKET_PIECES = {
   furniture_mug: { kind: 'mug', displayName: 'Cínový hrnek', height: 0.1, seed: 97 },
   furniture_spyglass: { kind: 'spyglass', displayName: 'Dalekohled', height: 0.06, seed: 101 },
   furniture_compass: { kind: 'compass', displayName: 'Kompas', height: 0.03, seed: 103 },
+  furniture_lantern: { kind: 'lantern', displayName: 'Lucerna', height: 0.42, seed: 107, use: { kind: 'lamp', onHint: 'rozsvítit lucernu', offHint: 'zhasnout lucernu' } },
+};
+
+export const STATION_PIECES = {
+  furniture_workbench: { kind: 'workbench', displayName: 'Ponk', box: [0.95, 0.33], height: 0.88, surface: 0.88, seed: 109, use: { kind: 'crafting', hint: 'pracovat u ponku' } },
 };

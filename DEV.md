@@ -1237,9 +1237,9 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    (`canGetTo`). Bez cesty je zmatený (otazníky, `giveUpConfused`), vzdá to na 12 s navíc (`WALLED_GIVE_UP_SECONDS`)
    a jde domů; když se dveře otevřou, cesta se najde a honička pokračuje. Později možná obléhání nebo vyražení dveří.
    **Zabudovaný nábytek** (`buildingFurniture.js`, data `furniture` v katalogu staveb: `styles` vzhled podle druhu,
-   `items` druh, místo v neotočené stavbě, `yaw`, `on: 'upper'`): ponk s nářadím, knihovna, lucerny,
-   v místnosti v patře síťová houpací síť mezi stěnou a sloupkem (síť má materiál sítě na stěně). Každý kus má
-   vlastní náhodu; ponk a knihovna jsou překážka (`furnitureBlock`, obdélník jako blok zdi).
+   `items` druh, místo v neotočené stavbě, `yaw`, `on: 'upper'`): knihovna a v místnosti v patře síťová houpací
+   síť mezi stěnou a sloupkem (síť má materiál sítě na stěně). Každý kus má vlastní náhodu; knihovna je překážka
+   (`furnitureBlock`, obdélník jako blok zdi).
    **Nábytek jako dekorace** (etapa 1 ze čtyř v `TODO.md`): stůl, židle (i převržená), okovaná truhla, sud (i povalený),
    bedna (i otevřená a dvě na sobě), kotva, stočené lano, převrácená loďka a lavička z kulatiny. Vzhled a seznam kusů
    jsou v `catalogs/furniture.js` (`FURNITURE_STYLES`, `FURNITURE_PIECES`), dekorace z nich dělá `catalogs/decorations.js`
@@ -1259,25 +1259,28 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    + `raise`). Podlahu pod myší hledá `deckOnRay` bez míst vyříznutých průhledem za myší (`seesThrough`), jinak by
    v pohledu Celé chytila neviditelné patro nad stolem. Náhled je o 2 cm výš (`FREE_PREVIEW_LIFT`), aby nesplýval
    s povrchem. Drobnost s nábytkem nesvázaná: posunutý stůl ji nechá viset ve vzduchu. Původní drobnosti ze srubu
-   převedl jednorázový skript; dalekohled a kompas leží na ponku, který je zatím součást srubu, takže na ponk
-   editor nové drobnosti položit neumí (až s etapou 3). Lucerna na stole zůstává ve srubu (etapa 3).
-   **Pracovní místa:** kus nábytku s `use` (`{ kind, hint }`) má vlastní mesh (`finishStations`), pod myší zlatý obrys
-   (`stationAt`, společné `pickInteractive`, `inReach` a `updateInteractive` s dveřmi) a klik ho použije
-   (`GameScene`, interakce `station`). Ponk v severozápadním rohu podél zdi s knihovnou (mimo dráhu jejího
-   odsunutí) otevře okno výroby (`kind: crafting`).
-   **Lucerna** na stole (`kind: lamp`, tvar `furnitureLantern`, svícení `buildingLamps.js`): kovový rámeček, sklíčka,
-   svíčka a plamínek; klik ji rozsvítí/zhasne (zvuk zapálení). Sklíčka a plamínek mají vlastní materiály se září.
-   Světlo je zdroj pro **světla ohně** (viz výše) se stínem povinným (`shadow: 'need'`), takže nesvítí skrz stěny
-   a podlahu patra; při rozsvícení a pohybu dveří či knihovny hlásí `dirty`. Ve dne slabě, v noci naplno, lehce
-   bliká (`light` ve stylu).
-   Rozsvícené lucerny se ukládají spolu s dveřmi (`lit`, verze savu 11).
+   převedl jednorázový skript.
+   **Pracovní místa** (etapa 3): dekorace s `use` v katalogu (`{ kind, hint }`) — ponk (`STATION_PIECES`, `kind:
+   crafting`, otevře okno výroby; deska `surface` 0,88 pro drobnosti) a lucerna (drobnost, `kind: lamp`). Drží je
+   `systems/world/stationSystem.js`: kus dostane z `onDecoPlaced` (`sceneWorld.js`), jeho meshe jsou klikací
+   (`metadata.station`), pod myší zlatý obrys, dosah a výběr jako u dveří (společná čísla `USE_…` v
+   `utils/outlineStyle.js`); klik zpracuje interakce `station` v `GameScene`. Po přestavbě mapy `sync()` zahodí kusy,
+   jejichž dekorace zmizela; kus se pozná podle buňky, patra, `deck` a posunu (`stationId`).
+   **Lucerna** (tvar `buildLantern` ve `furnitureFactory.js`): kovový rámeček, sklíčka, svíčka a plamínek; klik ji
+   rozsvítí/zhasne (zvuk zapálení). Sklíčka (`…_glass`) a plamínek (`…_flame`) dostane každá lucerna jako vlastní
+   kopii materiálu se září. Světlo je zdroj pro **světla ohně** (viz výše) se stínem povinným (`shadow: 'need'`),
+   takže nesvítí skrz stěny a podlahu patra; při rozsvícení a pohybu dveří či knihovny (`buildingSystem.doorsMoving`)
+   hlásí `dirty`. Ve dne slabě, v noci naplno, v jeskyni vždy naplno, lehce bliká (`light` ve stylu `lantern`).
+   Rozsvícené lucerny se ukládají jako `stations` (`lit`, verze savu 12). V editoru je ponk spolu s táborákem
+   ve štětci Výroba, lucerna ve štětci Drobnosti. Počet světel se stínem najednou je omezený (světla ohně) —
+   při víc rozsvícených lucernách projít.
    **Pirátské věci napevno** (`buildingPirate.js`, položky v `furniture.items` s druhem z `PIRATE_KINDS`, vzhled
    v `styles`): kormidelní kolo na východní stěně a police. Válce, kvádry a obruče pro ně (i pro nábytek a drobnosti)
    jsou v `utils/buildingGeometry.js`; mapa pokladu má kreslenou texturu (`treasureMapTexture` v `utils/pirateCloth.js`).
    Tři police na stěnách (`kind: shelf`, prkno na dvou konzolích; zadní stěna, levá nad ponkem, vnitřní u dveří)
    nesou položky `items` s polohou podél police: láhve, hrnky, sklenice, svíčky, mince, truhličku, svitek.
-   V místnosti v patře: druhá lucerna (na okované truhle, ta je dekorace) a police na zadní stěně; rozbitá láhev
-   a hrnek u houpací sítě jsou dekorace.
+   V místnosti v patře: police na zadní stěně; druhá lucerna na okované truhle, rozbitá láhev a hrnek u houpací
+   sítě jsou dekorace.
    **Uvolněná prkna** kolem srubu jsou obyčejné dekorace v mapě (`loose_plank_a…d`, tvar z kódu `utils/plankFactory.js`,
    vzhled `LOOSE_PLANKS` v `decorations.js`), sbírají se rukou jako 1 dřevo; v editoru je štětec Prkna. Počet prken
    v textuře prken je jednou v `PLANKS_TEXTURE_PLANKS` (`assetPaths.js`).

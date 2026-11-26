@@ -1,16 +1,17 @@
 // Katalog brushů — deklarace „co se má na zóně vyplnit“.
 // Povrchový štětec se skládá ze seznamu podkladů, takže nový povrch stačí přidat v katalogu dekorací.
-import { surfaceEntries } from './decorations.js';
+import { surfaceEntries, getDecoration } from './decorations.js';
 import { FLOWER_KEYS } from './flowers.js';
 import { GRASS_MIXES } from './grass.js';
 import { CREATURE_KEYS, CREATURE_TYPES } from './creatures/index.js';
 import { HEIGHT_STEP, formatMeters } from '../maps/layoutStore.js';
 import { FISH_KEYS, FISH_TYPES } from './fish.js';
-import { FURNITURE_PIECES, TRINKET_PIECES } from './furniture.js';
+import { FURNITURE_PIECES, TRINKET_PIECES, STATION_PIECES } from './furniture.js';
 
 const SURFACES = surfaceEntries();
 const FURNITURE_KEYS = Object.keys(FURNITURE_PIECES);
 const TRINKET_KEYS = Object.keys(TRINKET_PIECES);
+const CRAFTING_KEYS = ['campfire', ...Object.keys(STATION_PIECES)];
 const surfaceStyle = (entry) => entry.key.replace(/^floor_/, '');
 
 const SIZE_OPTION = { key: 'radius', label: 'Velikost', kind: 'range', min: 0, max: 3, step: 1, display: 'square' };
@@ -505,11 +506,15 @@ export const BRUSHES = {
     ],
     cliff: true,
   },
-  camp: {
-    label: 'Táborák',
-    note: 'Postaví ohniště s ohněm, které jde zapálit.',
+  crafting: {
+    label: 'Výroba',
+    note: 'Postaví místo pro výrobu: táborák (jde zapálit a vařit u něj) nebo ponk (otevře výrobu). Tlačítkem vybereš kus, natočením směr; položí se přesně pod myš, i na podlahu srubu.',
     shape: 'blob',
-    pool: ['campfire'],
+    style: CRAFTING_KEYS[0],
+    styles: CRAFTING_KEYS,
+    styleLabels: Object.fromEntries(CRAFTING_KEYS.map((key) => [key, getDecoration(key).displayName])),
+    poolByStyle: Object.fromEntries(CRAFTING_KEYS.map((key) => [key, [key]])),
+    rotate: true,
     deco: true,
   },
   chest: {
@@ -541,7 +546,7 @@ export const BRUSHES = {
   },
   trinkets: {
     label: 'Drobnosti',
-    note: 'Položí pirátskou drobnost (mapu, láhev, hrnek, dalekohled, kompas) přesně pod myš — na zem, na podlahu srubu i na desku stolu, truhly, sudu nebo bedny. Tlačítkem vybereš věc, natočením směr.',
+    note: 'Položí pirátskou drobnost (mapu, láhev, hrnek, dalekohled, kompas, lucernu, kterou jde rozsvítit) přesně pod myš — na zem, na podlahu srubu i na desku stolu, ponku, truhly, sudu nebo bedny. Tlačítkem vybereš věc, natočením směr.',
     shape: 'blob',
     style: TRINKET_KEYS[0],
     styles: TRINKET_KEYS,

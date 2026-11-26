@@ -161,23 +161,9 @@ export const BUILDINGS = {
     },
     furniture: {
       styles: {
-        workbench: {
-          size: [1.9, 0.88, 0.65], top: 0.08, leg: 0.09, inset: 0.08, shelf: 0.22, tint: [0.62, 0.53, 0.43], shadeSpread: 0.15, tile: 1.2,
-          tools: [
-            { at: [-0.55, 0.05], size: [0.32, 0.1, 0.12], yaw: 0.3 },
-            { at: [-0.4, 0.12], size: [0.04, 0.03, 0.34], yaw: 0.3 },
-            { at: [0.45, -0.08], size: [0.5, 0.025, 0.2], yaw: -0.15 },
-            { at: [0.6, 0.15], size: [0.22, 0.16, 0.18], yaw: 0.5 },
-          ],
-        },
         hammock: {
           size: [3, 1, 0.9], hang: 0.95, sag: 0.45, curl: 0.12, width: 0.9, rope: 0.35, ropeRadius: 0.012, post: 0.06,
           ropeTint: [0.62, 0.55, 0.4], blockFrom: 0.3, blockTo: 1.0, tint: [1, 1, 1], shadeSpread: 0,
-        },
-        lantern: {
-          size: [0.17, 0.42], metal: [0.2, 0.18, 0.16], candle: [0.85, 0.8, 0.68], tint: [1, 1, 1], shadeSpread: 0,
-          glass: [0.75, 0.72, 0.6], glassAlpha: 0.35, glassGlow: [0.9, 0.62, 0.3], flameGlow: [1, 0.78, 0.4],
-          light: { color: [1, 0.68, 0.36], range: 7, day: 0.15, night: 1.4, flicker: 0.12, shadowDarkness: 0.5 },
         },
         wheel: { radius: 0.42, rim: 0.03, spokes: 8, spoke: 0.02, handle: 0.13, hub: 0.07, peg: 0.09, tint: [0.6, 0.48, 0.36] },
         shelf: {
@@ -208,8 +194,6 @@ export const BUILDINGS = {
       },
       items: [
         { kind: 'bookcase', at: [1.0, -2.62], slide: 1.7 },
-        { kind: 'lantern', at: [-0.55, 0.42], lift: 0.78, yaw: 0.3, use: { kind: 'lamp', onHint: 'rozsvítit lucernu', offHint: 'zhasnout lucernu' } },
-        { kind: 'workbench', at: [-2.88, -2.51], use: { kind: 'crafting', hint: 'pracovat u ponku' } },
         { kind: 'wheel', at: [3.78, -2.0], lift: 1.45 },
         {
           kind: 'shelf', at: [-0.95, -2.75], lift: 1.6, length: 1.4,
@@ -241,7 +225,6 @@ export const BUILDINGS = {
             { kind: 'coins', at: 0.36, stacks: [[0, 0, 4], [0.04, -0.03, 2]] },
           ],
         },
-        { kind: 'lantern', on: 'upper', at: [1.45, -2.25], lift: 0.59, yaw: -0.4, use: { kind: 'lamp', onHint: 'rozsvítit lucernu', offHint: 'zhasnout lucernu' } },
         {
           kind: 'shelf', on: 'upper', at: [-1.6, -2.45], lift: 1.5, length: 1.2,
           items: [

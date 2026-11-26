@@ -6,13 +6,9 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createBuffer, meshFromBuffer, pushBox } from '../../utils/buildingGeometry.js';
 import { createRng, seedFor } from '../../utils/rng.js';
-import { OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED } from '../../utils/outlineStyle.js';
-
-const DOOR_PICK_RADIUS = 0.8;
-const DOOR_PICK_HEIGHT = 1.5;
-const DOOR_REACH = 2.2;
-const DOOR_REACH_HEIGHT = 1.2;
-const DOOR_OUTLINE = 0.03;
+import {
+  OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, USE_OUTLINE, USE_PICK_RADIUS, USE_PICK_HEIGHT, USE_REACH, USE_REACH_HEIGHT,
+} from '../../utils/outlineStyle.js';
 
 const ease = (t) => t * t * (3 - 2 * t);
 
@@ -119,9 +115,9 @@ export default {
     if (hit && hit.hit && hit.pickedMesh) return hit.pickedMesh.metadata[key];
     if (!point) return null;
     let best = null;
-    let bestGap = DOOR_PICK_RADIUS;
+    let bestGap = USE_PICK_RADIUS;
     for (const thing of list) {
-      if (thing.secret || Math.abs(point.y - thing.y) > DOOR_PICK_HEIGHT) continue;
+      if (thing.secret || Math.abs(point.y - thing.y) > USE_PICK_HEIGHT) continue;
       const gap = Math.hypot(point.x - thing.x, point.z - thing.z);
       if (gap > bestGap) continue;
       best = thing;
@@ -132,8 +128,8 @@ export default {
 
   inReach(thing, position) {
     return Boolean(thing && position)
-      && Math.hypot(position.x - thing.x, position.z - thing.z) <= DOOR_REACH
-      && Math.abs(position.y - thing.y) <= DOOR_REACH_HEIGHT;
+      && Math.hypot(position.x - thing.x, position.z - thing.z) <= USE_REACH
+      && Math.abs(position.y - thing.y) <= USE_REACH_HEIGHT;
   },
 
   doorHint(door) {
@@ -153,17 +149,20 @@ export default {
     this.hovered = thing || null;
   },
 
+  doorsMoving() {
+    return this.doors.some((door) => door.open !== door.goal);
+  },
+
   updateInteractive(dt) {
-    this.updateLamps(dt);
     this.doorTime = (this.doorTime || 0) + dt;
     const pulse = 0.5 + 0.5 * Math.sin(this.doorTime * OUTLINE_PULSE_SPEED);
-    for (const thing of [...this.doors, ...this.stations]) {
+    for (const thing of this.doors) {
       if (!thing.mesh) continue;
       const lit = thing === this.hovered;
       thing.mesh.renderOutline = lit;
       if (!lit) continue;
       thing.mesh.outlineColor = OUTLINE_GOLD;
-      thing.mesh.outlineWidth = DOOR_OUTLINE + OUTLINE_PULSE * pulse;
+      thing.mesh.outlineWidth = USE_OUTLINE + OUTLINE_PULSE * pulse;
     }
     for (const door of this.doors) {
       if (door.open !== door.goal) {
@@ -179,16 +178,15 @@ export default {
   },
 
   serialize() {
-    return { open: [...this.openDoors], lit: [...this.litLamps] };
+    return { open: [...this.openDoors] };
   },
 
   defaultState() {
-    return { open: [], lit: [] };
+    return { open: [] };
   },
 
   apply(data) {
     const list = data && Array.isArray(data.open) ? data.open.filter((id) => typeof id === 'string') : [];
-    this.applyLamps(data && Array.isArray(data.lit) ? data.lit.filter((id) => typeof id === 'string') : []);
     this.openDoors = new Set(list);
     for (const door of this.doors) {
       door.goal = this.openDoors.has(door.id) ? 1 : 0;

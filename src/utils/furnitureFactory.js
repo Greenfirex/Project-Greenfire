@@ -1,5 +1,5 @@
-// Šablona volně stojícího nábytku (stůl, židle, truhla, sud, bedna, kotva, lano, loďka, lavička) a drobností
-// na něj, složených z prken, válců a kvádrů. Dřevo má pevné opotřebení (mech a špína dole), každý kus se staví jednou.
+// Šablona nábytku, drobností, ponku a lucerny, složených z prken, válců a kvádrů. Dřevo má pevné opotřebení
+// (mech a špína dole), každý kus se staví jednou. Sklíčka a plamínek lucerny jsou zvlášť (`…_glass`, `…_flame`), aby jim šlo svítit.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Material } from '@babylonjs/core/Materials/material';
@@ -58,6 +58,23 @@ function mapMaterial(scene, materials) {
   material.twoSidedLighting = true;
   material.specularColor = new Color3(0.02, 0.02, 0.02);
   materials.map = material;
+  return material;
+}
+
+function lampMaterial(scene, materials, part) {
+  if (materials[part]) return materials[part];
+  const style = FURNITURE_STYLES.lantern;
+  const material = new StandardMaterial(`furnitureLamp_${part}`, scene);
+  if (part === 'glass') {
+    material.diffuseColor = Color3.FromArray(style.glass);
+    material.specularColor = new Color3(0.3, 0.3, 0.3);
+    material.alpha = style.glassAlpha;
+  } else {
+    material.disableLighting = true;
+    material.diffuseColor = Color3.Black();
+  }
+  material.emissiveColor = Color3.Black();
+  materials[part] = material;
   return material;
 }
 
@@ -243,6 +260,64 @@ function buildBench(out, style, place) {
   addLog(out, log, along, logShade(out, style), style);
 }
 
+function buildWorkbench(out, style, place) {
+  const paint = shaded(out, style);
+  const { rng } = out;
+  const [w, h, d] = style.size;
+  pushPiece(out.planks, place, [0, h - style.top / 2, 0], [w, style.top, d], paint, style.tile, rng);
+  const lx = w / 2 - style.inset;
+  const lz = d / 2 - style.inset;
+  for (const [x, z] of [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]]) {
+    pushPiece(out.planks, place, [x, (h - style.top) / 2, z], [style.leg, h - style.top, style.leg], paint, style.tile, rng);
+  }
+  pushPiece(out.planks, place, [0, style.shelf, 0], [w - style.inset * 2, style.top * 0.6, d - style.inset * 2], paint, style.tile, rng);
+  for (const tool of style.tools) {
+    pushPiece(out.planks, { ...place, yaw: place.yaw + tool.yaw }, [tool.at[0], h + tool.size[1] / 2, tool.at[1]], tool.size, paint, style.tile, rng);
+  }
+}
+
+function lanternParts(style) {
+  const h = style.size[1];
+  const foot = h * 0.06;
+  const body = h * 0.5;
+  return { foot, body, roof: foot + body };
+}
+
+export function lanternLightLift(style) {
+  const { foot, body } = lanternParts(style);
+  return foot + body * 0.5;
+}
+
+function buildLantern(out, style, place) {
+  const metal = flatPaint(style.metal);
+  const wax = flatPaint(style.candle);
+  const plain = flatPaint([1, 1, 1]);
+  const w = style.size[0];
+  const h = style.size[1];
+  const { foot, body, roof } = lanternParts(style);
+  const half = w / 2;
+  const post = w * 0.09;
+  const frame = out.painted;
+  pushPiece(frame, place, [0, foot / 2, 0], [w, foot, w], metal, 1);
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    pushPiece(frame, place, [x * (half - post / 2), foot + body / 2, z * (half - post / 2)], [post, body, post], metal, 1);
+  }
+  pushPiece(frame, place, [0, roof + foot / 2, 0], [w * 1.1, foot, w * 1.1], metal, 1);
+  pushPiece(frame, place, [0, roof + foot * 1.8, 0], [w * 0.7, foot * 1.6, w * 0.7], metal, 1);
+  pushPiece(frame, place, [0, roof + foot * 3.1, 0], [w * 0.35, foot, w * 0.35], metal, 1);
+  for (const x of [-1, 1]) pushPiece(frame, place, [x * w * 0.2, h - foot * 1.2, 0], [post * 0.7, foot * 2.4, post * 0.7], metal, 1);
+  pushPiece(frame, place, [0, h, 0], [w * 0.48, post * 0.7, post * 0.7], metal, 1);
+  pushPiece(frame, place, [0, foot + body * 0.18, 0], [w * 0.2, body * 0.36, w * 0.2], wax, 1);
+  out.glass = createBuffer();
+  out.flame = createBuffer();
+  for (const turn of [0, Math.PI / 2]) {
+    for (const side of [-1, 1]) {
+      pushPiece(out.glass, { ...place, yaw: place.yaw + turn }, [0, foot + body / 2, side * (half - post / 2)], [w - post * 2, body, 0.004], plain, 1);
+    }
+  }
+  pushPiece(out.flame, place, [0, foot + body * 0.36 + body * 0.1, 0], [w * 0.12, body * 0.2, w * 0.12], plain, 1);
+}
+
 function buildPiece(out, piece) {
   const style = FURNITURE_STYLES[piece.kind];
   const place = { x: 0, y: piece.lift || 0, z: 0, yaw: 0, tilt: piece.tilt || 0 };
@@ -253,6 +328,8 @@ function buildPiece(out, piece) {
   else if (piece.kind === 'mug') pushMug(out.painted, style, place);
   else if (piece.kind === 'spyglass') pushSpyglass(out.painted, style, place);
   else if (piece.kind === 'compass') pushCompass(out.painted, style, place);
+  else if (piece.kind === 'lantern') buildLantern(out, style, place);
+  else if (piece.kind === 'workbench') buildWorkbench(out, style, place);
   else if (piece.kind === 'table') buildTable(out, style, place);
   else if (piece.kind === 'chair') buildChair(out, style, place);
   else if (piece.kind === 'chest') buildChest(out, style, place);
@@ -278,17 +355,19 @@ export function furnitureTemplate(scene, piece) {
     logs: createBuffer(),
     ends: createBuffer(),
     sheet: null,
+    glass: null,
+    flame: null,
     rng: createRng(piece.seed),
     paint: agePaint(FURNITURE_WEAR, piece.seed),
   };
   buildPiece(out, piece);
   const materials = materialsFor(scene);
   const root = new TransformNode(`tplFurniture_${piece.kind}_${piece.seed}`, scene);
-  for (const part of ['planks', 'painted', 'logs', 'ends', 'sheet']) {
+  for (const part of ['planks', 'painted', 'logs', 'ends', 'sheet', 'glass', 'flame']) {
     if (!out[part]) continue;
     const mesh = meshFromBuffer(`furniture_${piece.kind}_${piece.seed}_${part}`, out[part], scene);
     if (!mesh) continue;
-    mesh.material = part === 'sheet' ? mapMaterial(scene, materials) : materials[part];
+    mesh.material = part === 'sheet' ? mapMaterial(scene, materials) : part === 'glass' || part === 'flame' ? lampMaterial(scene, materials, part) : materials[part];
     mesh.parent = root;
   }
   root.setEnabled(false);

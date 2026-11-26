@@ -23,6 +23,7 @@ import CaveFrameSystem from '../systems/terrain/caveFrameSystem.js';
 import CliffDressSystem from '../systems/terrain/cliffDressSystem.js';
 import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
+import StationSystem from '../systems/world/stationSystem.js';
 import LootSystem from '../systems/world/lootSystem.js';
 import PickupSparkleSystem from '../systems/world/pickupSparkleSystem.js';
 import EquipmentSystem from '../systems/player/equipmentSystem.js';
@@ -191,6 +192,7 @@ export default class GameScene {
     this.cliffDressSystem = new CliffDressSystem(scene);
     this.caveDressSystem = new CliffDressSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
+    this.stationSystem = new StationSystem(scene);
     this.lootSystem = new LootSystem(scene);
     this.equipmentSystem = new EquipmentSystem();
     this.lootPickup = null;
@@ -228,7 +230,7 @@ export default class GameScene {
     this.playerSystem = new PlayerSystem(scene);
     const fireSource = (source, on) => (on ? this.fireLights.add(source) : this.fireLights.remove(source));
     this.campfireSystem.onLightSource = fireSource;
-    this.buildingSystem.onLightSource = fireSource;
+    this.stationSystem.onLightSource = fireSource;
     this.playerSystem.onLightSource = fireSource;
     this.fireLights.castersNear = (source) => this.fireCastersNear(source);
     this.playerStats = new PlayerStatsSystem();
@@ -492,6 +494,7 @@ export default class GameScene {
       this.updateCrafting(dt);
       this.lootSystem.update(dt, root, this.playerSystem.level);
       this.buildingSystem.updateInteractive(dt);
+      this.stationSystem.update(dt, this.buildingSystem.doorsMoving());
       this.waterSystem.update(dt);
       this.updateWaveSpray();
       this.fishSystem.update(dt);
@@ -755,7 +758,9 @@ export default class GameScene {
   }
 
   setHoverHint(target) {
-    this.buildingSystem.setHover(target && (target.id === 'door' || target.id === 'station') && !this.editor.active ? target.ref : null);
+    const live = target && !this.editor.active;
+    this.buildingSystem.setHover(live && target.id === 'door' ? target.ref : null);
+    this.stationSystem.setHover(live && target.id === 'station' ? target.ref : null);
     if (!target || !target.inReach || this.editor.active || this.dying) {
       this.hoverHint.hide();
       return;
@@ -886,15 +891,15 @@ export default class GameScene {
       priority: 43,
       pick: ({ cell }) => {
         const root = this.playerSystem.root;
-        if (!root || this.playerSystem.level !== 0) return null;
-        const station = this.buildingSystem.stationAt(this.s.pointerX, this.s.pointerY, cell ? cell.point : null);
+        if (!root) return null;
+        const station = this.stationSystem.at(this.s.pointerX, this.s.pointerY, cell ? cell.point : null, this.playerSystem.level);
         if (!station) return null;
-        return { ref: station, detail: `Levé tlačítko — ${this.buildingSystem.stationHint(station)}`, inReach: this.buildingSystem.inReach(station, root.position) };
+        return { ref: station, detail: `Levé tlačítko — ${this.stationSystem.hint(station)}`, inReach: this.stationSystem.inReach(station, root.position) };
       },
       act: (target) => {
         this.playerSystem.useToward(target.ref.x, target.ref.z);
         if (target.ref.use.kind === 'crafting' && !this.craftingWindow.open) this.toggleCraftingWindow();
-        if (target.ref.use.kind === 'lamp' && this.buildingSystem.toggleLamp(target.ref)) this.audioSystem.play('ignite');
+        if (target.ref.use.kind === 'lamp' && this.stationSystem.toggleLamp(target.ref)) this.audioSystem.play('ignite');
         return true;
       },
     });
@@ -1321,7 +1326,7 @@ export default class GameScene {
     this.waterSystem.setDayness(value);
     this.waterSystem.setSkyTint(this.skySystem.tint());
     if (this.playerSystem.torchFire) this.playerSystem.torchFire.setDayness(value);
-    this.buildingSystem.setDayness(value);
+    this.stationSystem.setDayness(value);
     this.campfireSystem.setDayness(value);
     this.updateIndoor(dt);
   }
@@ -1737,6 +1742,7 @@ export default class GameScene {
     this.registerSavedState(this.playerStats, 'playerStats', 8);
     this.registerSavedState(this.buildingSystem, 'doors', 11);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
+    this.registerSavedState(this.stationSystem, 'stations', 12);
     this.saveSystem.register('loot', {
       serialize: () => this.lootSystem.serialize(),
       apply: (data) => {
