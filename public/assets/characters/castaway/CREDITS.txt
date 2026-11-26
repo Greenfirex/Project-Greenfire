@@ -3,3 +3,4 @@ Castaway — hráčská postava
 Model „CASTAWAY“ byl vygenerovaný v Meshy AI a upravený pro tento projekt.
 Zdroj: Meshy AI, model „CASTAWAY“ s animacemi (soubor Meshy_AI_CASTAWAY_All_Animations (2).glb).
 Licence a podmínky použití: podle licence účtu Meshy, na kterém byl model vytvořen.
+Animace pití (castaway_drink.glb, „Scoop_Water“) vygenerovaná v Meshy AI pro stejnou postavu.

@@ -43,6 +43,16 @@ export const PLAYER_STAT_INFO = {
     icon: '⚡',
     text: 'Ubývá během běhu, útoku a sekání. Doplní se po chvíli klidu.',
   },
+  hunger: {
+    label: 'Sytost',
+    icon: '🍖',
+    text: 'Pomalu ubývá, při běhu rychleji. Když jsi sytý, rychleji se hojíš; hlad tě oslabí a hladovění bere zdraví. Doplní ji jídlo.',
+  },
+  thirst: {
+    label: 'Voda',
+    icon: '💧',
+    text: 'Ubývá rychleji než sytost. Žízeň tě rychleji unaví a bez vody ztrácíš zdraví. Napij se z jezera nebo řeky, nebo vypij kokos.',
+  },
   attack: {
     label: 'Útok',
     icon: '⚔',

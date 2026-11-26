@@ -1,6 +1,7 @@
 // Vývojový nástroj: vyfotí tvora nebo postavu ve fotoateliéru (tools/capture/stage.html) a složí snímky do jednoho obrázku.
 // Spouští se nad běžícím dev serverem: node tools/capture.cjs koa_tiki peck --view side
 // Scény: idle, walk, tracks (chůze se stopami), attack (--attack peck|jump), hit, death, peck. Pohledy: side, side2 (z druhé strany), front, diag, top.
+// Postava: node tools/capture.cjs player drink --view diag --depth 0.02 --ahead 0.85 (pití, voda před postavou)
 // Postava: node tools/capture.cjs player idle --sheath saber --wear pirate_coat,pirate_pants --focus hip --zoom 1.3
 // Portrét do bestiáře: node tools/capture.cjs gnaw_rat idle --portrait 1
 const fs = require('node:fs');
@@ -25,7 +26,7 @@ function readOptions(argv) {
     const key = argv[index].replace(/^--/, '');
     const value = argv[index + 1];
     index += 1;
-    options[key] = ['frames', 'zoom', 'seconds', 'lead', 'kneel', 'lid'].includes(key) ? Number(value) : value;
+    options[key] = ['frames', 'zoom', 'seconds', 'lead', 'kneel', 'lid', 'depth', 'ahead'].includes(key) ? Number(value) : value;
   }
   return options;
 }

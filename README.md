@@ -39,12 +39,13 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **E** | V otevřené truhle vzít vše |
 | **G** | Zobrazit / skrýt mřížku |
 | **N** | Posun času o 4 hodiny (i v editoru) |
-| **P** | Pauza / pokračovat (ztmaví obrazovku, zastaví celou hru) — v editoru jen zastaví hru |
-| **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem ❔ Ovládání v liště |
-| **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem 🧱 Editor v liště |
-| **O** | Možnosti (záložky obraz a výkon, zvuk, hra) — také tlačítkem ⚙ Možnosti v liště |
+| **Esc / ☰ Menu** | Menu a pauza (ztmaví obrazovku, zastaví celou hru): pokračovat, uložit, načíst, možnosti, ovládání, editor mapy a návrat do hlavního menu. Esc nejdřív zavře otevřené okno, až pak otevře pauzu |
+| **P** | Pauza / pokračovat jako Esc — v editoru jen zastaví hru |
+| **F1** | Nápověda a ovládání (rozbalit / sbalit) — také tlačítkem Ovládání v pauze |
+| **F2** | Editor mapy (zóny, výška, herní plocha, tvorové) — také tlačítkem Editor mapy v pauze |
+| **O** | Možnosti (záložky obraz a výkon, zvuk, hra) — také tlačítkem Možnosti v pauze |
 | **F5 / F9** | Rychlé uložení / rychlé načtení (načtení se ptá na potvrzení) |
-| **💾 Uložit / 📂 Načíst** | Okno s pěti pojmenovanými pozicemi, rychlým a automatickým uložením (hra se sama ukládá každých 5 minut). Totéž najdeš v pauze (P), kde je i návrat do hlavního menu |
+| **Uložit / Načíst v pauze** | Okno s pěti pojmenovanými pozicemi, rychlým a automatickým uložením (hra se sama ukládá každých 5 minut) |
 | **Ctrl+Alt+I** | Ladicí okno Babylona (jen při vývoji; jde i přes adresu `?inspector`) |
 
 Hra se ukládá do prohlížeče, takže si ji můžeš rozehrát na pokračování.
@@ -64,6 +65,13 @@ do batohu (I), kde si je můžeš přeskládat, a postava má vlastní okno se s
 
 **Oheň.** Táborák se zapálí kliknutím u připraveného místa, svítí do okolí a v noci
 zahřívá. Pochodeň v ruce svítí, kam jdeš.
+
+**Hlad a žízeň.** Pod proužky zdraví a energie jsou sytost a voda. Pomalu ubývají,
+při běhu rychleji. Najíst se dá jídlem z batohu nebo z lišty, napít kliknutím na
+jezero nebo řeku (postava dojde na břeh, klekne si a nabere vodu do dlaní) nebo
+vypitím kokosu. Mořská voda se pít nedá. Nad lištou jsou ikonky efektů: sytý se
+rychleji hojíš, hladový nebo žíznivý jsi slabší a rychleji se unavíš, a když
+sytost nebo voda dojde úplně, začne ubývat zdraví. Najetí myší na ikonku ukáže popis.
 
 **Voda.** Mělká voda u břehu tě zpomalí, do hluboké se nedá vejít. Hladina má
 vlny, pěnu, odlesky a u břehů příboj, který je slyšet; pod hladinou se honí

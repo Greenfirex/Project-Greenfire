@@ -78,4 +78,14 @@ export const PLAYER_BASE = {
     regenPerSecond: 14,
     sprintResumeShare: 0.2,
   },
+  survival: {
+    max: 100,
+    hungerPerSecond: 0.11,
+    thirstPerSecond: 0.17,
+    sprintFactor: 1.5,
+    reviveAt: 60,
+  },
+  drink: {
+    thirst: 35,
+  },
 };

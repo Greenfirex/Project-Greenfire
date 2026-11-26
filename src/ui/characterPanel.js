@@ -108,6 +108,16 @@ export default class CharacterPanel {
             <span class="stat-bar__track"><span class="stat-bar__fill"></span></span>
             <span class="stat-bar__value">—</span>
           </div>
+          <div class="stat-bar stat-bar--hunger" data-stat="hunger">
+            <span class="stat-bar__label">Sytost</span>
+            <span class="stat-bar__track"><span class="stat-bar__fill"></span></span>
+            <span class="stat-bar__value">—</span>
+          </div>
+          <div class="stat-bar stat-bar--thirst" data-stat="thirst">
+            <span class="stat-bar__label">Voda</span>
+            <span class="stat-bar__track"><span class="stat-bar__fill"></span></span>
+            <span class="stat-bar__value">—</span>
+          </div>
           <div class="stat-bar stat-bar--xp" data-stat="xp">
             <span class="stat-bar__label">Úroveň</span>
             <span class="stat-bar__track"><span class="stat-bar__fill"></span></span>
@@ -158,6 +168,10 @@ export default class CharacterPanel {
     this.healthValue = layout.querySelector('.stat-bar--health .stat-bar__value');
     this.staminaFill = layout.querySelector('.stat-bar--stamina .stat-bar__fill');
     this.staminaValue = layout.querySelector('.stat-bar--stamina .stat-bar__value');
+    this.hungerFill = layout.querySelector('.stat-bar--hunger .stat-bar__fill');
+    this.hungerValue = layout.querySelector('.stat-bar--hunger .stat-bar__value');
+    this.thirstFill = layout.querySelector('.stat-bar--thirst .stat-bar__fill');
+    this.thirstValue = layout.querySelector('.stat-bar--thirst .stat-bar__value');
     this.xpLabel = layout.querySelector('.stat-bar--xp .stat-bar__label');
     this.xpFill = layout.querySelector('.stat-bar--xp .stat-bar__fill');
     this.xpValue = layout.querySelector('.stat-bar--xp .stat-bar__value');
@@ -448,6 +462,8 @@ export default class CharacterPanel {
       this.detailRow('Zdraví', `+${decimal(food.heal)}`);
       this.detailRow('Rychlost', `${decimal(perSecond)} zdraví / s`);
       this.detailRow('Trvá', `${decimal(food.heal / perSecond)} s`);
+      if (food.hunger > 0) this.detailRow('Sytost', `+${decimal(food.hunger)}`);
+      if (food.thirst > 0) this.detailRow('Voda', `+${decimal(food.thirst)}`);
     }
     const weapon = itemWeapon(key);
     if (weapon) {
@@ -596,6 +612,11 @@ export default class CharacterPanel {
       const level = Number.isFinite(data.level) ? data.level : 1;
       const xp = Number.isFinite(data.xp) ? Math.floor(data.xp) : 0;
       return `Úroveň ${level} · ${xp} / ${data.xpNeeded ?? '—'}`;
+    }
+    if (key === 'hunger' || key === 'thirst') {
+      const current = Number.isFinite(data[key]) ? Math.ceil(data[key]) : 0;
+      const max = Number.isFinite(data.maxNeed) ? Math.round(data.maxNeed) : 0;
+      return `${current} / ${max}`;
     }
     if (key === 'health' || key === 'stamina') {
       const maxKey = key === 'health' ? 'maxHealth' : 'maxStamina';
@@ -784,6 +805,7 @@ export default class CharacterPanel {
     const attributes = source.attributes || {};
     const signature = [
       barValue(source.health), source.maxHealth, barValue(source.stamina), source.maxStamina,
+      barValue(source.hunger), barValue(source.thirst), source.maxNeed,
       source.attack, source.defense, source.armor, source.damage,
       source.level, Math.floor(source.xp), source.xpNeeded, source.points,
       ...ATTRIBUTE_KEYS.map((key) => attributes[key]),
@@ -794,6 +816,8 @@ export default class CharacterPanel {
 
     this.setBar(this.healthFill, this.healthValue, source.health, source.maxHealth);
     this.setBar(this.staminaFill, this.staminaValue, source.stamina, source.maxStamina);
+    this.setBar(this.hungerFill, this.hungerValue, source.hunger, source.maxNeed);
+    this.setBar(this.thirstFill, this.thirstValue, source.thirst, source.maxNeed);
     this.setBar(this.xpFill, this.xpValue, source.xp, source.xpNeeded);
     if (this.xpLabel) this.xpLabel.textContent = `Úroveň ${Number.isFinite(source.level) ? source.level : 1}`;
     for (const key of ATTRIBUTE_KEYS) this.setValue(key, attributes[key]);

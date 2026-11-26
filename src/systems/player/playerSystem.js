@@ -114,6 +114,7 @@ const IGNITE_HOLD = 0.35;
 const IGNITE_FALLBACK = 0.75;
 const PICKUP_SHARE = 1;
 const RISE_BLEND = 0.035;
+const DRINK_RISE_BLEND = 0.02;
 const PICKUP_HOLD = 0.12;
 const PICKUP_FALLBACK = 0.75;
 const FLINCH_FALLBACK = 0.5;
@@ -273,6 +274,9 @@ export default class PlayerSystem {
     this.nextBlend = 0;
     this.kneeling = false;
     this.reachTarget = null;
+    this.drinkState = null;
+    this.onDrinkSip = null;
+    this.onDrinkScoop = null;
     this.rummage = 0;
     this.rummageTime = 0;
     this.autoWalk = null;
@@ -737,6 +741,7 @@ export default class PlayerSystem {
     this.restoreBones();
     this.relaxIdle(dt);
     this.reachDown(dt);
+    this.cupDrinkHands(dt);
     this.standTaller(dt);
     this.holdGuard(dt);
     this.reachHip(dt);
@@ -856,7 +861,8 @@ export default class PlayerSystem {
 
   reachDown(dt) {
     if (!this.armNodes || !this.idleNodes || !this.root) return;
-    this.reach = Math.max(0, Math.min(1, this.reach + (this.pickupTimer > 0 ? dt : -dt) / REACH_FADE));
+    const reaching = this.pickupTimer > 0 && !this.drinkState;
+    this.reach = Math.max(0, Math.min(1, this.reach + (reaching ? dt : -dt) / REACH_FADE));
     if (!this.reach) {
       if (this.pickupTimer <= 0) this.reachTarget = null;
       return;
@@ -1214,6 +1220,7 @@ export default class PlayerSystem {
   strike(animKey) {
     this.finishHipSwap();
     this.stopEating();
+    this.stopDrinking();
     this.flinchTimer = 0;
     this.strikeAnim = animKey || this.strikeAnimationForTool();
     const group = this.anims[this.strikeAnim];
@@ -1269,6 +1276,7 @@ export default class PlayerSystem {
     this.finishHipSwap();
     this.finishPocket();
     this.stopEating();
+    this.stopDrinking();
     this.useTimer = 0;
     this.strikeTimer = 0;
     this.flinchTimer = 0;
@@ -1620,6 +1628,7 @@ export default class PlayerSystem {
     const seconds = Number.isFinite(data.seconds) && data.seconds > 0 ? data.seconds : 0.3;
     this.finishHipSwap();
     this.stopEating();
+    this.stopDrinking();
     if (this.strikeTimer > 0) this.endStrike();
     this.autoWalk = null;
     this.dodgeX = dirX / length;
@@ -1725,6 +1734,7 @@ export default class PlayerSystem {
     if (this.dead || !this.ready) return 0;
     this.dead = true;
     this.autoWalk = null;
+    this.drinkState = null;
     this.dodgeTimer = 0;
     this.lying = false;
     this.waking = false;
@@ -1967,8 +1977,8 @@ export default class PlayerSystem {
       const finished = this.anims[this.pickupKey];
       if (finished) finished.pause();
       this.pickupImpactAt = 0;
+      this.nextBlend = this.pickupKey === 'drink' ? DRINK_RISE_BLEND : RISE_BLEND;
       this.pickupKey = 'pickup';
-      this.nextBlend = RISE_BLEND;
     }
     if (this.igniteTimer > 0) {
       this.igniteTimer -= dt;

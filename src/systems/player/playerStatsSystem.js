@@ -1,5 +1,5 @@
 // Stavy postavy — úroveň, zkušenosti, vlastnosti, zdraví, obrana, zbroj, resistity a energie hráče.
-// Čísla bere z katalogu postavy a přičte k nim, co dávají vlastnosti; scéně jen hlásí změnu zdraví, energie a postupu.
+// Čísla bere z katalogu postavy a přičte k nim, co dávají vlastnosti a efekty; scéně jen hlásí změnu zdraví, energie a postupu.
 import { PLAYER_BASE, PLAYER_LEVELS, ATTRIBUTE_KEYS, attributeBonus, startAttributes, xpForNextLevel } from '../../data/catalogs/player.js';
 import { DAMAGE_TYPES, DAMAGE_TYPE_KEYS, clampResistance, damageBreakdown } from '../../data/catalogs/damage.js';
 
@@ -18,6 +18,7 @@ export default class PlayerStatsSystem {
     this.lastHit = null;
     this.immunity = 0;
     this.heals = [];
+    this.mods = { healthRegen: 1, staminaRegen: 1, sprintCost: 1, attack: 0, damage: 0 };
     const stamina = PLAYER_BASE.stamina || {};
     this.sprintDrainPerSecond = this.amount(stamina.sprintPerSecond, 0, 0);
     this.gatherCost = this.amount(stamina.gatherCost, 0, 0);
@@ -50,11 +51,31 @@ export default class PlayerStatsSystem {
     this.baseArmor = this.amount(PLAYER_BASE.armor, 0, 0);
     this.carryWeight = Math.max(0, this.amount(PLAYER_BASE.carryWeight, 0, 0) + (bonus.carry || 0));
     this.resistances = this.readResistances(PLAYER_BASE.resistances, bonus.magicResist || 0);
-    this.combatBonus = { attack: bonus.attack || 0, damage: bonus.damage || 0 };
+    this.attributeCombat = { attack: bonus.attack || 0, damage: bonus.damage || 0 };
+    this.refreshCombatBonus();
     this.sprintResume = this.maxStamina * Math.min(1, this.amount(stamina.sprintResumeShare, 0.2, 0));
     this.setGear(this.gear);
     if (this.health > 0) this.health = Math.max(1, Math.min(this.maxHealth, this.health + this.maxHealth - oldHealth));
     this.stamina = Math.max(0, Math.min(this.maxStamina, this.stamina + this.maxStamina - oldStamina));
+  }
+
+  setModifiers(mods) {
+    const source = mods || {};
+    const factor = (value) => (Number.isFinite(value) && value >= 0 ? value : 1);
+    const extra = (value) => (Number.isFinite(value) ? value : 0);
+    this.mods = {
+      healthRegen: factor(source.healthRegen),
+      staminaRegen: factor(source.staminaRegen),
+      sprintCost: factor(source.sprintCost),
+      attack: extra(source.attack),
+      damage: extra(source.damage),
+    };
+    this.refreshCombatBonus();
+  }
+
+  refreshCombatBonus() {
+    const base = this.attributeCombat || { attack: 0, damage: 0 };
+    this.combatBonus = { attack: base.attack + this.mods.attack, damage: base.damage + this.mods.damage };
   }
 
   xpNeeded() {
@@ -158,7 +179,7 @@ export default class PlayerStatsSystem {
   drainSprint(dt) {
     if (!Number.isFinite(dt) || dt <= 0) return;
     if (this.sprintDrainPerSecond <= 0 || this.stamina <= 0) return;
-    this.stamina = Math.max(0, this.stamina - this.sprintDrainPerSecond * dt);
+    this.stamina = Math.max(0, this.stamina - this.sprintDrainPerSecond * this.mods.sprintCost * dt);
     this.sinceEffort = 0;
     this.refreshSprintLock();
     this.notifyStamina();
@@ -176,7 +197,7 @@ export default class PlayerStatsSystem {
     this.sinceEffort += dt;
     if (this.sinceEffort < this.staminaRegenDelay) return;
     if (this.staminaRegenPerSecond <= 0) return;
-    const next = Math.min(this.maxStamina, this.stamina + this.staminaRegenPerSecond * dt);
+    const next = Math.min(this.maxStamina, this.stamina + this.staminaRegenPerSecond * this.mods.staminaRegen * dt);
     if (next === this.stamina) return;
     this.stamina = next;
     this.refreshSprintLock();
@@ -192,6 +213,14 @@ export default class PlayerStatsSystem {
     this.sinceEffort = 0;
     if (this.onChange) this.onChange(this.health, this.maxHealth);
     return dealt;
+  }
+
+  drain(points) {
+    if (!Number.isFinite(points) || points <= 0 || this.health <= 0) return 0;
+    const lost = Math.min(this.health, points);
+    this.health -= lost;
+    if (this.onChange) this.onChange(this.health, this.maxHealth);
+    return lost;
   }
 
   healOverTime(points, perSecond) {
@@ -230,7 +259,7 @@ export default class PlayerStatsSystem {
     const healed = this.health > 0 ? this.tickHeals(dt) : 0;
     if (this.health <= 0) this.heals = [];
     if (this.health >= this.maxHealth) return;
-    const rate = this.amount(PLAYER_BASE.regenPerSecond, 0, 0);
+    const rate = this.amount(PLAYER_BASE.regenPerSecond, 0, 0) * this.mods.healthRegen;
     if (rate <= 0 && healed <= 0) return;
     const next = Math.min(this.maxHealth, this.health + rate * dt + healed);
     if (next === this.health) return;

@@ -10,9 +10,12 @@ const TOOL_WAIT_MS = 15000;
 const LID_AHEAD = 0.65;
 const HIP_LENGTH = 0.8;
 const TRACKS_START = -1.6;
-const SCENES = ['idle', 'walk', 'run', 'tracks', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway', 'eat', 'use'];
+const SCENES = ['idle', 'walk', 'run', 'tracks', 'strike', 'dodge', 'pickup', 'draw', 'sheath', 'grab', 'putaway', 'eat', 'use', 'drink'];
 const EAT_LENGTH = 1.6;
 const USE_LENGTH = 0.7;
+const DRINK_RISE = 1;
+const DRINK_AHEAD = 0.85;
+const DRINK_DEPTH = 0.02;
 const HIP_SCENES = ['draw', 'sheath', 'grab', 'putaway'];
 
 function rounded(value, digits) {
@@ -164,6 +167,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera, san
       player.useToward(0.4, 2);
       return USE_LENGTH;
     },
+    drink: () => player.drink(new Vector3(0, -(options.depth ?? DRINK_DEPTH), options.ahead ?? DRINK_AHEAD)) + DRINK_RISE,
     draw: () => {
       player.weaponDrawn = true;
       player.setHeldTool(sheathKey, false, true);
@@ -193,7 +197,12 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera, san
     scene.render();
     player.setOffHandTool(null, true);
   }
-  if (scenario === 'eat') await player.prefetchMeal(mealHold);
+  if (scenario === 'eat') {
+    const warm = await player.itemWarmup({ meals: mealHold ? [mealHold] : [] });
+    const meshes = warm.meshes.filter((mesh) => mesh.material && !mesh.isDisposed());
+    await Promise.all(meshes.map((mesh) => mesh.material.forceCompilationAsync(mesh).catch(() => null)));
+    warm.dispose();
+  }
   const action = actions[scenario] || null;
   const lead = action ? options.lead || 0 : 0;
   let seconds = options.seconds || 2;
@@ -204,6 +213,7 @@ export async function runPlayer(options, { scene, canvas, camera, aimCamera, san
     player.dodgeTimer = 0;
     player.dodgeWait = 0;
     player.stopEating();
+    player.stopDrinking();
     player.useTimer = 0;
     player.play(player.idleAnim(), true);
     seconds = options.seconds || lead + length + (lead ? 0.5 : 0.2);

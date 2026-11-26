@@ -85,7 +85,6 @@ export default class OptionsPanel {
 
   constructor() {
     this.root = null;
-    this.button = null;
     this.values = { ...OPTION_DEFAULTS };
     this.onChange = null;
     this.onToggle = null;
@@ -93,22 +92,7 @@ export default class OptionsPanel {
     this.tab = TABS[0].key;
   }
 
-  mountButton() {
-    const host = document.getElementById('hud-bar');
-    if (this.button || !host) return;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'hud-bar__btn hud-bar__btn--options';
-    button.title = 'Možnosti (O)';
-    button.textContent = '⚙ Možnosti';
-    button.addEventListener('mousedown', (evt) => evt.preventDefault());
-    host.appendChild(button);
-    button.addEventListener('click', () => this.toggle());
-    this.button = button;
-  }
-
   mount() {
-    this.mountButton();
     if (this.root) return this.root;
     const root = document.createElement('div');
     root.className = 'options-panel';
@@ -276,20 +260,13 @@ export default class OptionsPanel {
     if (!this.root || this.isOpen) return;
     for (const prop of ['left', 'top', 'right', 'bottom', 'transform']) this.root.style[prop] = '';
     this.root.classList.add('is-open');
-    if (this.button) this.button.classList.add('is-open');
     if (this.onToggle) this.onToggle(true);
   }
 
   hide() {
     if (!this.isOpen) return;
     this.root.classList.remove('is-open');
-    if (this.button) this.button.classList.remove('is-open');
     if (this.onToggle) this.onToggle(false);
-  }
-
-  setButtonVisible(visible) {
-    if (!this.button) return;
-    this.button.classList.toggle('is-hidden', !visible);
   }
 
   toggle() {

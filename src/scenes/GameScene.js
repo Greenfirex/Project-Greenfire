@@ -36,6 +36,7 @@ import NavigationSystem, { WADE_DEPTH } from '../systems/core/navigationSystem.j
 import InputSystem from '../systems/core/inputSystem.js';
 import PlayerSystem, { STEP_LIMIT, PLAYER_EYE_HEIGHT } from '../systems/player/playerSystem.js';
 import PlayerStatsSystem from '../systems/player/playerStatsSystem.js';
+import SurvivalSystem from '../systems/player/survivalSystem.js';
 import InteractionSystem from '../systems/core/interactionSystem.js';
 import PlayerAttackSystem from '../systems/player/playerAttackSystem.js';
 import SaveSystem from '../systems/core/saveSystem.js';
@@ -63,6 +64,7 @@ import Hud from '../ui/hud.js';
 import GameCursor from '../ui/gameCursor.js';
 import Hotbar from '../ui/hotbar.js';
 import VitalsBar from '../ui/vitalsBar.js';
+import EffectsBar from '../ui/effectsBar.js';
 import XpBar from '../ui/xpBar.js';
 import HoverHint from '../ui/hoverHint.js';
 import CreatureHealthBar from '../ui/creatureHealthBar.js';
@@ -71,7 +73,6 @@ import DockButton from '../ui/dockButton.js';
 import { PANEL_ICONS } from '../ui/panelIcons.js';
 import { fitHud } from '../ui/hudFit.js';
 import MapEditor from '../editor/mapEditor.js';
-import EditorToggle from '../editor/editorToggle.js';
 import PauseScreen from '../ui/pauseScreen.js';
 import DeathScreen from '../ui/deathScreen.js';
 import Dialog from '../ui/dialog.js';
@@ -106,6 +107,7 @@ import sceneEquipmentParts from './sceneEquipment.js';
 import sceneCraftingParts from './sceneCrafting.js';
 import sceneFoodParts from './sceneFood.js';
 import sceneProgressParts from './sceneProgress.js';
+import sceneSurvivalParts from './sceneSurvival.js';
 import sceneSaveParts from './sceneSave.js';
 import sceneReloadParts from './sceneReload.js';
 
@@ -237,6 +239,8 @@ export default class GameScene {
     this.playerSystem.onLightSource = fireSource;
     this.fireLights.castersNear = (source) => this.fireCastersNear(source);
     this.playerStats = new PlayerStatsSystem();
+    this.survival = new SurvivalSystem();
+    this.drink = null;
     this.playerAttackSystem = new PlayerAttackSystem();
     this.playerAttackSystem.footHeightOf = (creature) => this.creatureSystem.footY(creature);
     this.playerAttackSystem.candidates = () => this.attackCandidates();
@@ -288,6 +292,7 @@ export default class GameScene {
     this.lootWindow = new LootWindow();
     this.lootSource = null;
     this.vitalsBar = new VitalsBar();
+    this.effectsBar = new EffectsBar();
     this.xpBar = new XpBar();
     this.hoverHint = new HoverHint();
     this.creatureHealthBar = new CreatureHealthBar();
@@ -297,7 +302,6 @@ export default class GameScene {
     this.editor = new MapEditor(this);
     this.optionsPanel = new OptionsPanel();
     this.busyNotice = new BusyNotice();
-    this.editorToggle = new EditorToggle();
     this.pauseScreen = new PauseScreen();
     this.deathScreen = new DeathScreen();
     this.dialog = new Dialog();
@@ -346,6 +350,10 @@ export default class GameScene {
     this.playerStats.onStamina = (stamina, maxStamina) => this.vitalsBar.setStamina(stamina, maxStamina);
     this.playerStats.onExhausted = () => this.audioSystem.play('outOfBreath');
     this.playerStats.onProgress = () => this.refreshProgress();
+    this.survival.onNeeds = (hunger, thirst, max) => this.vitalsBar.setNeeds(hunger, thirst, max);
+    this.survival.onEffects = () => this.applyEffects();
+    this.playerSystem.onDrinkSip = () => this.sipWater();
+    this.playerSystem.onDrinkScoop = () => this.splashDrink();
     this.unlockAudio = () => {
       this.audioSystem.unlock();
       this.audioSystem.startAmbient();
@@ -433,7 +441,7 @@ export default class GameScene {
     this.setupHud();
     this.setupOptions();
     this.setupInput();
-    this.setupEditorToggle();
+    this.setupPauseScreen();
     this.registerHudEvents();
     this.loader.logPhase('Stavby, simulace a rozhraní');
 
@@ -492,6 +500,7 @@ export default class GameScene {
       this.sandBursts.update(dt);
       this.updateGathering(dt);
       this.updateMeal(dt);
+      this.updateDrink();
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
       this.campfireSystem.update(dt, root, this.playerSystem.level);
@@ -568,7 +577,6 @@ export default class GameScene {
     this.loaded = true;
     this.s.loaded = true;
     this.s.paused = false;
-    this.optionsPanel.setButtonVisible(true);
     this.toasts.release();
     if (this.saveHintAfterLoad) {
       const notice = this.saveHintAfterLoad;
@@ -719,7 +727,7 @@ export default class GameScene {
   }
 
   hintTarget(cell) {
-    for (const id of ['gather', 'loot', 'door', 'station', 'campfire']) {
+    for (const id of ['gather', 'loot', 'door', 'station', 'campfire', 'drink']) {
       const target = this.interaction.targetOf(id, { cell });
       if (target) return target;
     }
@@ -919,6 +927,11 @@ export default class GameScene {
         };
       },
       act: (target) => this.openLoot(target.ref),
+    });
+    this.interaction.register('drink', {
+      priority: 10,
+      pick: ({ cell }) => this.drinkTarget(cell),
+      act: (target) => this.startDrink(target),
     });
   }
 
@@ -1183,7 +1196,6 @@ export default class GameScene {
     this.applyOptions();
     this.optionsPanel.mount();
     this.optionsPanel.render();
-    this.optionsPanel.setButtonVisible(false);
     this.optionsPanel.onChange = (values) => {
       this.storeOptions(values);
       this.autoScale = 1;
@@ -1198,13 +1210,13 @@ export default class GameScene {
     });
   }
 
-  setupEditorToggle() {
-    this.editorToggle.onToggle = () => this.toggleEditorMode();
-    this.editorToggle.mount();
-    this.editorToggle.setActive(this.editor.active);
+  setupPauseScreen() {
     this.pauseScreen.onResume = () => this.togglePause();
     this.pauseScreen.onSave = () => this.openSaveSlots('save');
     this.pauseScreen.onLoad = () => this.openSaveSlots('load');
+    this.pauseScreen.onOptions = () => this.optionsPanel.show();
+    this.pauseScreen.onHelp = () => this.hud.toggleHelp();
+    this.pauseScreen.onEditor = () => this.toggleEditorMode();
     this.pauseScreen.onMenu = () => this.askReturnToMenu();
     this.pauseScreen.mount();
     this.pauseScreen.setSpeed(this.simSystem.speed);
@@ -1311,6 +1323,7 @@ export default class GameScene {
       this.updateHarvestRespawns();
       this.creatureSystem.tick(tick, this.simSystem.time);
       this.playerStats.tick(tick, this.playerSystem.sprinting);
+      this.tickSurvival(tick);
     });
     this.refreshClock();
     this.hud.setClockSpeed(false, this.simSystem.speed);
@@ -1514,8 +1527,9 @@ export default class GameScene {
 
   setupHud() {
     this.hud.onSpeed = (speed) => this.setSimSpeed(speed);
-    this.hud.onSave = () => this.openSaveSlots('save');
-    this.hud.onLoad = () => this.openSaveSlots('load');
+    this.hud.onMenu = () => {
+      if (this.loaded && !this.dying) this.togglePause();
+    };
     this.hud.mount();
     this.hotbar.mount();
     this.hotbar.onSelect = (key) => this.selectTool(key);
@@ -1580,7 +1594,8 @@ export default class GameScene {
     this.characterPanel.onSpendPoint = (key) => this.spendAttributePoint(key);
     this.vitalsBar.setHealth(this.playerStats.health, this.playerStats.maxHealth);
     this.vitalsBar.setStamina(this.playerStats.stamina, this.playerStats.maxStamina);
-    this.refreshProgress();
+    this.vitalsBar.setNeeds(this.survival.hunger, this.survival.thirst, this.survival.max);
+    this.applyEffects();
     this.creatureHealthBar.mount();
     this.log.mount();
     this.toasts.onShow = () => this.audioSystem.play('notice');
@@ -1662,6 +1677,9 @@ export default class GameScene {
       maxHealth: this.playerStats.maxHealth,
       stamina: this.playerStats.stamina,
       maxStamina: this.playerStats.maxStamina,
+      hunger: this.survival.hunger,
+      thirst: this.survival.thirst,
+      maxNeed: this.survival.max,
       ...this.playerAttackSystem.weaponStats(weapon ? weapon.tool : null),
       defense: this.playerStats.defense,
       armor: this.playerStats.armor,
@@ -1762,6 +1780,7 @@ export default class GameScene {
     this.registerSavedState(this.playerSystem, 'player', 5);
     this.registerSavedState(this.heldItemSystem, 'heldItem', 7);
     this.registerSavedState(this.playerStats, 'playerStats', 8);
+    this.registerSavedState(this.survival, 'survival', 9);
     this.registerSavedState(this.buildingSystem, 'doors', 11);
     this.registerSavedState(this.campfireSystem, 'campfires', 12);
     this.registerSavedState(this.stationSystem, 'stations', 12);
@@ -1830,14 +1849,18 @@ export default class GameScene {
 
   holdGameForOptions(open) {
     if (open) {
+      if (this.paused) this.pauseScreen.hide();
       if (this.paused || this.editor.active) return;
       this.optionsPaused = true;
       this.setPaused(true);
       return;
     }
-    if (!this.optionsPaused) return;
-    this.optionsPaused = false;
-    this.setPaused(false);
+    if (this.optionsPaused) {
+      this.optionsPaused = false;
+      this.setPaused(false);
+      return;
+    }
+    if (this.paused && !this.editor.active) this.pauseScreen.show();
   }
 
   setPaused(on) {
@@ -1929,11 +1952,13 @@ export default class GameScene {
       return;
     }
     if (this.paused) {
-      if (evt.key !== 'Escape') evt.preventDefault();
+      evt.preventDefault();
+      if (evt.key === 'Escape' && !evt.repeat) this.togglePause();
       return;
     }
-    if (evt.key === 'Escape' && this.closeOpenWindows()) {
+    if (evt.key === 'Escape') {
       evt.preventDefault();
+      if (!this.closeOpenWindows() && !evt.repeat) this.togglePause();
       return;
     }
     if ((evt.key === 'o' || evt.key === 'O') && !typing) {
@@ -2255,4 +2280,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSaveParts, sceneReloadParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSurvivalParts, sceneSaveParts, sceneReloadParts);

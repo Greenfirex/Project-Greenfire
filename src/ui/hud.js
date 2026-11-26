@@ -1,5 +1,5 @@
 // DOM HUD — panely s ovládáním a stavem. Nad canvasem, do scény sahá jen callbacky.
-// Tlačítka vlevo nahoře jsou sbalená pod jedním tlačítkem Menu; po volbě nebo kliknutí jinam se sbalí.
+// Tlačítko Menu vlevo nahoře otevře pauzu, kde jsou uložení, možnosti, ovládání i editor.
 import { SIM_SPEEDS } from '../systems/core/simSystem.js';
 
 export default class Hud {
@@ -8,11 +8,6 @@ export default class Hud {
     this.layer = document.getElementById('hud-layer');
     this.menuEl = null;
     this.menuToggle = null;
-    this.menuOpen = false;
-    this.barEl = null;
-    this.helpToggle = null;
-    this.saveBtn = null;
-    this.loadBtn = null;
     this.helpOpen = false;
     this.helpEl = null;
     this.clockEl = null;
@@ -20,8 +15,7 @@ export default class Hud {
     this.clockPhaseEl = null;
     this.clockSpeedEl = null;
     this.speedBtns = new Map();
-    this.onSave = null;
-    this.onLoad = null;
+    this.onMenu = null;
     this.onSpeed = null;
   }
 
@@ -33,37 +27,13 @@ export default class Hud {
     this.menuToggle = document.createElement('button');
     this.menuToggle.type = 'button';
     this.menuToggle.className = 'hud-bar__btn hud-menu__toggle';
-    this.menuToggle.title = 'Menu';
+    this.menuToggle.title = 'Menu a pauza (Esc)';
     this.menuToggle.textContent = '☰ Menu';
     this.menuToggle.addEventListener('mousedown', (evt) => evt.preventDefault());
-    this.menuToggle.addEventListener('click', () => this.setMenuOpen(!this.menuOpen));
+    this.menuToggle.addEventListener('click', () => {
+      if (this.onMenu) this.onMenu();
+    });
     this.menuEl.appendChild(this.menuToggle);
-
-    this.barEl = document.createElement('div');
-    this.barEl.className = 'hud-bar';
-    this.barEl.id = 'hud-bar';
-    this.barEl.addEventListener('click', (evt) => {
-      if (evt.target.closest('.hud-bar__btn')) this.setMenuOpen(false);
-    });
-    this.menuEl.appendChild(this.barEl);
-    document.addEventListener('pointerdown', (evt) => {
-      if (this.menuOpen && !this.menuEl.contains(evt.target)) this.setMenuOpen(false);
-    }, true);
-
-    this.helpToggle = document.createElement('button');
-    this.helpToggle.type = 'button';
-    this.helpToggle.className = 'hud-bar__btn hud-bar__btn--help';
-    this.helpToggle.title = 'Nápověda (F1)';
-    this.helpToggle.textContent = '❔ Ovládání';
-    this.helpToggle.addEventListener('click', () => this.toggleHelp());
-    this.barEl.appendChild(this.helpToggle);
-
-    this.saveBtn = this.createBarButton('💾 Uložit', 'Uložit hru do pozice (rychlé uložení: F5)', 'save', () => {
-      if (this.onSave) this.onSave();
-    });
-    this.loadBtn = this.createBarButton('📂 Načíst', 'Načíst uloženou hru (rychlé načtení: F9)', 'load', () => {
-      if (this.onLoad) this.onLoad();
-    });
 
     this.helpEl = document.createElement('div');
     this.helpEl.className = 'hud-panel';
@@ -78,7 +48,7 @@ export default class Hud {
       <div class="hud-row"><span>Mřížka</span><span class="hud-key">G</span></div>
       <div class="hud-row"><span>Posunout čas</span><span class="hud-key">N</span></div>
       <div class="hud-row"><span>Editor mapy</span><span class="hud-key">F2</span></div>
-      <div class="hud-row"><span>Zrušit výběr</span><span class="hud-key">Esc</span></div>
+      <div class="hud-row"><span>Menu a pauza</span><span class="hud-key">Esc</span></div>
       <div class="hud-row"><span>Rychlé uložení</span><span class="hud-key">F5</span></div>
       <div class="hud-row"><span>Rychlé načtení</span><span class="hud-key">F9</span></div>
       <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
@@ -121,23 +91,6 @@ export default class Hud {
     this.clockFlashTimer = 0;
   }
 
-  createBarButton(label, title, slot, onClick) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `hud-bar__btn hud-bar__btn--${slot}`;
-    btn.title = title;
-    btn.textContent = label;
-    btn.addEventListener('click', onClick);
-    this.barEl.appendChild(btn);
-    return btn;
-  }
-
-  setMenuOpen(open) {
-    this.menuOpen = Boolean(open);
-    this.menuEl.classList.toggle('is-open', this.menuOpen);
-    this.menuToggle.classList.toggle('is-open', this.menuOpen);
-  }
-
   toggleHelp() {
     this.setHelpOpen(!this.helpOpen);
   }
@@ -145,7 +98,6 @@ export default class Hud {
   setHelpOpen(open) {
     this.helpOpen = Boolean(open);
     if (this.helpEl) this.helpEl.classList.toggle('is-open', this.helpOpen);
-    if (this.helpToggle) this.helpToggle.classList.toggle('is-open', this.helpOpen);
   }
 
   setClockText(text) {

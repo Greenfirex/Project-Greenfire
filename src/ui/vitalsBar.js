@@ -1,4 +1,4 @@
-// Proužky stavu postavy — zdraví a energie vedle sebe nad lištou nástrojů a červené bliknutí při zásahu.
+// Proužky stavu postavy — zdraví a energie, pod nimi sytost a voda nad lištou nástrojů, a červené bliknutí při zásahu.
 // Sám nic nepočítá — dostane hodnoty s maximem, nebo pokyn bliknout.
 import { dockArea } from './dock.js';
 
@@ -13,6 +13,7 @@ export default class VitalsBar {
     this.flashEl = null;
     this.lastHealthText = '';
     this.lastStaminaText = '';
+    this.needs = {};
   }
 
   mount() {
@@ -35,6 +36,20 @@ export default class VitalsBar {
           <span class="hud-vitals__value hud-vitals__value--stamina"></span>
         </div>
       </div>
+      <div class="hud-vitals__group hud-vitals__group--need" title="Sytost">
+        <span class="hud-vitals__icon hud-vitals__icon--hunger">🍖</span>
+        <div class="hud-vitals__bar">
+          <div class="hud-vitals__fill hud-vitals__fill--hunger"></div>
+          <span class="hud-vitals__value hud-vitals__value--hunger"></span>
+        </div>
+      </div>
+      <div class="hud-vitals__group hud-vitals__group--need" title="Voda">
+        <span class="hud-vitals__icon hud-vitals__icon--thirst">💧</span>
+        <div class="hud-vitals__bar">
+          <div class="hud-vitals__fill hud-vitals__fill--thirst"></div>
+          <span class="hud-vitals__value hud-vitals__value--thirst"></span>
+        </div>
+      </div>
     `;
     dockArea('center').prepend(root);
     this.root = root;
@@ -42,6 +57,13 @@ export default class VitalsBar {
     this.healthValue = root.querySelector('.hud-vitals__value--health');
     this.staminaFill = root.querySelector('.hud-vitals__fill--stamina');
     this.staminaValue = root.querySelector('.hud-vitals__value--stamina');
+    for (const key of ['hunger', 'thirst']) {
+      this.needs[key] = {
+        fill: root.querySelector(`.hud-vitals__fill--${key}`),
+        value: root.querySelector(`.hud-vitals__value--${key}`),
+        text: '',
+      };
+    }
     const flash = document.createElement('div');
     flash.className = 'hud-damage-flash';
     layer.appendChild(flash);
@@ -69,6 +91,21 @@ export default class VitalsBar {
     if (text === this.lastStaminaText) return;
     this.lastStaminaText = text;
     this.staminaValue.textContent = text;
+  }
+
+  setNeeds(hunger, thirst, max) {
+    this.mount();
+    this.setNeed(this.needs.hunger, hunger, max);
+    this.setNeed(this.needs.thirst, thirst, max);
+  }
+
+  setNeed(need, amount, max) {
+    const { value, top } = this.measure(amount, max);
+    need.fill.style.width = `${((value / top) * 100).toFixed(1)}%`;
+    const text = `${Math.ceil(value)} / ${Math.round(top)}`;
+    if (text === need.text) return;
+    need.text = text;
+    need.value.textContent = text;
   }
 
   setVisible(visible) {

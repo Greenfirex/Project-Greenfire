@@ -717,6 +717,7 @@ export default {
     if (!this.loaded || this.paused || this.dying) return 0;
     const dealt = this.playerStats.hurt(amount, damageType);
     if (!dealt) return 0;
+    this.playerSystem.stopDrinking();
     this.audioSystem.play(crit ? 'hurtCrit' : 'hurt');
     if (this.playerStats.health > 0) this.audioSystem.play('playerHurt');
     if (this.options.cameraShake && crit) this.cameraSystem.shake(0.28, 0.32);
@@ -799,6 +800,7 @@ export default {
     const spawn = this.mapLayout && this.mapLayout.spawn ? this.mapLayout.spawn : null;
     const spot = spawn ? cellToWorldCoords(spawn.cx, spawn.cz) : null;
     this.playerStats.resurrect();
+    this.survival.revive();
     this.sheathWeapon('instant');
     this.playerSystem.revive(spot ? spot.x : null, spot ? spot.z : null);
     this.audioSystem.play('wakeUp');

@@ -68,7 +68,7 @@ export const ITEM_TYPES = {
     stackSize: 100,
     weight: 0.1,
     kind: 'raw',
-    food: { heal: 5, perSecond: 1, hold: { decoration: 'mushroom_red', scale: 0.25, grip: 0.2, thickness: 0.012 } },
+    food: { heal: 5, perSecond: 1, hunger: 8, hold: { decoration: 'mushroom_red', scale: 0.25, grip: 0.2, thickness: 0.012 } },
     color: [0.78, 0.55, 0.42],
   },
   coconut: {
@@ -79,6 +79,7 @@ export const ITEM_TYPES = {
     stackSize: 20,
     weight: 0.8,
     kind: 'raw',
+    food: { heal: 2, perSecond: 1, hunger: 8, thirst: 35, hold: { decoration: 'coconut', scale: 0.3, palm: true, curl: -1.2 } },
     color: [0.5, 0.33, 0.18],
   },
   palm_leaf: {
@@ -190,7 +191,7 @@ export const ITEM_TYPES = {
     stackSize: 20,
     weight: 0.4,
     kind: 'product',
-    food: { heal: 20, perSecond: 2, hold: { model: `${ASSET_DIRS.props}meat/meat_cooked.glb`, scale: 0.11, grip: 0.0, thickness: 0.014 } },
+    food: { heal: 20, perSecond: 2, hunger: 35, hold: { model: `${ASSET_DIRS.props}meat/meat_cooked.glb`, scale: 0.11, grip: 0.0, thickness: 0.014 } },
     color: [0.55, 0.3, 0.16],
   },
   cooked_egg: {
@@ -200,7 +201,7 @@ export const ITEM_TYPES = {
     stackSize: 10,
     weight: 0.35,
     kind: 'product',
-    food: { heal: 12, perSecond: 1.5, hold: { decoration: 'koa_egg', scale: 0.27, palm: true, curl: -1.2, turn: 0.5, thumbward: 0.015, at: 0.72 } },
+    food: { heal: 12, perSecond: 1.5, hunger: 20, thirst: 3, hold: { decoration: 'koa_egg', scale: 0.27, palm: true, curl: -1.2, turn: 0.5, thumbward: 0.015, at: 0.72 } },
     color: [0.78, 0.7, 0.5],
   },
   turtle_shell: {

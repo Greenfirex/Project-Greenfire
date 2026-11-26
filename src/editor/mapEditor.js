@@ -341,7 +341,6 @@ export default class MapEditor {
       this.hidePanels();
     }
     this.syncPanels(this.mode.mode);
-    this.s.editorToggle.setActive(Boolean(active));
     if (active) this.hud.setWater(this.mode.getWaterLevel(), this.mode.waterShown);
     this.refreshCreatureMarks();
   }

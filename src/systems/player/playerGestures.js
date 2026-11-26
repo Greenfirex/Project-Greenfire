@@ -1,6 +1,6 @@
 // Část hratelné postavy: drobné pohyby rukou nad animací. Jídlo: levá ruka donese jídlo k puse
 // a zase ho spustí, i za chůze. Pochodeň z levé ruky předtím zandá k boku a po jídle ji zase vytáhne.
-// Použití věci: pravá ruka máchne před sebe.
+// Použití věci: pravá ruka máchne před sebe. Pití: animace kleknutí a napití z dlaní, ruce při nabírání sáhnou až na hladinu.
 // Patří k PlayerSystem (sdílí jeho this); jen ho dělí, aby hlavní soubor zůstal přehledný.
 import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { getDecoration } from '../../data/catalogs/decorations.js';
@@ -30,6 +30,14 @@ const USE_REACH = 0.98;
 const USE_DROP = 0.04;
 const USE_ELBOW_OUT = 0.5;
 const USE_CURL = 0.35;
+const DRINK_ENTER_BLEND = 0.025;
+const DRINK_SIP_AT = 3.0;
+const DRINK_SCOOP = [0.1, 0.5, 1.6, 2.2];
+const DRINK_SPREAD = 0.06;
+const DRINK_ELBOW_OUT = 0.6;
+const DRINK_CURL = 0.4;
+const DRINK_DIP = 0.03;
+const DRINK_LEAN = 0.6;
 
 function mealModel(hold) {
   if (!hold) return null;
@@ -105,6 +113,7 @@ export default {
 
   tickGestures(dt) {
     if (this.useTimer > 0) this.useTimer = Math.max(0, this.useTimer - dt);
+    this.tickDrink(dt);
     if (this.eatTimer <= 0) return;
     this.eatClock += dt;
     this.eatTimer -= dt;
@@ -360,5 +369,86 @@ export default {
     const point = shoulder.add(toward.scale(arm * USE_REACH)).add(Vector3.Down().scale(arm * USE_DROP));
     const pole = Vector3.Down().add(this.weaponSideOut(forward).scale(USE_ELBOW_OUT));
     this.reachPoint(this.armNodes, point, pole, { curl: USE_CURL }, null, weight);
+  },
+
+  drink(water) {
+    if (!this.ready || this.dead || this.lying || !this.armNodes || !this.root || !water || !this.anims.drink) return 0;
+    if (this.strikeTimer > 0 || this.pickupTimer > 0 || this.igniteTimer > 0) return 0;
+    if (this.dodgeTimer > 0 || this.flinchTimer > 0 || this.mealStage) return 0;
+    this.finishHipSwap();
+    this.finishPocket();
+    this.useTimer = 0;
+    this.faceTo(water.x, water.z);
+    const length = this.animLength('drink', 0);
+    if (!length) return 0;
+    this.pickupKey = 'drink';
+    this.pickupTimer = length;
+    this.pickupImpactAt = 0;
+    this.nextBlend = DRINK_ENTER_BLEND;
+    this.play('drink', true, false);
+    this.drinkState = { water: water.clone(), clock: 0, scooped: false, sipped: false };
+    return length;
+  },
+
+  drinking() {
+    return Boolean(this.drinkState);
+  },
+
+  stopDrinking() {
+    if (!this.drinkState) return;
+    this.drinkState = null;
+    if (this.pickupKey === 'drink' && this.pickupTimer > 0) this.pickupTimer = Math.min(this.pickupTimer, 1e-4);
+  },
+
+  drinkClip() {
+    const group = this.anims.drink;
+    return this.drinkState ? this.drinkState.clock * ((group && group.speedRatio) || 1) : 0;
+  },
+
+  tickDrink(dt) {
+    const state = this.drinkState;
+    if (!state) return;
+    if (this.dead || this.pickupKey !== 'drink' || this.pickupTimer <= 0) {
+      this.drinkState = null;
+      return;
+    }
+    if (this.wantsMove()) {
+      this.stopDrinking();
+      return;
+    }
+    state.clock += dt;
+    if (!state.scooped && this.drinkClip() >= DRINK_SCOOP[1]) {
+      state.scooped = true;
+      if (this.onDrinkScoop) this.onDrinkScoop();
+    }
+    if (state.sipped || this.drinkClip() < DRINK_SIP_AT) return;
+    state.sipped = true;
+    if (this.onDrinkSip) this.onDrinkSip();
+  },
+
+  scoopWeight() {
+    const [start, full, hold, end] = DRINK_SCOOP;
+    const time = this.drinkClip();
+    if (time <= start || time >= end) return 0;
+    const ease = (value) => 0.5 - 0.5 * Math.cos(Math.PI * clamp01(value));
+    if (time < full) return ease((time - start) / (full - start));
+    if (time <= hold) return 1;
+    return ease((end - time) / (end - hold));
+  },
+
+  cupDrinkHands() {
+    const state = this.drinkState;
+    if (!state || !this.leftArm || !this.armNodes || !this.idleNodes) return;
+    const weight = this.scoopWeight();
+    if (!weight) return;
+    const forward = new Vector3(Math.sin(this.bodyFacing), 0, Math.cos(this.bodyFacing));
+    const right = this.weaponSideOut(forward);
+    const bendAxis = new Vector3(forward.z, 0, -forward.x);
+    for (const node of this.idleNodes.spine) this.turnBone(node, bendAxis, DRINK_LEAN * weight / this.idleNodes.spine.length);
+    const water = state.water.add(Vector3.Down().scale(DRINK_DIP));
+    for (const [arm, side] of [[this.leftArm, -1], [this.armNodes, 1]]) {
+      const pole = Vector3.Down().add(right.scale(side * DRINK_ELBOW_OUT));
+      this.reachPoint(arm, water.add(right.scale(side * DRINK_SPREAD)), pole, { curl: side * DRINK_CURL }, null, weight);
+    }
   },
 };

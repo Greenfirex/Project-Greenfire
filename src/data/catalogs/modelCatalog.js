@@ -11,7 +11,7 @@ import { grassStartupUrls } from './grass.js';
 const CHARACTER_DIR = `${ASSET_DIRS.characters}castaway/`;
 
 export const PLAYER_MODEL = `${CHARACTER_DIR}castaway.glb`;
-export const PLAYER_ANIMS = [`${CHARACTER_DIR}castaway_combat.glb`, `${CHARACTER_DIR}castaway_double.glb`];
+export const PLAYER_ANIMS = [`${CHARACTER_DIR}castaway_combat.glb`, `${CHARACTER_DIR}castaway_double.glb`, `${CHARACTER_DIR}castaway_drink.glb`];
 export const PLAYER_ASSET_URLS = [PLAYER_MODEL, ...PLAYER_ANIMS];
 
 export const PLAYER_BASE_HEIGHT = 1.7;
@@ -82,6 +82,7 @@ export const PLAYER_ANIM_LIBRARY = {
   rollDodge: 'Roll_Dodge_2',
   standUp1: 'Stand_Up1',
   drink: 'Stand_and_Drink',
+  scoopWater: 'Scoop_Water',
   dyingBackwards: 'dying_backwards',
 };
 
@@ -105,6 +106,7 @@ export const PLAYER_ANIM_NAMES = {
   holdTool: PLAYER_ANIM_LIBRARY.idle11,
   ignite: PLAYER_ANIM_LIBRARY.collectObject,
   pickup: PLAYER_ANIM_LIBRARY.collectObject,
+  drink: PLAYER_ANIM_LIBRARY.scoopWater,
   combatStance: PLAYER_ANIM_LIBRARY.combatStance,
   getUp: PLAYER_ANIM_LIBRARY.standUp1,
   flinch: PLAYER_ANIM_LIBRARY.facePunch,
@@ -144,6 +146,7 @@ export const PLAYER_ANIM_RANGES = {
   spin: { start: 0.1, end: 1.6 },
   roll: { start: 0.4, end: 1.8 },
   pickup: { start: 0, end: 1.05 },
+  drink: { start: 0, end: 4.0 },
   flinch: { start: 0.0, end: 1.0 },
 };
 

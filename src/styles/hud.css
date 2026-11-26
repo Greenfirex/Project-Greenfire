@@ -139,27 +139,12 @@
   filter: brightness(1.25) drop-shadow(0 0 4px rgba(63, 212, 131, 0.7));
 }
 
-/* Menu nahoře vlevo — tlačítko Menu a pod ním sbalený sloupec: ovládání, editor, ukládání, načtení a možnosti. */
+/* Tlačítko Menu nahoře vlevo — otevře pauzu. Nápověda Ovládání leží i nad ztmavením pauzy. */
 .hud-menu {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 12;
-}
-
-.hud-bar {
-  position: absolute;
-  top: 40px;
-  left: 0;
-  display: none;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  min-width: 140px;
-}
-
-.hud-menu.is-open .hud-bar {
-  display: flex;
 }
 
 .hud-bar__btn {
@@ -169,22 +154,12 @@
   line-height: 1;
 }
 
-.hud-bar__btn.is-hidden {
-  display: none;
-}
-
-.hud-bar__btn--help { order: 1; }
-.hud-bar__btn--editor { order: 2; }
-.hud-bar__btn--save { order: 3; }
-.hud-bar__btn--load { order: 4; }
-.hud-bar__btn--options { order: 5; }
-
 #hud-help {
   display: none;
   top: 52px;
   left: 12px;
   max-width: 240px;
-  z-index: 11;
+  z-index: 41;
 }
 
 #hud-help.is-open {
@@ -1186,6 +1161,14 @@
 
 .stat-bar--stamina .stat-bar__fill {
   background: linear-gradient(to right, #9a6a2c, #e0a458);
+}
+
+.stat-bar--hunger .stat-bar__fill {
+  background: linear-gradient(to right, #7a5a2a, #c89a52);
+}
+
+.stat-bar--thirst .stat-bar__fill {
+  background: linear-gradient(to right, #2a5f8a, #6fb4e0);
 }
 
 .stat-bar--xp .stat-bar__fill {
@@ -2862,8 +2845,9 @@ body.has-custom-cursor * {
 .hud-vitals {
   order: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   padding: 0 14px;
   pointer-events: none;
 }
@@ -2873,7 +2857,7 @@ body.has-custom-cursor * {
 }
 
 .hud-vitals__group {
-  flex: 1;
+  flex: 1 1 calc(50% - 10px);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -2916,6 +2900,88 @@ body.has-custom-cursor * {
 
 .hud-vitals__fill--stamina {
   background: var(--glow-warm);
+}
+
+.hud-vitals__group--need .hud-vitals__bar {
+  height: 10px;
+  border-radius: 5px;
+}
+
+.hud-vitals__group--need .hud-vitals__value {
+  font-size: 8px;
+}
+
+.hud-vitals__icon--hunger,
+.hud-vitals__icon--thirst {
+  font-size: 9px;
+}
+
+.hud-vitals__fill--hunger {
+  background: #c89a52;
+}
+
+.hud-vitals__fill--thirst {
+  background: #5aa6dc;
+}
+
+.hud-effects {
+  order: -1;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 14px;
+  pointer-events: auto;
+}
+
+.hud-effects__icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(201, 162, 94, 0.55);
+  border-radius: 4px;
+  cursor: default;
+}
+
+.hud-effects__icon.is-buff {
+  border-color: rgba(63, 212, 131, 0.8);
+}
+
+.hud-effects__icon.is-debuff {
+  border-color: rgba(224, 90, 80, 0.85);
+}
+
+.hud-effects__tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 5;
+  width: 200px;
+  padding: 6px 8px;
+  transform: translateX(-50%);
+  background: rgba(16, 14, 12, 0.94);
+  border: 1px solid rgba(201, 162, 94, 0.55);
+  border-radius: 4px;
+  color: #f1e6cf;
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.hud-effects__tip.is-hidden {
+  display: none;
+}
+
+.hud-effects__tip strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--title-gold);
 }
 
 .hud-vitals.is-low-health .hud-vitals__fill--health {

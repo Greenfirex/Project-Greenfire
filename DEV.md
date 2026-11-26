@@ -174,10 +174,11 @@ Tlačítka oken (`DockButton` s písmenem klávesy) jsou ve svislém pruhu u pra
 uprostřed místa mezi hodinami a panelem vpravo dole; v nízkém okně se tlačítka zmenší (`flex-shrink`
 s `aspect-ratio`, nejméně 24 px), obal pruhu kliknutí propouští. Panel připnutého tvora stojí vlevo od pruhu. Ikony jsou kresba jednou linkou
 (`src/ui/panelIcons.js`, barvu berou z textu tlačítka); pozadí tlačítka řídí volba Průhlednost panelů (`panelTransparency`, CSS `--panel-backdrop`) stejně
-jako rámeček logu, panelu vpravo dole, hodin a lišty nástrojů; ve výchozím stavu jsou vidět jen obsah a ikony. Tlačítka vlevo nahoře
-(ovládání, editor, uložit, načíst, možnosti) jsou sbalená pod tlačítkem Menu (`hud.js`); sloupec
-má dál `id="hud-bar"`, takže editor i Možnosti si do něj vkládají tlačítko stejně jako dřív.
-Po volbě nebo kliknutí mimo se sbalí. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
+jako rámeček logu, panelu vpravo dole, hodin a lišty nástrojů; ve výchozím stavu jsou vidět jen obsah a ikony. Tlačítko Menu
+vlevo nahoře (`hud.js`, `onMenu`) i Esc otevřou pauzu (`pauseScreen.js`): pokračovat, uložit,
+načíst, Možnosti, Ovládání, Editor mapy a hlavní menu. Esc nejdřív zavře otevřená okna
+(`closeOpenWindows`), teprve pak pauzuje. Možnosti otevřené z pauzy pauzu schovají a po zavření
+ji vrátí (`holdGameForOptions`); nápověda Ovládání leží nad ztmavením pauzy. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
 na co se míří (`show`; doplněk rozdělený ` · ` jde na samostatné řádky), pod čarou
 nápověda myši (`setMouse`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní
 ji `refreshMouseHint` ve scéně podle `pointerAction`).
@@ -670,6 +671,35 @@ při startu hry v `prepareGame`), jinak by se první jídlo nevykreslilo. Levá 
 kladný ohne prsty dozadu. Pochodeň v levé ruce se na dobu jídla schová. Úder, úskok, sebrání věci nebo zásah jídlo přeruší; před
 kousnutím se pak nic nesní. Léčení v čase se neukládá (trvá pár sekund, jako ochrana po
 úskoku); po smrti a po načtení se zahodí.
+
+**Hlad, žízeň a efekty.** Sytost a vodu (v kódu `hunger`, `thirst`, 0–100) drží a ukládá
+`src/systems/player/survivalSystem.js` (klíč `survival`). Ubývají v pevném ticku (`tickSurvival`
+v `sceneSurvival.js`), při běhu `sprintFactor`krát rychleji; čísla jsou v `PLAYER_BASE.survival`.
+Po smrti se doplní aspoň na `reviveAt`. Efekty (jméno, ikona, popis, kdy platí, úpravy) jsou
+v `src/data/catalogs/effects.js`: efekt s `need` platí nad `above` nebo pod `below`, `replaces`
+ho nahradí horším. `combineEffects` sečte úpravy: obnova zdraví a energie a spotřeba energie
+během se násobí (`playerStats.setModifiers`), rána v procentech a útok se přičtou k bonusu
+z vlastností (`combatBonus`), `drainPerSecond` ubírá zdraví (`playerStats.drain`, bez zbroje
+a ochrany). Jídlo s `food.hunger` a `food.thirst` je doplní při kousnutí (kokos je pití).
+Ikonky kreslí `src/ui/effectsBar.js`, proužky sytosti a vody `vitalsBar.js` a okno postavy.
+
+**Pití:** klik na vodu (operace `drink`, nízká priorita). U moře (voda bez jezera či řeky,
+`waterSystem.bodyAt`) jen hláška. Jinak `drinkSpot` jde od místa kliku k hráči, najde první
+suchou schůdnou zem (břeh) a postava tam dojde (`walkTo`); stojí-li hráč už ve sladké vodě,
+pije na místě. Pohyb je animace `Scoop_Water` ze souboru `castaway_drink.glb` (vygenerovaná
+v Meshy pro stejnou postavu), klíč `drink`, úsek 0–4 s (`PLAYER_ANIM_RANGES`): klek, nabrání,
+doušek. Druhé nabírání a prudké vstávání z konce animace jsou vystřižené; do kleku
+a zpět se postava prolne (`DRINK_ENTER_BLEND`, `DRINK_RISE_BLEND`). Běží přes stejný časovač
+jako dřep při sbírání (`pickupKey = 'drink'`). Animace nabírá u přední nohy (ruce šly nohou),
+proto `cupDrinkHands` v `playerGestures.js` v úseku `DRINK_SCOOP` (sekundy animace) přitáhne
+obě ruce přes `reachPoint` na hladinu před postavou a trochu předkloní záda (`DRINK_LEAN`);
+voda musí být aspoň `DRINK_HAND_AHEAD` před postavou, blíž leží přední chodidlo.
+Ve chvíli nabrání `onDrinkScoop` šplouchne, doušek (`DRINK_SIP_AT`) hlásí `onDrinkSip`
+a přidá `PLAYER_BASE.drink.thirst`. Pohyb klávesami, úder, úskok i zásah pití přeruší.
+Fotoateliér: `node tools/capture.cjs player drink --view diag` (`--depth` je hladina pod zemí, `ahead` vzdálenost vody před postavou). Jídlo v levé ruce
+je nejlíp vidět z `--view diag --focus left`; z boku ho zakryje hlava. Ateliér model jídla
+před jídlem připraví (`itemWarmup` a `forceCompilationAsync` jako `warmItem` ve hře), jinak
+se nevykreslí.
 
 **Použití věci:** u dveří (otevření i zavření), knihovny na páku a věcí na stole (lucerna,
 ponk) pravá ruka natáhne a máchne směrem k věci (`playerSystem.useToward`, stejný soubor

@@ -279,8 +279,8 @@ schované, bere jen terén, protože výšky předmětů se do té doby nepřepo
   `editorJoinBridge.js` (spojnice a mosty), `editorHistory.js` (Zpět),
   `editorQuery.js` (co je v buňce, otisk mapy),
 - `editorSettings.js` — čísla a pomocné výpočty společné pro víc částí,
-- `editorHud.js` — hlavní panel editoru, `hudTabs.js` — co leží ve které jeho záložce,
-  `editorToggle.js` — tlačítko v horní liště,
+- `editorHud.js` — hlavní panel editoru, `hudTabs.js` — co leží ve které jeho záložce
+  (editor se otevírá F2 nebo tlačítkem Editor mapy v pauze),
 - `brushPanel.js`, `areaPanel.js`, `heightPanel.js`, `floorPanel.js` — panely jednotlivých režimů,
 - `heightHologram.js`, `heightLabels.js`, `heightRamp.js` — náhled změny výšek a barvy výšek,
 - `creatureOverlay.js` — značky spawních míst a náhledy tvorů,
