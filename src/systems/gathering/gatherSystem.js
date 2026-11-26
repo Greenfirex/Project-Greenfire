@@ -29,6 +29,7 @@ export default class GatherSystem {
     this.swayTime = 0;
     this.tool = null;
     this.decoSystem = null;
+    this.covered = null;
     this.falls = [];
     this.onTopple = null;
     this.onFell = null;
@@ -131,6 +132,7 @@ export default class GatherSystem {
     for (const item of this.entries) {
       if (item.left <= 0 || !this.canHarvest(item)) continue;
       if (item.entry.cx !== cx || item.entry.cz !== cz || levelOfEntry(item.entry) !== level) continue;
+      if (this.covered && this.covered(item.entry)) continue;
       if (!point) return item;
       const distance = (item.x - point.x) ** 2 + (item.z - point.z) ** 2;
       if (distance >= bestDistance) continue;

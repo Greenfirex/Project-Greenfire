@@ -14,6 +14,7 @@ import { decorationTemplate } from '../../utils/decoTemplate.js';
 import { tintTemplate, forgetTints } from '../../utils/decoTint.js';
 import { cellNoise, decoJitter, decoPlacement } from '../../utils/decoPlacement.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { missesBody } from '../../utils/bodyClearance.js';
 import PathSystem from './pathSystem.js';
 import ContactShadow from '../../utils/contactShadow.js';
 
@@ -22,7 +23,7 @@ const FLAT_SINK = 0.015;
 const AREA_WORLD = CELL_SIZE * 8;
 const AREA_VIEW_MARGIN = 26;
 const AREA_VIEW_HYSTERESIS = 4;
-const DECK_FEET_CLEAR = 0.25;
+const UNDER_DECK_SLACK = 0.05;
 
 function entryMatchKey(entry) {
   return `${levelOfEntry(entry)}|${entry.key}|${entry.cx}|${entry.cz}|${entry.offsetX || 0}|${entry.offsetZ || 0}|${entry.scale || 1}|${entry.rotation || 0}`;
@@ -57,9 +58,6 @@ function boxContact(shape, x, z) {
   return { gap, nx: (nlx * c + nlz * s) / length, nz: (-nlx * s + nlz * c) / length };
 }
 
-function underFeet(shape, feetY) {
-  return feetY + DECK_FEET_CLEAR >= shape.top;
-}
 
 function cellGap(shape, x, z) {
   if (shape.box) return boxContact(shape, x, z).gap;
@@ -231,11 +229,12 @@ export default class DecoSystem {
     this.blocked.clear();
     this.caveBlocked.clear();
     this.treeCells.clear();
+    const housed = new Set((layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0 && (entry.deck || this.underDeck(entry))));
     const entries = [].concat(
       layout.floor || [],
       layout.path || [],
       layout.clearing || [],
-      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0 && !entry.deck),
+      (layout.decorations || []).filter((entry) => entry && levelOfEntry(entry) === 0 && !housed.has(entry)),
     );
     for (const entry of layout.decorations || []) {
       if (!entry || levelOfEntry(entry) !== 0) continue;
@@ -244,16 +243,23 @@ export default class DecoSystem {
     }
     for (const shape of deriveBlocked(entries)) this.addBlockedShape(shape);
     for (const cell of layout.blocked || []) this.addBlockedShape(cell);
-    for (const entry of layout.decorations || []) {
-      if (!entry || entry.deck !== 'lower' || levelOfEntry(entry) !== 0) continue;
-      const top = this.entryHeight(entry) + decoHeight(getDecoration(entry.key) || {});
-      for (const shape of deriveBlocked([entry])) this.addBlockedShape({ ...shape, top });
+    for (const entry of housed) {
+      const bottom = this.entryHeight(entry);
+      const top = bottom + decoHeight(getDecoration(entry.key) || {});
+      for (const shape of deriveBlocked([entry])) this.addBlockedShape({ ...shape, bottom, top });
     }
     for (const entry of layout.decorations || []) {
       const level = levelOfEntry(entry);
       if (!entry || level === 0) continue;
       for (const shape of deriveBlocked([entry])) this.addBlockedShape(shape, level);
     }
+  }
+
+  underDeck(entry) {
+    if (!this.deckAt) return false;
+    const { x, z } = cellToWorldCoords(entry.cx, entry.cz);
+    const deck = this.deckAt(x + (entry.offsetX || 0), z + (entry.offsetZ || 0));
+    return Boolean(deck) && deck.y >= this.entryHeight(entry) - UNDER_DECK_SLACK;
   }
 
   blockedOn(level) {
@@ -274,6 +280,7 @@ export default class DecoSystem {
       turn: cell.turn || 0,
       box: cell.box || null,
       yaw: cell.yaw || 0,
+      bottom: Number.isFinite(cell.bottom) ? cell.bottom : -Infinity,
       top: Number.isFinite(cell.top) ? cell.top : Infinity,
       offsetX: cell.offsetX || 0,
       offsetZ: cell.offsetZ || 0,
@@ -798,7 +805,7 @@ export default class DecoSystem {
         const shapes = blocked.get(cellKey(ix, iz));
         if (!shapes) continue;
         for (const shape of shapes) {
-          if (underFeet(shape, feetY)) continue;
+          if (missesBody(shape.bottom, shape.top, feetY)) continue;
           const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
           const dz = z - shape.cz * CELL_SIZE - shape.offsetZ;
           if (cellGap(shape, dx, dz) < bodyRadius) return true;
@@ -817,7 +824,7 @@ export default class DecoSystem {
         const shapes = blocked.get(cellKey(ix, iz));
         if (!shapes) continue;
         for (const shape of shapes) {
-          if (underFeet(shape, feetY)) continue;
+          if (missesBody(shape.bottom, shape.top, feetY)) continue;
           const dx = x - shape.cx * CELL_SIZE - shape.offsetX;
           const dz = z - shape.cz * CELL_SIZE - shape.offsetZ;
           if (shape.box) {

@@ -24,6 +24,7 @@ import CliffDressSystem from '../systems/terrain/cliffDressSystem.js';
 import DecoHighlightSystem from '../systems/world/decoHighlightSystem.js';
 import CampfireSystem from '../systems/world/campfireSystem.js';
 import StationSystem from '../systems/world/stationSystem.js';
+import { levelOfEntry } from '../data/maps/areaShape.js';
 import LootSystem from '../systems/world/lootSystem.js';
 import PickupSparkleSystem from '../systems/world/pickupSparkleSystem.js';
 import EquipmentSystem from '../systems/player/equipmentSystem.js';
@@ -193,6 +194,7 @@ export default class GameScene {
     this.caveDressSystem = new CliffDressSystem(scene);
     this.campfireSystem = new CampfireSystem(scene);
     this.stationSystem = new StationSystem(scene);
+    this.stationSystem.roomOf = (position) => this.buildingSystem.roomAt(position);
     this.lootSystem = new LootSystem(scene);
     this.equipmentSystem = new EquipmentSystem();
     this.lootPickup = null;
@@ -200,6 +202,7 @@ export default class GameScene {
     this.decoHighlight = new DecoHighlightSystem(scene);
     this.decoHighlight.levelOf = () => this.gatherSystem.levelOf();
     this.decoHighlight.playerAt = () => (this.editor.active || !this.playerSystem.root ? null : this.playerSystem.root.position);
+    this.decoHighlight.covered = (entry) => this.coveredByFloor(entry);
     this.decoHighlight.isEmptied = (cx, cz, level) => {
       const box = this.lootSystem.at(cx, cz, level);
       return Boolean(box) && this.lootSystem.isEmpty(box);
@@ -244,6 +247,7 @@ export default class GameScene {
     this.gatherSystem = new GatherSystem(scene);
     this.gatherSystem.decoSystem = this.decoSystem;
     this.gatherSystem.levelOf = () => (this.editor.active ? 0 : this.playerSystem.level);
+    this.gatherSystem.covered = (entry) => this.coveredByFloor(entry);
     this.gatherSystem.onTopple = () => this.audioSystem.play('fall');
     this.gatherSystem.onFell = (item) => this.finishFelling(item);
     this.fellingSystem = new FellingSystem(scene);
@@ -1130,6 +1134,20 @@ export default class GameScene {
 
   onBuildingDeck(x, z, level) {
     return (level || 0) === 0 && this.standHeightAt(x, z, level) > this.terrainSystem.walkHeightAt(x, z, level) + DECK_ABOVE_GROUND;
+  }
+
+  pointedFloorY(cell) {
+    const ray = this.inputSystem.pointerRay();
+    if (!ray || !cell.point) return null;
+    const storey = this.editor.active ? this.editor.buildingView : null;
+    const hit = this.buildingSystem.deckOnRay(ray.origin, ray.direction, storey, this.inputSystem.seesThrough);
+    if (!hit || hit.t > Vector3.Distance(ray.origin, cell.point) + DECK_PICK_SLACK) return null;
+    return hit.y;
+  }
+
+  coveredByFloor(entry) {
+    if (!entry || entry.deck || levelOfEntry(entry) !== 0) return false;
+    return this.decoSystem.underDeck(entry);
   }
 
   refreshVines() {
@@ -2135,16 +2153,19 @@ export default class GameScene {
       return;
     }
     const level = Number.isFinite(cell.level) ? cell.level : this.gatherSystem.levelOf();
-    const height = this.terrainSystem.walkHeightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE, level);
-    const detail = `výška ${metersText(height)}`;
-    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz, level, cell.point);
+    const ground = this.terrainSystem.walkHeightAt(cell.cx * CELL_SIZE, cell.cz * CELL_SIZE, level);
+    const floorY = level === 0 ? this.pointedFloorY(cell) : null;
+    const onFloor = Number.isFinite(floorY);
+    const detail = `výška ${metersText(onFloor ? floorY : ground)}`;
+    const at = cell.point ? { x: cell.point.x, y: onFloor ? floorY : cell.point.y, z: cell.point.z } : null;
+    const deco = this.decoHighlight.labelAt(cell.cx, cell.cz, level, at);
     if (deco) {
       this.tooltipPanel.show(deco.label, detail);
       return;
     }
     const surfaceKey = this.playerOnSurface() && this.decoSystem.surfaceKeyAt ? this.decoSystem.surfaceKeyAt(cell.cx, cell.cz) : null;
     const surface = surfaceKey ? getDecoration(surfaceKey) : null;
-    this.tooltipPanel.show(surface ? surface.displayName : 'Země', detail);
+    this.tooltipPanel.show(onFloor ? 'Podlaha' : surface ? surface.displayName : 'Země', detail);
   }
 
   handlePaintStart(cell) {

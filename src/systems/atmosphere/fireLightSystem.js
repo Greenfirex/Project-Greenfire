@@ -4,6 +4,7 @@
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { bothSidesMaterial } from '../../utils/bothSidesMaterial.js';
@@ -13,6 +14,7 @@ const REACH_MARGIN = 4;
 const SHADOW_SIZE = 512;
 const SHADOW_BIAS = 0.006;
 const SHADOW_NEAR = 0.05;
+const SHADOWED_LIGHTS = 1;
 
 export default class FireLightSystem {
 
@@ -20,7 +22,12 @@ export default class FireLightSystem {
     this.s = scene;
     this.sources = new Set();
     this.castersNear = null;
-    this.slots = [this.createSlot('fireLightShadow', true), this.createSlot('fireLightPlain', false)];
+    this.stub = new Mesh('fireShadowStub', scene);
+    this.stub.isPickable = false;
+    this.stub.setEnabled(false);
+    this.slots = [];
+    for (let k = 0; k < SHADOWED_LIGHTS; k += 1) this.slots.push(this.createSlot(`fireLightShadow${k}`, true));
+    this.slots.push(this.createSlot('fireLightPlain', false));
   }
 
   createSlot(name, shadowed) {
@@ -40,7 +47,7 @@ export default class FireLightSystem {
     shadows.bias = SHADOW_BIAS;
     const map = shadows.getShadowMap();
     map.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-    map.renderList = [];
+    map.renderList = [this.stub];
     let woken = [];
     map.onBeforeRenderObservable.add(() => {
       woken = map.renderList.filter((mesh) => !mesh.isEnabled() && !mesh.isDisposed() && mesh.metadata && mesh.metadata.building);
@@ -75,13 +82,18 @@ export default class FireLightSystem {
   }
 
   update(dt, focus) {
-    const [shadowed, plain] = this.choose(focus);
-    this.drive(this.slots[0], shadowed, dt);
-    this.drive(this.slots[1], plain, dt);
+    const { shadowed, plain } = this.choose(focus);
+    const shadowSlots = this.slots.filter((slot) => slot.shadowed);
+    const targets = shadowSlots.map((slot) => (shadowed.includes(slot.source) ? slot.source : null));
+    const rest = shadowed.filter((source) => !targets.includes(source));
+    shadowSlots.forEach((slot, index) => this.drive(slot, targets[index] || rest.shift() || null, dt));
+    for (const slot of this.slots) {
+      if (!slot.shadowed) this.drive(slot, plain, dt);
+    }
   }
 
   choose(focus) {
-    if (!focus) return [null, null];
+    if (!focus) return { shadowed: [], plain: null };
     const level = focus.level || 0;
     const near = [...this.sources]
       .filter((source) => source.intensity > 0.001 && (source.level === null || source.level === undefined || source.level === level))
@@ -89,11 +101,11 @@ export default class FireLightSystem {
       .filter((item) => item.gap <= item.source.range + REACH_MARGIN)
       .sort((a, b) => a.gap - b.gap)
       .map((item) => item.source);
-    const shadowed = near.find((source) => source.shadow !== 'none') || null;
-    const plain = near.find((source) => source !== shadowed && source.shadow === 'none')
-      || near.find((source) => source !== shadowed && source.shadow === 'prefer')
+    const shadowed = near.filter((source) => source.shadow !== 'none').slice(0, SHADOWED_LIGHTS);
+    const plain = near.find((source) => !shadowed.includes(source) && source.shadow === 'none')
+      || near.find((source) => !shadowed.includes(source) && source.shadow === 'prefer')
       || null;
-    return [shadowed, plain];
+    return { shadowed, plain };
   }
 
   drive(slot, target, dt) {
@@ -137,7 +149,7 @@ export default class FireLightSystem {
     for (const mesh of casters) {
       if (mesh.metadata && mesh.metadata.volume) map.setMaterialForRendering(mesh, bothSides);
     }
-    map.renderList = casters;
+    map.renderList = [this.stub, ...casters];
     map.resetRefreshCounter();
     slot.timer = source.refresh || 0;
   }

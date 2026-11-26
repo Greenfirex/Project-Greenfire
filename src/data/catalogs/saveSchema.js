@@ -1,6 +1,6 @@
 // Identifikace savu — nové jméno úložiště znamená čistý stůl, staré savy ze vývoje se nenačítají.
 // Verze se zvýší při každé změně formátu, starší verze hra ignoruje.
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 export const SAVE_MANUAL_SLOTS = ['slot1', 'slot2', 'slot3', 'slot4', 'slot5'];
 export const SAVE_SLOTS = {
   quick: 'greenfire.save.dev',

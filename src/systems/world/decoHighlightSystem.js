@@ -10,6 +10,7 @@ import { OUTLINE_GOLD, OUTLINE_PULSE, OUTLINE_PULSE_SPEED, OUTLINE_FADE_SPEED, P
 const OUTLINE_WIDTH = 0.035;
 const MIN_RADIUS = 0.25;
 const SURFACE_POINTS = 48;
+const STOREY_GAP = 1.2;
 
 export default class DecoHighlightSystem {
 
@@ -22,7 +23,12 @@ export default class DecoHighlightSystem {
     this.levelOf = null;
     this.playerAt = null;
     this.isEmptied = null;
+    this.covered = null;
     this.cues = [];
+  }
+
+  isCovered(record) {
+    return Boolean(this.covered && this.covered(record.entry));
   }
 
   currentLevel() {
@@ -52,6 +58,7 @@ export default class DecoHighlightSystem {
     });
     list.push({
       node,
+      entry,
       meshes,
       label: def.displayName || entry.key,
       level: 0,
@@ -69,8 +76,9 @@ export default class DecoHighlightSystem {
   }
 
   recordAt(cx, cz, level, point = null) {
-    const list = this.records.get(this.keyOf(cx, cz, level));
-    if (!list) return null;
+    const sameFloor = (record) => !point || !Number.isFinite(point.y) || Math.abs(record.node.getAbsolutePosition().y - point.y) <= STOREY_GAP;
+    const list = (this.records.get(this.keyOf(cx, cz, level)) || []).filter((record) => !this.isCovered(record) && sameFloor(record));
+    if (!list.length) return null;
     if (!point || list.length === 1) return list[0];
     let best = null;
     let bestDistance = Infinity;
@@ -138,7 +146,7 @@ export default class DecoHighlightSystem {
     if (record.node.isDisposed() || !record.node.isEnabled()) return false;
     if (this.isEmptied && this.isEmptied(record.cx, record.cz, record.floor)) return false;
     const spot = this.cueOf(record);
-    return Math.hypot(spot.x - player.x, spot.z - player.z) <= PICKUP_REACH;
+    return Math.hypot(spot.x - player.x, spot.z - player.z) <= PICKUP_REACH && !this.isCovered(record);
   }
 
   update(dt) {

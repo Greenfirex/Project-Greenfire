@@ -2103,6 +2103,7 @@ export default class PlayerSystem {
   serialize() {
     return {
       x: this.root ? this.root.position.x : SPAWN.x,
+      y: this.root ? this.root.position.y : null,
       z: this.root ? this.root.position.z : SPAWN.z,
       facing: this.facing,
       level: Number.isFinite(this.level) ? this.level : 0,
@@ -2111,7 +2112,7 @@ export default class PlayerSystem {
   }
 
   defaultState() {
-    return { x: SPAWN.x, z: SPAWN.z, facing: 0, level: 0, weaponDrawn: false };
+    return { x: SPAWN.x, y: null, z: SPAWN.z, facing: 0, level: 0, weaponDrawn: false };
   }
 
   apply(data) {
@@ -2133,6 +2134,7 @@ export default class PlayerSystem {
       x = spot.x;
       z = spot.z;
     }
+    if (Number.isFinite(d.y)) this.root.position.y = d.y;
     this.root.position = this.positionAt(x, z);
     this.snapFacing(facing);
     if (this.onTeleport) this.onTeleport(x, z);

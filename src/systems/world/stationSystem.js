@@ -26,6 +26,7 @@ export default class StationSystem {
     this.dayness = 1;
     this.time = 0;
     this.onLightSource = null;
+    this.roomOf = null;
   }
 
   add(anchor, node, def, entry) {
@@ -61,7 +62,7 @@ export default class StationSystem {
     lamp.flicker = createFlicker(1 - style.light.flicker, 1, FLICKER_SECONDS);
     lamp.source = {
       x: 0, y: 0, z: 0, intensity: 0, color: Color3.FromArray(style.light.color), range: style.light.range,
-      shadow: 'need', darkness: style.light.shadowDarkness, level: station.level, refresh: 0, dirty: true, own: station.meshes,
+      shadow: 'need', level: station.level, refresh: 0, dirty: true, own: station.meshes,
     };
     station.lamp = lamp;
     if (this.onLightSource) this.onLightSource(lamp.source, true);
@@ -116,7 +117,8 @@ export default class StationSystem {
   inReach(station, position) {
     return Boolean(station && position)
       && Math.hypot(position.x - station.x, position.z - station.z) <= USE_REACH
-      && Math.abs(position.y - station.y) <= USE_REACH_HEIGHT;
+      && Math.abs(position.y - station.y) <= USE_REACH_HEIGHT
+      && (!this.roomOf || this.roomOf(station) === this.roomOf(position));
   }
 
   hint(station) {

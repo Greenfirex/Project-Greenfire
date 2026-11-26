@@ -52,7 +52,7 @@ export const FURNITURE_STYLES = {
   lantern: {
     size: [0.17, 0.42], metal: [0.2, 0.18, 0.16], candle: [0.85, 0.8, 0.68],
     glass: [0.75, 0.72, 0.6], glassAlpha: 0.35, glassGlow: [0.9, 0.62, 0.3], flameGlow: [1, 0.78, 0.4],
-    light: { color: [1, 0.68, 0.36], range: 7, day: 0.15, night: 1.4, flicker: 0.12, shadowDarkness: 0.5 },
+    light: { color: [1, 0.68, 0.36], range: 7, day: 0.15, night: 1.4, flicker: 0.12 },
   },
 };
 

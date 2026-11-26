@@ -14,6 +14,7 @@ import { CELL_SIZE, cellKey } from '../../utils/gridMath.js';
 import { getBuilding, buildingSize } from '../../data/catalogs/buildings.js';
 import { createRng, seedFor } from '../../utils/rng.js';
 import { agePaint } from '../../utils/agePaint.js';
+import { missesBody } from '../../utils/bodyClearance.js';
 import { logEndTexture } from '../../utils/logEndTexture.js';
 import { createBuffer, meshFromBuffer, pushLog, pushLogEnd, insideOutline } from '../../utils/buildingGeometry.js';
 import buildingFloorParts from './buildingFloor.js';
@@ -31,8 +32,6 @@ const GROUND_SAMPLE = 0.5;
 const GROUND_INSET = 0.3;
 const WALK_MARGIN = 0.05;
 const STEP_UP = 0.7;
-const BLOCK_FEET_CLEAR = 0.25;
-const BLOCK_BODY_HEIGHT = 1.6;
 const LAYERS = ['lower', 'upper', 'roof'];
 const LAYER_FADE_SECONDS = 0.4;
 const LOWER_FEET_BELOW_UPPER = 1;
@@ -128,6 +127,7 @@ export default class BuildingSystem {
       for (const rect of deck.rects) {
         const level = rect.y >= upperFrom ? 'upper' : 'lower';
         if (storey === 'lower' && level === 'upper') continue;
+        if (deck.parts[level] && deck.parts[level].shown < 0.5) continue;
         const y = deck.top + rect.y;
         const t = (y - origin.y) / direction.y;
         if (t <= 0 || (best && t >= best.t)) continue;
@@ -173,6 +173,14 @@ export default class BuildingSystem {
     const room = deck.room;
     if (insideOutline(deck.outline, p.x, p.z) && (!Number.isFinite(upper) || feet < upper - LOWER_FEET_BELOW_UPPER)) return 'lower';
     if (room && feet > upper - ROOM_FEET_BELOW_UPPER && p.x > room.x0 && p.x < room.x1 && p.z > room.z0 && p.z < room.z1) return 'upper';
+    return null;
+  }
+
+  roomAt(position) {
+    for (const deck of this.decks) {
+      const storey = this.storeyInside(deck, position);
+      if (storey) return `${deck.name}:${storey}`;
+    }
     return null;
   }
 
@@ -240,7 +248,7 @@ export default class BuildingSystem {
       const feet = feetY - deck.top;
       for (const block of deck.blocks) {
         if (block.door && block.door.kind === 'hinge' && block.door.goal > 0) continue;
-        if (feet + BLOCK_FEET_CLEAR >= block.top || feet + BLOCK_BODY_HEIGHT <= block.bottom) continue;
+        if (missesBody(block.bottom, block.top, feet)) continue;
         const shift = block.door ? this.doorShift(block.door) : 0;
         const along = (block.alongX ? p.x : p.z) - shift;
         const across = Math.abs((block.alongX ? p.z : p.x) - block.at);

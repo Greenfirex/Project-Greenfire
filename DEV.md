@@ -367,12 +367,17 @@ pořád a zdroje jen mění sílu. Stín (krychlová mapa 512) vrhají boky, st�
 ploché podlahy ne, jinak pruhy pod ostrým úhlem) a díly staveb v dosahu (`GameScene.fireCastersNear`, bez `own`);
 při jeho kreslení se na okamžik zapnou i schované díly staveb. Překreslí se při přeskoku na jiný zdroj,
 u táboráku jednou za 1,5 s (`refresh`) a když zdroj hlásí `dirty` (lucerna při pohybu dveří).
-Zdroje ohlásí vlastníci přes `onLightSource` (táboráky, stavba, postava při první pochodni).
+Zdroje ohlásí vlastníci přes `onLightSource` (táboráky, pracovní místa — lucerny, postava při první pochodni).
 Pochodeň svítí ve dne slabě, v noci naplno; v jeskyni a uvnitř stavby (`torchFire.setIndoors`, z `GameScene.updateIndoor`)
 naplno i ve dne, aby uvnitř dosvítila stíny od lucerny.
 Blikání všech tří zdrojů je plynulé (`utils/flicker.js`: síla se přelévá k náhodné hodnotě, ne skokem), jinak se
-pochodeň a lucerna přes sebe trhaně přeblikávaly. Zdroj může mít `darkness` (jak moc stín propouští, 0 = černý):
-lucerna 0,5 (`shadowDarkness` ve stylu) jako odraz od dřevěných stěn, táborák venku 0. Materiály země jsou blízko limitu 16 textur, proto je
+pochodeň a lucerna přes sebe trhaně přeblikávaly. Zdroj může mít `darkness` (jak moc stín propouští, 0 = černý);
+lucerna i táborák mají 0 — lucerna dřív 0,5 a polovina světla pak prosvítala zdí ven. Babylon dá stín světla
+do programu materiálu jen tehdy, když má jeho mapa při sestavení programu nějaké meshe; proto je v seznamu stínících
+meshů vždy vypnutý zástupný mesh (`fireShadowStub`) — materiály mají stín ohně od načtení a rozsvícení nic
+nepřestavuje (dřív bez něj stín nepřijal nikdo). Světlo se stínem je jen jedno (`SHADOWED_LIGHTS`): s druhým
+by materiály země měly 17 textur (limit 16, každý stín ohně je jedna) a nábytek či tvorové s `maxSimultaneousLights` 4
+by přišli o slunce. Materiály země jsou blízko limitu 16 textur, proto je
 Půda jen z jedné textury a další textura na zemi se musí pohlídat. Nejhorší
 materiál země dnes používá 15 textur (včetně mapy dohledu).
 
@@ -1232,7 +1237,8 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    i hledání cesty bez další úpravy. Pod myší (`doorAt`: zásah do křídla, jinak bod na zemi do 0,8 m
    od středu otvoru) zlatý obrys; levým tlačítkem otevřít/zavřít do 2,2 m (`GameScene`, interakce `door`,
    zvuk truhly). Které dveře jsou otevřené, drží `buildingSystem.openDoors` (přežije přestavbu srubu),
-   ukládá se jako `doors` (verze savu 10); na začátku jsou všechny zavřené.
+   ukládá se jako `doors` (verze savu 10); na začátku jsou všechny zavřené. Postava si od verze savu 13 ukládá
+   i výšku (`y`); po načtení podle ní vybere podlahu (jinak by z patra spadla do přízemí).
    Tvor a zavřené dveře: když je mezi tvorem a postavou zeď (`walledOff`), ověří si cestu i ve stejné výšce
    (`canGetTo`). Bez cesty je zmatený (otazníky, `giveUpConfused`), vzdá to na 12 s navíc (`WALLED_GIVE_UP_SECONDS`)
    a jde domů; když se dveře otevřou, cesta se najde a honička pokračuje. Později možná obléhání nebo vyražení dveří.
@@ -1248,9 +1254,11 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    skvrny pečené do tvaru — stejné kusy mají stejné fleky (záměr: nábytek časem nahradí modely). V editoru štětec
    Nábytek (Předměty → Tábor a poklady), kladený volně i na podlahy srubu (`deck`). Překážka je obdélník (`box`
    = poloviny délky a hloubky, otočený s kusem; `decoSystem.boxContact` dá vzdálenost i směr odtlačení); převržená
-   židle překážka není. Kus na podlaze přízemí (`deck: 'lower'`) má i vršek (`top`) a postava či tvor, jehož chodidla
-   jsou výš (`DECK_FEET_CLEAR`), ho nevidí — jinak by stůl v přízemí zastavil postavu v patře nad ním. Kusy v patře
-   (`deck: 'upper'`) zatím překážka nejsou. Původní kusy ze srubu převedl jednorázový skript na stejná místa v mapě.
+   židle překážka není. Kus na podlaze stavby (`deck`) i věc na zemi, nad kterou je podlaha (`decoSystem.underDeck`,
+   třeba sud pod ploškou u schodů), má spodek a vršek (`bottom`, `top`); postava či tvor ho nevidí,
+   když je celý pod chodidly nebo nad hlavou (`missesBody` v `utils/bodyClearance.js`, stejné pravidlo jako bloky
+   staveb) — stůl v přízemí tak nezastaví postavu v patře a truhla v patře postavu v přízemí. Kdo výšku chodidel
+   nepošle, vidí jen překážky bez spodku (na zemi). Původní kusy ze srubu převedl jednorázový skript na stejná místa v mapě.
    **Drobnosti** (etapa 2): mapa pokladu s dýkou, láhev zelená, hnědá a rozbitá, cínový hrnek, dalekohled a kompas
    (`TRINKET_PIECES` ve `furniture.js`, tvary v `utils/pirateTrinkets.js` — ty samé kreslí i police a knihovna ve srubu).
    Nejsou překážka. Štětec Drobnosti klade volně; kus nábytku se `surface` (výška desky: stůl, truhla, sud, bedna)
@@ -1264,7 +1272,8 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    crafting`, otevře okno výroby; deska `surface` 0,88 pro drobnosti) a lucerna (drobnost, `kind: lamp`). Drží je
    `systems/world/stationSystem.js`: kus dostane z `onDecoPlaced` (`sceneWorld.js`), jeho meshe jsou klikací
    (`metadata.station`), pod myší zlatý obrys, dosah a výběr jako u dveří (společná čísla `USE_…` v
-   `utils/outlineStyle.js`); klik zpracuje interakce `station` v `GameScene`. Po přestavbě mapy `sync()` zahodí kusy,
+   `utils/outlineStyle.js`); klik zpracuje interakce `station` v `GameScene`. Použít jde jen ze stejné místnosti
+   (`buildingSystem.roomAt`: přízemí či patro stavby, jinak venku), aby lucerna nešla zapnout přes zeď. Po přestavbě mapy `sync()` zahodí kusy,
    jejichž dekorace zmizela; kus se pozná podle buňky, patra, `deck` a posunu (`stationId`).
    **Lucerna** (tvar `buildLantern` ve `furnitureFactory.js`): kovový rámeček, sklíčka, svíčka a plamínek; klik ji
    rozsvítí/zhasne (zvuk zapálení). Sklíčka (`…_glass`) a plamínek (`…_flame`) dostane každá lucerna jako vlastní
@@ -1312,11 +1321,13 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
       originál jde do návrhu ke smazání, nesená kopie (`freeCarry`, otočení a velikost převzaté z `decoPlacement`)
       se položí klikem jako nový kus s odkazem `movedFrom`, podle kterého panel vypisuje přesuny (`freeMoves`).
       Návrh volného pokládání nezávisí na štětci: změna štětce ho nezahodí, jen Esc, Do buněk a zavření editoru.
-      Zatím ne: kokosy a listy kolem palem, vejce v hnízdě, jemnější otáčení než po 45°,
-      dekorace v patře jako překážka v patře.
+      Zatím ne: kokosy a listy kolem palem, vejce v hnízdě, jemnější otáčení než po 45°.
    3. Stavění po dílech (rozhodnuto, cesta B): podlaha po buňkách, stěny po hranách, otvory, patro; zábradlí,
       schody a střechu dopočítá stavba; nábytek jako volně položené dekorace.
 
 **Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku
 chůze ze stavby a schod u dveří); tráva a dekorace pod podlahou (dnes se neschovávají,
-na místě srubu tráva není); veranda.
+na místě srubu tráva není; věc na zemi, nad kterou je podlaha, nemá nápovědu, obrys, třpyt a nejde sebrat —
+`GameScene.coveredByFloor`, háček `covered` v `decoHighlightSystem` a `gatherSystem`; nápověda bere výšku
+viditelné podlahy pod myší — `pointedFloorY`, `deckOnRay` bez schovaných a vyříznutých pater — a ukáže jen věci
+do `STOREY_GAP` od ní, takže v patře neukáže ponk v přízemí); veranda.
