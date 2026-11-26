@@ -9,7 +9,7 @@ export const GRASS_TYPES = {
     label: 'Pobřežní tráva',
     models: ['grass_coastal.glb'],
     height: 0.55,
-    perCell: { low: 3, medium: 5, high: 9 },
+    perCell: { low: 2, medium: 4, high: 6 },
     tint: [0.39, 0.52, 0.27],
     gain: 1.1,
   },
@@ -17,7 +17,7 @@ export const GRASS_TYPES = {
     label: 'Širokolistý trs',
     models: ['grass_broadleaf.glb'],
     height: 0.5,
-    perCell: { low: 3, medium: 5, high: 8 },
+    perCell: { low: 2, medium: 4, high: 5 },
     tint: [0.93, 0.89, 0.47],
     gain: 1.2,
   },
@@ -25,7 +25,7 @@ export const GRASS_TYPES = {
     label: 'Nízký polštářek',
     models: ['grass_cushion.glb'],
     height: 0.32,
-    perCell: { low: 3, medium: 6, high: 9 },
+    perCell: { low: 2, medium: 4, high: 6 },
     tint: [0.44, 0.53, 1],
     gain: 1.1,
   },
@@ -33,16 +33,29 @@ export const GRASS_TYPES = {
     label: 'Kapradina',
     models: ['fern.glb'],
     height: 0.38,
-    perCell: { low: 2, medium: 3, high: 5 },
+    perCell: { low: 1, medium: 2, high: 3 },
     tint: [1.34, 0.71, 1.13],
     gain: 1.2,
   },
+};
+
+export const GRASS_CLUMP_SIZE = {
+  min: 0.5,
+  max: 1.5,
+  skew: 1.7,
 };
 
 export const GRASS_COVER = {
   height: 0.28,
   perCell: { low: 60, medium: 150, high: 250 },
   tint: [0.52, 0.72, 0.4],
+};
+
+export const GRASS_EDGE = {
+  band: 0.6,
+  bandNoise: 2.3,
+  spill: 0.3,
+  spillDepth: 0.8,
 };
 
 export const GRASS_GROUND = {

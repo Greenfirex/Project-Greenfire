@@ -2,7 +2,8 @@
 // Liana se zkrátí podle výšky stěny, aby nesahala pod její patu; ve větru se houpe spodním koncem.
 // Modely se náhodně míchají: každý patří do několika skupin (útes, stěna, visící). Nové popínavky si drží
 // proporce (keep). Kromě svislých visí liany i vodorovně (drape, podél hrany) a do U mezi dvěma body
-// (swag, girlanda podél hrany útesu a přes vchod do jeskyně).
+// (swag, girlanda podél hrany útesu a přes vchod do jeskyně; jen listové liany). Na útesu se vodorovná
+// i U dají jen tam, kde hrana po celé délce pokračuje, jinak by na rohu visely do vzduchu.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { ASSET_DIRS } from '../../data/catalogs/assetPaths.js';
@@ -19,8 +20,8 @@ const VIEW_HYSTERESIS = 4;
 const VINE_MODELS = [
   { url: `${ASSET_DIRS.plants}cliff_vine.glb`, span: 0.9, lift: 0.1, press: 0, turn: 0.4, pools: ['cliff', 'hang'] },
   { url: `${ASSET_DIRS.plants}cliff_vine_2.glb`, span: 0.85, lift: 0.02, press: 1, turn: 0, pools: ['cliff', 'hang', 'wall'] },
-  { url: `${ASSET_DIRS.plants}vine_wall.glb`, span: 1, lift: 0, press: 1, turn: 0, pools: ['wall', 'cliff'], keep: 1.5 },
-  { url: `${ASSET_DIRS.plants}vine_hang.glb`, span: 1, lift: 0, press: 0.6, turn: 1.2, pools: ['hang', 'cliff'], keep: 1.4 },
+  { url: `${ASSET_DIRS.plants}vine_wall.glb`, span: 1, lift: 0, press: 1, turn: 0, pools: ['wall', 'cliff', 'swag'], keep: 1.5 },
+  { url: `${ASSET_DIRS.plants}vine_hang.glb`, span: 1, lift: 0, press: 0.6, turn: 1.2, pools: ['hang', 'cliff', 'swag'], keep: 1.4 },
 ];
 const KEEP_LENGTH = [0.7, 3.2];
 const KEEP_THICK = [0.7, 1.3];
@@ -57,6 +58,9 @@ const FLOWER_CHANCE = 0.2;
 const FLOWER_MIN = 1;
 const FLOWER_MAX = 3;
 const MIN_SHELF_DEPTH = 0.16;
+const EDGE_FOLLOW_STEP = 1;
+const EDGE_FOLLOW_REACH = 0.6;
+const EDGE_FOLLOW_RISE = 0.5;
 
 function hash(...values) {
   let h = 2166136261;
@@ -78,6 +82,7 @@ export default class CliffVineSystem {
     this.vines = [];
     this.flowers = FLOWER_KEYS.map((key) => this.flowerFor(key));
     this.places = {};
+    this.edgeIndex = new Map();
     this.chunks = [];
     this.hidden = new Set();
     Promise.all(VINE_MODELS.map((model) => loadModel(this.s, model.url))).then((templates) => {
@@ -132,6 +137,7 @@ export default class CliffVineSystem {
     const { edges = [], terraces = [], doors = [], walls = [] } = this.places;
     for (const vine of this.vines) vine.matrices = [];
     for (const flower of this.flowers) flower.matrices = [];
+    this.indexEdges(edges);
     for (const anchor of edges) {
       this.placeFlowers(anchor);
       this.placeVine(anchor, EDGE_CHANCE, EDGE_OUT);
@@ -141,6 +147,36 @@ export default class CliffVineSystem {
     for (const anchor of walls) this.placeGrouped(anchor);
     this.buildChunks();
     for (const flower of this.flowers) this.flush(flower.mesh, flower.matrices);
+  }
+
+  indexEdges(edges) {
+    this.edgeIndex = new Map();
+    for (const anchor of edges) {
+      const key = `${Math.floor(anchor.x)}|${Math.floor(anchor.z)}`;
+      if (!this.edgeIndex.has(key)) this.edgeIndex.set(key, []);
+      this.edgeIndex.get(key).push(anchor);
+    }
+  }
+
+  edgeNear(anchor, x, z) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        for (const other of this.edgeIndex.get(`${Math.floor(x) + dx}|${Math.floor(z) + dz}`) || []) {
+          if (other.dirX !== anchor.dirX || other.dirZ !== anchor.dirZ) continue;
+          if (Math.abs(other.y - anchor.y) > EDGE_FOLLOW_RISE) continue;
+          if (Math.hypot(other.x - x, other.z - z) <= EDGE_FOLLOW_REACH) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  edgeContinues(anchor, along, span) {
+    for (let reach = Math.min(EDGE_FOLLOW_STEP, span); reach < span + 1e-6; reach = Math.min(span, reach + EDGE_FOLLOW_STEP)) {
+      if (!this.edgeNear(anchor, anchor.x + along.x * reach, anchor.z + along.z * reach)) return false;
+      if (reach >= span) break;
+    }
+    return true;
   }
 
   placeGrouped(anchor) {
@@ -225,12 +261,14 @@ export default class CliffVineSystem {
     const vine = this.vineAt(anchor.x, anchor.z, 0, 'cliff');
     const along = { x: -anchor.dirZ, z: anchor.dirX };
     const shape = hash(anchor.x, anchor.z, 9);
-    if (shape < EDGE_SWAG) {
-      this.swag(vine, anchor, along, between(EDGE_SWAG_SPAN, hash(anchor.x, anchor.z, 10)), 0, out, SWAG_SAG);
+    const span = between(shape < EDGE_SWAG ? EDGE_SWAG_SPAN : EDGE_DRAPE_SPAN, hash(anchor.x, anchor.z, 10));
+    const follows = shape < EDGE_SWAG + EDGE_DRAPE && this.edgeContinues(anchor, along, span);
+    if (follows && shape < EDGE_SWAG) {
+      this.swag(this.vineAt(anchor.x, anchor.z, 0, 'swag'), anchor, along, span, 0, out, SWAG_SAG);
       return;
     }
-    if (shape < EDGE_SWAG + EDGE_DRAPE) {
-      this.drape(vine, anchor, along, between(EDGE_DRAPE_SPAN, hash(anchor.x, anchor.z, 10)), 0, out);
+    if (follows) {
+      this.drape(vine, anchor, along, span, 0, out);
       return;
     }
     if (vine.keep) {
@@ -281,7 +319,7 @@ export default class CliffVineSystem {
     const size = this.sideSize(vine, anchor, salt, reach);
     this.hang(vine, anchor, size.width, size.length, salt, out, roll, along);
     const other = { ...anchor, x: anchor.x + along.x * span, z: anchor.z + along.z * span };
-    const partner = this.vineAt(other.x, other.z, salt + 1, 'cliff');
+    const partner = this.vineAt(other.x, other.z, salt + 1, 'swag');
     const second = this.sideSize(partner, other, salt + 1, reach);
     this.hang(partner, other, second.width, second.length, salt + 1, out, roll, { x: -along.x, z: -along.z });
   }
@@ -299,7 +337,7 @@ export default class CliffVineSystem {
         dirX: door.dx,
         dirZ: door.dz,
       };
-      const vine = this.vineAt(anchor.x, anchor.z, 20, 'cliff');
+      const vine = this.vineAt(anchor.x, anchor.z, 20, 'swag');
       this.swag(vine, anchor, { x: -door.dz, z: door.dx }, DOOR_SPREAD * 2, 20, 0, DOOR_SWAG_SAG);
     }
     const total = DOOR_VINES[0] + Math.floor(hash(door.cx, door.cz, door.dx, door.dz, 1) * (DOOR_VINES[1] - DOOR_VINES[0] + 1));

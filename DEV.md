@@ -909,7 +909,11 @@ Tráva jsou čtyři modely (pobřežní tráva, širokolistý trs, polštářek,
 a pod nimi koberec krátkých stébel. Štětec Tráva umí Obojí / Jen trsy / Jen koberec.
 Zem i stébla počítají barvu stejným kódem, stéblo bere barvu země pod sebou. Druh
 určí poloha nebo předvolba Směs uložená k buňce. Trsy se kreslí jako kopie jednoho
-tvaru po čtvercích mapy. V Možnostech jde vypnout míchání tří textur země.
+tvaru po čtvercích mapy. Aby okraj porostu nekopíroval čtverce, koberec stébel k okraji řídne a je
+nižší (`edgeShare`: vzdálenost k hraně se sousedem bez trávy, šířka pásu se vlní podle šumu) a trsy
+i stébla kousek přerůstají do sousedních volných buněk (`addSpill`); čísla jsou v `GRASS_EDGE` (`grass.js`).
+Velké trsy se u okraje neředí ani nezmenšují — v úzkých pruzích porostu by jinak skoro zmizely.
+Velikost trsu je mezi `GRASS_CLUMP_SIZE.min` a `max`, rozložená tak, že malých je víc a velkých málo (`skew`). V Možnostech jde vypnout míchání tří textur země.
 
 Barvy stromů a keřů drží `src/data/catalogs/floraColor.js`. `FLORA_GRADE` (jas,
 teplota, sytost) dolaďuje všechny rostliny najednou; `MODEL_COLORS` srovnává listí
@@ -1213,8 +1217,11 @@ z přečnívajících došků ani ze zábradlí ne — visely by ve vzduchu)
 Liany jsou čtyři modely, které se náhodně míchají po celé mapě: dvě původní z útesů a dvě nové z Meshy
 (`tools/prepareVines.mjs`, barva přiladěná k původním) — plochá popínavka (`vine_wall.glb`) a visící šlahoun
 (`vine_hang.glb`); nové si drží proporce (`keep`). Každý model patří do skupin (`pools`: `cliff`, `wall`,
-`hang`), bod si skupinu volí přes `look`. Tvary: svislá (výchozí), vodorovná podél hrany (`shape: drape`, na útesech i stěnách srubu) a girlanda
-do U ze dvou šikmých kusů (`swag`, podél hrany útesu a přes vchod do jeskyně).
+`hang`, `swag`), bod si skupinu volí přes `look`. Tvary: svislá (výchozí), vodorovná podél hrany (`shape: drape`, na útesech i stěnách srubu) a girlanda
+do U ze dvou šikmých kusů (`swag`, podél hrany útesu a přes vchod do jeskyně). Do U jdou jen listové liany
+(skupina `swag`); s bílými kvítky ne, tam tvar nedává smysl. Vodorovná i U se na útesu dají jen tam, kde hrana
+po celé délce pokračuje (`edgeContinues`: po metru se hledá bod hrany se stejným směrem a výškou), jinak
+by na rohu visely do vzduchu; místo nich se pověsí svislá liana.
 Délky se losují v širokém rozsahu (`KEEP_LENGTH`, `KEEP_THICK` v `cliffVineSystem.js`).
 **Porůstání** (`growth`, `buildingGrowth.js`): dírami v podlaze přízemí a terasy prorůstá tráva a kapradí
 a trsy obrůstají obvod srubu i kousek pod okraj podlahy; místa u schodů zůstanou volná (`plan.keepClear`).

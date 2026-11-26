@@ -9,8 +9,9 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { CELL_SIZE, worldToCell } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
 import { cellNoise, patchValue } from '../../utils/decoPlacement.js';
+import { valueNoise, smoothstep } from '../../utils/noise.js';
 import { createGrassMaterial, tickGrass } from './grassShader.js';
-import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_GROUND, grassGroundUrl } from '../../data/catalogs/grass.js';
+import { GRASS_TYPES, GRASS_MIXES, GRASS_ORDER, GRASS_COVER, GRASS_CLUMP_SIZE, GRASS_EDGE, GRASS_GROUND, grassGroundUrl } from '../../data/catalogs/grass.js';
 
 const GRASS_LIFT = 0.02;
 const TREE_CLEARANCE = 0.35;
@@ -174,6 +175,7 @@ export default class FloraSystem {
     this.density = 'high';
     this.models = null;
     this.assets = new Map();
+    this.paintedCells = new Set();
     this.grass = null;
     this.hidden = false;
     this.chunks = [];
@@ -359,6 +361,7 @@ export default class FloraSystem {
   makeClumps(cells) {
     const slots = [];
     const cover = this.assets.get('cover');
+    this.paintedCells = new Set(cells.map((cell) => `${cell.cx},${cell.cz}`));
     for (const cell of cells) {
       if (slots.length >= SLOT_CAP) break;
       if (!isFree(this.deco, cell.cx, cell.cz)) continue;
@@ -376,8 +379,78 @@ export default class FloraSystem {
         const slot = this.makeSlot(cell, index, side, step, species, variants);
         if (slot) slots.push(slot);
       }
+      this.addSpill(slots, cell, Math.round(count * GRASS_EDGE.spill), (x, z, index) => this.slotAt(
+        x,
+        z,
+        species,
+        Math.min(variants - 1, Math.floor(cellNoise(cell.cx, cell.cz * 13 + index, 97) * variants)),
+        0.45 + cellNoise(cell.cx + index, cell.cz, 101) * 0.3,
+        cellNoise(cell.cx, cell.cz + index, 103) * Math.PI * 2,
+        cellNoise(cell.cx + index, cell.cz + index, 107),
+      ));
     }
     return slots;
+  }
+
+  painted(cx, cz) {
+    return this.paintedCells.has(`${cx},${cz}`);
+  }
+
+  openSides(cell) {
+    if (!cell.open) {
+      const open = (dx, dz) => !this.painted(cell.cx + dx, cell.cz + dz);
+      cell.open = {
+        left: open(-1, 0), right: open(1, 0), near: open(0, -1), far: open(0, 1),
+        leftNear: open(-1, -1), rightNear: open(1, -1), leftFar: open(-1, 1), rightFar: open(1, 1),
+      };
+      cell.open.any = Object.values(cell.open).some(Boolean);
+    }
+    return cell.open;
+  }
+
+  edgeShare(x, z, cell) {
+    const open = this.openSides(cell);
+    if (!open.any) return 1;
+    const half = CELL_SIZE * 0.5;
+    const left = x - (cell.cx * CELL_SIZE - half);
+    const right = cell.cx * CELL_SIZE + half - x;
+    const near = z - (cell.cz * CELL_SIZE - half);
+    const far = cell.cz * CELL_SIZE + half - z;
+    let gap = Infinity;
+    if (open.left) gap = Math.min(gap, left);
+    if (open.right) gap = Math.min(gap, right);
+    if (open.near) gap = Math.min(gap, near);
+    if (open.far) gap = Math.min(gap, far);
+    if (open.leftNear) gap = Math.min(gap, Math.hypot(left, near));
+    if (open.rightNear) gap = Math.min(gap, Math.hypot(right, near));
+    if (open.leftFar) gap = Math.min(gap, Math.hypot(left, far));
+    if (open.rightFar) gap = Math.min(gap, Math.hypot(right, far));
+    const band = GRASS_EDGE.band * (0.35 + 1.1 * valueNoise(x / GRASS_EDGE.bandNoise, z / GRASS_EDGE.bandNoise));
+    return smoothstep(0, band, gap);
+  }
+
+  edgeSlot(x, z, cell, salt, make) {
+    const share = this.edgeShare(x, z, cell);
+    if (cellNoise(Math.round(x * 50), Math.round(z * 50), salt) > share) return null;
+    return make(0.55 + 0.45 * share);
+  }
+
+  addSpill(slots, cell, count, make) {
+    const open = this.openSides(cell);
+    const sides = [[-1, 0, open.left], [1, 0, open.right], [0, -1, open.near], [0, 1, open.far]].filter((side) => side[2]);
+    if (!sides.length || count <= 0) return;
+    for (let index = 0; index < count; index += 1) {
+      if (slots.length >= SLOT_CAP) return;
+      const [dx, dz] = sides[Math.floor(cellNoise(cell.cx * 7 + index, cell.cz, 109) * sides.length)];
+      const along = (cellNoise(cell.cx, cell.cz * 11 + index, 113) - 0.5) * CELL_SIZE;
+      const depth = Math.pow(cellNoise(cell.cx + index * 3, cell.cz, 127), 2) * GRASS_EDGE.spillDepth;
+      const edge = CELL_SIZE * 0.5 + depth;
+      const x = cell.cx * CELL_SIZE + (dx ? dx * edge : along);
+      const z = cell.cz * CELL_SIZE + (dz ? dz * edge : along);
+      if (valueNoise(x / GRASS_EDGE.bandNoise + 5.3, z / GRASS_EDGE.bandNoise - 2.1) < 0.45) continue;
+      const slot = make(x, z, index);
+      if (slot) slots.push(slot);
+    }
   }
 
   addCoverSlots(slots, cell) {
@@ -392,17 +465,26 @@ export default class FloraSystem {
       const jitterZ = (cellNoise(cell.cx, cell.cz * 137 + index, 13) - 0.5) * step * 0.95;
       const x = cell.cx * CELL_SIZE - CELL_SIZE * 0.5 + (column + 0.5) * step + jitterX;
       const z = cell.cz * CELL_SIZE - CELL_SIZE * 0.5 + (row + 0.5) * step + jitterZ;
-      const slot = this.slotAt(
+      const slot = this.edgeSlot(x, z, cell, 137, (shrink) => this.slotAt(
         x,
         z,
         'cover',
         0,
-        0.8 + cellNoise(cell.cx + index, cell.cz * 7 + index, 79) * 0.5,
+        (0.8 + cellNoise(cell.cx + index, cell.cz * 7 + index, 79) * 0.5) * shrink,
         cellNoise(cell.cx * 3 + index, cell.cz, 83) * Math.PI * 2,
         cellNoise(cell.cx, cell.cz + index * 5, 89),
-      );
+      ));
       if (slot) slots.push(slot);
     }
+    this.addSpill(slots, cell, Math.round(count * GRASS_EDGE.spill), (x, z, index) => this.slotAt(
+      x,
+      z,
+      'cover',
+      0,
+      0.5 + cellNoise(cell.cx + index, cell.cz * 7, 139) * 0.3,
+      cellNoise(cell.cx * 3 + index, cell.cz, 149) * Math.PI * 2,
+      cellNoise(cell.cx, cell.cz + index * 5, 151),
+    ));
   }
 
   makeSlot(cell, index, side, step, species, variants) {
@@ -418,7 +500,7 @@ export default class FloraSystem {
       z,
       species,
       variant,
-      0.75 + cellNoise(cell.cx + index, cell.cz, 67) * 0.5,
+      GRASS_CLUMP_SIZE.min + (GRASS_CLUMP_SIZE.max - GRASS_CLUMP_SIZE.min) * Math.pow(cellNoise(cell.cx + index, cell.cz, 67), GRASS_CLUMP_SIZE.skew),
       cellNoise(cell.cx, cell.cz + index, 71) * Math.PI * 2,
       cellNoise(cell.cx + index, cell.cz + index, 73),
     );
