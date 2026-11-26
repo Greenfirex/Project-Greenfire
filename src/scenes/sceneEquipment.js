@@ -106,6 +106,12 @@ export default {
     return tool && tool.weapon ? { toolKey, tool } : null;
   },
 
+  harvestTool() {
+    const weapon = this.equippedWeapon();
+    if (weapon && this.playerSystem.weaponDrawn) return weapon.tool;
+    return this.heldItemSystem.tool();
+  },
+
   drawWeapon(how = 'hip') {
     if (this.playerSystem.weaponDrawn) return false;
     this.playerSystem.weaponDrawn = true;
@@ -138,6 +144,7 @@ export default {
     this.playerSystem.setHeldTool(right, how === 'instant', how === 'hip');
     this.playerSystem.setOffHandTool(offHand, how === 'instant');
     this.playerAttackSystem.setWeapon(weapon ? weapon.tool : null);
+    this.gatherSystem.setTool(this.harvestTool());
     if (this.characterPanel.open) this.refreshCharacterPanel();
   },
 

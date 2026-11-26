@@ -1,0 +1,2 @@
+Lano (textura dobarvená: šedý konec nahrazen barvou lana) — zdroj: Meshy AI (_sources/Meshy_AI_Coiled_Hemp_Rope_20261126_texture_opraveno.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

@@ -1,9 +1,11 @@
 Ikony předmětů v této složce jsou vygenerované v Gemini (Google AI) pro tento projekt.
 Výjimka: pirate_coat.png, pirate_pants.png, pirate_boots.png, koa_egg.png a palm_leaf.png jsou vyrenderované v Blenderu z modelů z Meshy AI.
 meat.png a cooked_meat.png jsou vyrenderované v Babylon.js z modelů z Meshy AI (public/assets/props/meat).
+cooked_egg.png, twine.png, rope.png, sharp_stone.png a stone_axe.png jsou vyrenderované v Blenderu (tools/bl_icon.py) z modelů z Meshy AI (public/assets/props/<předmět>).
 Formát: čtvercové PNG 256 × 256, průhledné pozadí, bez textu a rámečku.
 
 Očekávané názvy souborů:
 wood.png, stone.png, shell.png, mushroom.png, coconut.png, herb.png,
 stick.png, torch.png, meat.png, turtle_shell.png, pirate_hat.png, rusty_saber.png, spear.png,
-pirate_coat.png, pirate_pants.png, pirate_boots.png, koa_egg.png, palm_leaf.png, cooked_meat.png
+pirate_coat.png, pirate_pants.png, pirate_boots.png, koa_egg.png, palm_leaf.png, cooked_meat.png,
+cooked_egg.png, twine.png, rope.png, sharp_stone.png, stone_axe.png

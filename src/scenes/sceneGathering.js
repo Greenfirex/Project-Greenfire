@@ -12,7 +12,7 @@ export default {
   updateGathering(dt) {
     const active = this.loaded && !this.editor.active && !this.dying;
     this.gatherSystem.setPlayer(active ? this.playerSystem : null);
-    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.setTool(this.harvestTool());
     this.gatherSystem.update(dt, this.playerSystem, active ? this.inputSystem.lastCell : null);
     if (active) this.holdStrikeReady();
     this.updateGatherImpact(dt);
@@ -279,7 +279,7 @@ export default {
   },
 
   refreshGatherTargets() {
-    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.setTool(this.harvestTool());
     this.gatherSystem.update(0, this.playerSystem);
   },
 

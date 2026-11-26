@@ -135,6 +135,8 @@ const TOOL_ROTATION = new Vector3(0, 0, -0.45);
 const HIP_SWAP_TIME = 0.6;
 const HIP_SWAP_SHARE = 0.45;
 const HIP_REACH_HOLD = 1.5;
+const HIP_STANCE_DELAY = 0.55;
+const HIP_HANDOFF_TIME = 0.2;
 const HIP_ELBOW_OUT = 0.6;
 const HIP_REACH_PASSES = 3;
 const HIP_GRIP_TURN = 0.5;
@@ -245,6 +247,7 @@ export default class PlayerSystem {
     this.sheathFrame = null;
     this.sheathSlot = null;
     this.sheathNode = null;
+    this.handoff = null;
     this.toolNodeKey = null;
     this.hipSwap = null;
     this.offHandKey = null;
@@ -690,7 +693,15 @@ export default class PlayerSystem {
     if (this.sheathNode) this.sheathNode.setEnabled(this.toolNodeKey !== this.sheathedKey);
   }
 
+  sheathPose() {
+    const node = this.sheathNode;
+    if (!node || node.isDisposed() || !node.isEnabled()) return null;
+    node.computeWorldMatrix(true);
+    return { rotation: node.absoluteRotationQuaternion.clone(), position: node.getAbsolutePosition().clone() };
+  }
+
   refreshToolNode() {
+    this.handoff = null;
     this.dropToolNode();
     const tool = TOOL_TYPES[this.heldToolKey];
     if (this.handSlot && tool && tool.model) {
@@ -736,7 +747,11 @@ export default class PlayerSystem {
     const dt = Number.isFinite(frame) && frame > 0 ? Math.min(frame, 0.1) : 0.016;
     if (this.toolSwapLeft > 0) {
       this.toolSwapLeft -= dt;
-      if (this.toolSwapLeft <= 0) this.refreshToolNode();
+      if (this.toolSwapLeft <= 0) {
+        const from = this.hipSwap ? this.sheathPose() : null;
+        this.refreshToolNode();
+        this.handoff = from ? { ...from, time: 0 } : null;
+      }
     }
     this.restoreBones();
     this.relaxIdle(dt);
@@ -780,15 +795,30 @@ export default class PlayerSystem {
     let wanted = Quaternion.Identity();
     Quaternion.FromUnitVectorsToRef(Vector3.Up(), axis, wanted);
     if (grip.edge) wanted = rollEdgeToward(wanted, grip.edge, Vector3.TransformNormal(Vector3.Up(), this.handSlot.getWorldMatrix()));
+    this.setToolPose(wanted);
+    const hold = Vector3.TransformNormal(new Vector3(0, grip.hold || 0, 0), this.toolNode.getWorldMatrix());
+    const at = fist.subtract(hold);
+    const handoff = this.handoff;
+    if (!handoff) {
+      this.toolNode.setAbsolutePosition(at);
+      return;
+    }
+    handoff.time += dt;
+    const t = Math.min(1, handoff.time / HIP_HANDOFF_TIME);
+    const k = t * t * (3 - 2 * t);
+    this.setToolPose(Quaternion.Slerp(handoff.rotation, wanted, k));
+    this.toolNode.setAbsolutePosition(Vector3.Lerp(handoff.position, at, k));
+    if (t >= 1) this.handoff = null;
+  }
+
+  setToolPose(rotation) {
     const world = Matrix.Identity();
-    wanted.toRotationMatrix(world);
+    rotation.toRotationMatrix(world);
     const parent = Matrix.Identity();
     this.handSlot.absoluteRotationQuaternion.toRotationMatrix(parent);
     if (!this.toolNode.rotationQuaternion) this.toolNode.rotationQuaternion = Quaternion.Identity();
     Quaternion.FromRotationMatrixToRef(world.multiply(Matrix.Invert(parent)), this.toolNode.rotationQuaternion);
     this.toolNode.computeWorldMatrix(true);
-    const hold = Vector3.TransformNormal(new Vector3(0, grip.hold || 0, 0), this.toolNode.getWorldMatrix());
-    this.toolNode.setAbsolutePosition(fist.subtract(hold));
   }
 
   alignSwing(grip) {
@@ -1676,7 +1706,8 @@ export default class PlayerSystem {
   }
 
   idleAnim() {
-    if ((this.weaponDrawn || (this.inCombat && this.inCombat())) && this.anims.combatStance) return 'combatStance';
+    const drawing = this.weaponDrawn && this.hipSwap && this.hipSwap.time < HIP_STANCE_DELAY && this.currentKey !== 'combatStance';
+    if (!drawing && (this.weaponDrawn || (this.inCombat && this.inCombat())) && this.anims.combatStance) return 'combatStance';
     return this.heldToolKey ? 'holdTool' : 'idle';
   }
 

@@ -241,6 +241,14 @@ export const BRUSHES = {
     options: [RANDOM_OPTION],
     deco: true,
   },
+  sharpStones: {
+    label: 'Ostré kameny',
+    note: 'Rozhodí ostré kameny (pazourky), které jde sebrat rukou. Hodí se k balvanům a do jeskyní.',
+    shape: 'blob',
+    pool: ['sharp_stone'],
+    options: [RANDOM_OPTION],
+    deco: true,
+  },
   planks: {
     label: 'Prkna',
     note: 'Rozhodí prkna, která odpadla z rozpadlých staveb; jdou sebrat rukou jako dřevo. Náhoda střídá čtyři tvary.',

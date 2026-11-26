@@ -1,0 +1,2 @@
+Ostrý kámen (pazourek) — zdroj: Meshy AI (_sources/Meshy_AI_Flint_Arrowhead_20261126_texture.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

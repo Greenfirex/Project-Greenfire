@@ -881,8 +881,10 @@ zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji b
 podle natočení ze štětce (R).
 
 **Bez nástroje** jde sbírat jen to, co má `byHand` (houby, mušle, kokosy, klacky).
-Stromy jen sekerou, kameny jen krumpáčem (`gatherSystem.canHarvest`). Sekera a krumpáč
-zatím ve hře nejsou (modely KayKit vyřazené), takže stromy a kameny teď opracovat nejde.
+Stromy jen sekerou, kameny jen krumpáčem (`gatherSystem.canHarvest`). Nástroj na sběr
+určuje `harvestTool()` ve `sceneEquipment.js`: tasená zbraň, jinak věc z lišty. Kamenná
+sekera je zbraň s `harvest`, takže tasená i kácí. Krumpáč zatím ve hře není, kameny
+opracovat nejde.
 
 **Víc věcí na buňce**: na jedné buňce smí ležet víc věcí ke sběru (palma a kokos).
 Sběr, zlatý obrys i popiska berou tu, která je nejblíž bodu pod kurzorem. Sebrání

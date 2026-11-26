@@ -1,0 +1,2 @@
+Želví krunýř — zdroj: Meshy AI (_sources/Meshy_AI_Ancient_Tortoise_Shell_20261126_texture.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.

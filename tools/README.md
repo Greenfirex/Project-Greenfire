@@ -138,6 +138,10 @@ buňkám, kde už je výsledek jiného nástroje.
   Vyhýbá se cestám a buňkám, kde stojí něco jiného než strom — keře pod
   stromy růst mohou.
 
+- `scatter/sharpStones.mjs` — ostré kameny (pazourky) vedle kamenů a balvanů na povrchu
+  (jen na stejnou výšku, ne pod útes, do moře, jezer ani řek) a po dně jeskyní (patra −1 a −2).
+  Výšku bere z podlahy buňky v mapě, terén nepočítá.
+
 ```
 node tools/scatter/corals.mjs --dry         # jen spočítá a vypíše, soubor nezmění
 node tools/scatter/corals.mjs               # zapíše do src/data/maps/glade/map.json
@@ -454,7 +458,18 @@ node tools/prepareMeat.mjs      # syrové a pečené maso do public/assets/props
 node tools/prepareRocks.mjs     # kameny do public/assets/nature/rocks
 node tools/prepareRoof.mjs      # došková střecha srubu do public/assets/props/cabin_roof
 node tools/prepareVines.mjs     # popínavky srubu (vine_wall, vine_hang) do public/assets/nature/plants
+node tools/prepareItems.mjs     # předměty z inventáře (vejce, provázek, lano, bylina, krunýř, ostrý kámen, sekera) do public/assets/props/<předmět>
 ```
+
+`prepareItems.mjs` má nahoře seznam předmětů: zdroj, velikost v metrech (delší vodorovný rozměr)
+a `turn` (`side` položí model na bok, `flat` naplocho). Model postaví na zem se středem v nule.
+S `hold` ho postaví vestoje jako zbraně do ruky: rukojeť dole na ose, délka 1.
+Provázek a lano berou ze `_sources/` kopie `…_opraveno.glb` s ručně dobarvenou texturou.
+
+Ikona předmětu z hotového modelu: `bl_icon.py` vyrenderuje šikmý pohled na průhledném pozadí,
+pak se ořízne na 256 × 256 a uloží do `public/assets/ui/items/`:
+`blender --background --factory-startup --python tools/bl_icon.py -- '{"src": ..., "out": ..., "size": 512}'`
+(volitelně `yaw` a `pitch` ve stupních).
 
 `prepareRoof.mjs` bere rozměr střechy z katalogu staveb (`roof.length`, `roof.width`) a ztmaví došky
 (`COLOR` nahoře v souboru).

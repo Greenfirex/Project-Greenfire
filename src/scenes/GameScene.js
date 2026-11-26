@@ -587,7 +587,7 @@ export default class GameScene {
     this.syncFelling();
     this.syncHarvest();
     this.gatherSystem.setPlayer(this.playerSystem);
-    this.gatherSystem.setTool(this.heldItemSystem.tool());
+    this.gatherSystem.setTool(this.harvestTool());
     this.gatherSystem.update(0, this.playerSystem);
     const kinds = {};
     for (const item of this.gatherSystem.entries) kinds[item.def.kind] = (kinds[item.def.kind] || 0) + 1;
@@ -656,7 +656,7 @@ export default class GameScene {
     }
     const pointer = this.inputSystem.lastCell;
     const entry = pointer ? this.gatherSystem.itemAtCell(pointer.cx, pointer.cz, pointer.point) : null;
-    const tool = this.heldItemSystem.tool();
+    const tool = this.harvestTool();
     if (!entry || entry.def.byHand || !tool || !tool.harvest || !tool.harvest.kinds.includes(entry.def.kind)) {
       this.gameCursor.setState('default');
       return;
@@ -1741,7 +1741,6 @@ export default class GameScene {
   onHeldItemChange() {
     this.hotbar.setSelected(this.heldItemSystem.key);
     this.refreshHands();
-    this.gatherSystem.setTool(this.heldItemSystem.tool());
     this.gridSystem.hideHologram();
     this.setPointerCursorState();
   }

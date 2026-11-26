@@ -1,0 +1,2 @@
+Kamenná sekera — zdroj: Meshy AI (_sources/Meshy_AI_Primitive_Stone_Axe_20261126_texture.glb), upraveno pro tento projekt.
+Licence: podle licence účtu Meshy, na kterém byl model vytvořen.
