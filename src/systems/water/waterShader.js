@@ -238,8 +238,9 @@ void main(void) {
   vec2 blendDir = foamDir * 0.65 + toward * 0.35;
   vec2 rippleBase = length(blendDir) > 0.2 ? normalize(blendDir) : foamDir;
   float flowSpeed = length(vFlow.xy);
-  bool flowing = flowSpeed > 0.01;
-  if (flowing) rippleBase = vFlow.xy / flowSpeed;
+  float flowBlend = smoothstep(0.02, 0.3, flowSpeed);
+  bool flowing = flowBlend > 0.0;
+  if (flowing) rippleBase = normalize(mix(rippleBase, vFlow.xy / flowSpeed, flowBlend) + vec2(1e-5, 0.0));
   vec2 ripplePerp = vec2(-rippleBase.y, rippleBase.x);
   float swash = swashAt(d, p, waterTime);
   float shoreRise = clamp(swell / ${glslFloat(WAVE_REACH)}, -1.0, 1.0);
@@ -256,7 +257,7 @@ void main(void) {
   if (flowing) {
     vec2 slopeA = bumpSlope(p - flowShiftA, warpAt(p - flowShiftA), waterTime, rippleBase, ripplePerp);
     vec2 slopeB = bumpSlope(p - flowShiftB, warpAt(p - flowShiftB), waterTime, rippleBase, ripplePerp);
-    detailSlope = mix(slopeB, slopeA, flowWeightA);
+    detailSlope = mix(detailSlope, mix(slopeB, slopeA, flowWeightA), flowBlend);
   }
   vec2 slope = detailSlope + bigSlope;
   float waveSlope = length(bigSlope);
@@ -306,7 +307,7 @@ void main(void) {
   color += sunColor * (sheen + sparkle) * sunIntensity * dayness * 0.35;
 
   vec4 layers = foamLayers(p, drifts);
-  if (flowing) layers = mix(foamLayers(p - flowShiftB, drifts), foamLayers(p - flowShiftA, drifts), flowWeightA);
+  if (flowing) layers = mix(layers, mix(foamLayers(p - flowShiftB, drifts), foamLayers(p - flowShiftA, drifts), flowWeightA), flowBlend);
   float texFoam = layers.a;
   float patchNoise = rippleNoise(p * 0.075 + drifts * 0.06) * 1.6 + 0.5;
   float gateNoise = rippleNoise(p * 0.1 + drifts * 0.09) * 1.6 + 0.5;
@@ -330,7 +331,7 @@ void main(void) {
   float crash = cliff * cliffReach * (0.35 + 0.95 * crestShape) * (0.45 + 0.75 * foamPatch);
 
   float rapids = clamp(vFlow.z, 0.0, 1.0) * (0.3 + 0.9 * texFoam);
-  float streaks = flowing ? smoothstep(0.5, 0.85, texFoam) * 0.3 : 0.0;
+  float streaks = smoothstep(0.5, 0.85, texFoam) * 0.3 * flowBlend;
   float foam = max(max(max(shoreLace, breaker), max(crash, whitecap)), max(shallowFoam, max(rapids, streaks)));
   foam *= mix(0.6, 1.0, texFoam);
   float shoreCut = smoothstep(-0.015, 0.02, rawDrop);

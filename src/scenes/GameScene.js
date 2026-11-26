@@ -1120,11 +1120,12 @@ export default class GameScene {
     this.revealSystem.setLightMap(this.terrainSystem.caveLightMap());
     this.caveFrameSystem.create(this.caveDoorsAround(), (style, source) => this.terrainSystem.caveFrameMaterial(style, source));
     for (const mesh of this.caveFrameSystem.meshes()) this.addShadowCaster(mesh);
-    const fallFaces = this.waterfallFaces();
+    const fallCells = this.waterfallCells();
     const housed = buildingCellKeys((this.mapFile || {}).buildings);
-    const faces = this.terrainSystem.cliffFaces().filter((face) => !fallFaces.has(`${face.cx},${face.cz}|${face.dx},${face.dz}`)
-      && !housed.has(`${face.cx + face.dx},${face.cz + face.dz}`));
-    this.cliffDressSystem.create(faces, (style, mossy, source) => this.terrainSystem.cliffDressMaterial(style, mossy, source));
+    const faces = this.terrainSystem.cliffFaces()
+      .filter((face) => !housed.has(`${face.cx + face.dx},${face.cz + face.dz}`))
+      .map((face) => (fallCells.has(`${face.cx + face.dx},${face.cz + face.dz}`) ? { ...face, wet: true } : face));
+    this.cliffDressSystem.create(faces, (style, mossy, source, wet) => this.terrainSystem.cliffDressMaterial(style, mossy, source, wet));
     this.refreshVines();
     this.editor.syncFloorView();
   }

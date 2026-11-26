@@ -1,6 +1,6 @@
 // Skalní kusy na útesech — překrývající se kameny, které rozbijí rovnou stěnu, horní hranu i rohy.
 // Skládá se sám ze stran útesů, které zná terén; nic se neukládá a pokaždé to vypadá stejně.
-// Stejně obloží i stěny jeskyní (strana s inside: bez teras a mechu).
+// Stejně obloží i stěny jeskyní (strana s inside: bez teras a mechu); za vodopádem jsou kameny ploché a mokré.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CELL_SIZE } from '../../utils/gridMath.js';
@@ -109,10 +109,11 @@ export default class CliffDressSystem {
     this.terraceAnchors = [];
     const placed = (faces || []).filter((face) => PIECES[face.style] && (face.lintel ? face.top > face.foot : face.top - face.foot >= MIN_WALL));
     const sides = new Set((faces || []).map((face) => `${face.cx},${face.cz}|${face.dx},${face.dz}`));
-    for (const face of placed) this.dressFace(face, sides);
+    const wetSides = new Set((faces || []).filter((face) => face.wet).map((face) => `${face.cx},${face.cz}|${face.dx},${face.dz}`));
+    for (const face of placed) this.dressFace(face, sides, wetSides);
     this.dressCorners(placed);
     for (const face of placed) {
-      if (face.lintel || face.inside || face.top - face.foot < TERRACE_MIN_WALL) continue;
+      if (face.lintel || face.inside || face.wet || face.top - face.foot < TERRACE_MIN_WALL) continue;
       if (hash(face.x, face.z, 40) < TERRACE_CHANCE) this.dressTerrace(face);
     }
     this.buildChunks(materialFor);
@@ -162,7 +163,7 @@ export default class CliffDressSystem {
   dressCorners(faces) {
     const byCell = new Map();
     for (const face of faces) {
-      if (face.lintel) continue;
+      if (face.lintel || face.wet) continue;
       const id = `${face.cx},${face.cz}`;
       if (!byCell.has(id)) byCell.set(id, []);
       byCell.get(id).push(face);
@@ -218,7 +219,7 @@ export default class CliffDressSystem {
     }
   }
 
-  dressFace(face, sides) {
+  dressFace(face, sides, wetSides) {
     const pieces = PIECES[face.style];
     const low = face.top - face.foot < LOW_WALL ? LOW_WALL_SCALE : 1;
     const yaw = Math.atan2(face.dx, face.dz);
@@ -226,8 +227,9 @@ export default class CliffDressSystem {
     const alongZ = face.dx !== 0 ? 1 : 0;
     const openAt = (step) => !sides.has(`${face.cx + alongX * step},${face.cz + alongZ * step}|${face.dx},${face.dz}`)
       && !sides.has(`${face.cx + alongX * step + face.dx},${face.cz + alongZ * step + face.dz}|${-alongX * step},${-alongZ * step}`);
-    const openBefore = openAt(-1);
-    const openAfter = openAt(1);
+    const wetAt = (step) => wetSides.has(`${face.cx + alongX * step},${face.cz + alongZ * step}|${face.dx},${face.dz}`);
+    const openBefore = openAt(-1) || wetAt(-1);
+    const openAfter = openAt(1) || wetAt(1);
     let y = face.lintel ? face.foot + LINTEL_GAP : face.foot - SINK;
     for (let row = 0; row < ROW_LIMIT; row += 1) {
       const columns = row % 2 ? COLUMNS_ODD : COLUMNS_EVEN;
@@ -256,14 +258,15 @@ export default class CliffDressSystem {
         if ((face.doorAfter && along > DOOR_CLEAR) || (face.doorBefore && along < -DOOR_CLEAR)) return;
         const towardEnd = (openAfter && along > 0) || (openBefore && along < 0);
         if (towardEnd) look.scaleX = Math.min(look.scaleX, (1 + END_SLACK - Math.abs(along)) / shape.side);
-        const stick = towardEnd ? MIN_OUT : between([MIN_OUT, CLIFF_STONE_MAX_OUT], hash(face.x, face.z, salt, 5));
+        const stick = towardEnd || face.wet ? MIN_OUT : between([MIN_OUT, CLIFF_STONE_MAX_OUT], hash(face.x, face.z, salt, 5));
         if (face.inside) look.scaleZ = Math.min(look.scaleZ, (stick + INSIDE_BACK) / (2 * shape.front));
         const out = stick - shape.front * look.scaleZ;
         this.pieces.push({
           ...look,
           key: shape.key,
           style: face.style,
-          mossy: !face.inside && capped && hash(face.x, face.z, salt, 31) < pieces.moss,
+          mossy: !face.inside && !face.wet && capped && hash(face.x, face.z, salt, 31) < pieces.moss,
+          wet: Boolean(face.wet),
           yaw: yaw + look.turn + (hash(face.x, face.z, salt, 6) - 0.5) * YAW_JITTER,
           x: face.x + face.dx * out + alongX * along,
           y: capped || (face.inside && y + reach > face.top + lip) ? face.top + lip - reach : y,
@@ -291,8 +294,8 @@ export default class CliffDressSystem {
     for (const piece of this.pieces) {
       const areaX = Math.floor(piece.x / CHUNK_WORLD);
       const areaZ = Math.floor(piece.z / CHUNK_WORLD);
-      const id = `${piece.key}|${piece.style}|${piece.mossy ? 1 : 0}|${areaX}|${areaZ}`;
-      if (!byArea.has(id)) byArea.set(id, { key: piece.key, style: piece.style, mossy: piece.mossy, areaX, areaZ, matrices: [] });
+      const id = `${piece.key}|${piece.style}|${piece.mossy ? 1 : 0}|${piece.wet ? 1 : 0}|${areaX}|${areaZ}`;
+      if (!byArea.has(id)) byArea.set(id, { key: piece.key, style: piece.style, mossy: piece.mossy, wet: piece.wet, areaX, areaZ, matrices: [] });
       byArea.get(id).matrices.push(Matrix.Compose(
         new Vector3(piece.scaleX, piece.scaleY, piece.scaleZ),
         Quaternion.RotationYawPitchRoll(piece.yaw, piece.pitch, piece.roll),
@@ -301,10 +304,10 @@ export default class CliffDressSystem {
     }
     for (const area of byArea.values()) {
       const shape = this.shapeFor(area.key);
-      const mesh = shape.source.clone(`cliffDress_${area.key}_${area.mossy ? 'moss_' : ''}${area.areaX}_${area.areaZ}`, null, false);
+      const mesh = shape.source.clone(`cliffDress_${area.key}_${area.mossy ? 'moss_' : ''}${area.wet ? 'wet_' : ''}${area.areaX}_${area.areaZ}`, null, false);
       mesh.makeGeometryUnique();
       mesh.parent = null;
-      mesh.material = materialFor(area.style, area.mossy, shape.model ? shape.source.material : null);
+      mesh.material = materialFor(area.style, area.mossy, shape.model ? shape.source.material : null, area.wet);
       mesh.isPickable = false;
       mesh.receiveShadows = true;
       mesh.alwaysSelectAsActiveMesh = true;

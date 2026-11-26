@@ -17,6 +17,7 @@ const SMOOTH_PASSES = 2;
 const SHORE_SPILL = 0.75;
 const FALL_BLEND_LIMIT = 1;
 const VALUES = 4;
+const STEP_EDGE = 1e-3;
 
 function cellOf(x, z) {
   return cellKey(Math.floor((x + HALF) / CELL_SIZE), Math.floor((z + HALF) / CELL_SIZE));
@@ -41,6 +42,17 @@ export function extendIntoCliffs(raw, out, width, height) {
   }
 }
 
+function levelAcrossStep(all, x, z, fallback) {
+  let best = -Infinity;
+  for (const ox of [-STEP_EDGE, STEP_EDGE]) {
+    for (const oz of [-STEP_EDGE, STEP_EDGE]) {
+      const cell = all.get(cellOf(x + ox, z + oz));
+      if (cell) best = Math.max(best, cell[0]);
+    }
+  }
+  return Number.isFinite(best) ? best : fallback;
+}
+
 function cellValues(cells) {
   const own = new Map();
   for (const cell of cells) own.set(cellKey(cell.cx, cell.cz), [cell.level, cell.flowX || 0, cell.flowZ || 0, cell.rapids || 0]);
@@ -49,16 +61,20 @@ function cellValues(cells) {
     for (const [dx, dz] of AROUND) {
       const key = cellKey(cell.cx + dx, cell.cz + dz);
       if (own.has(key)) continue;
-      const sum = ring.get(key) || [Infinity, 0, 0, 0, 0];
+      const sum = ring.get(key) || [Infinity, 0, 0, 0, 0, Infinity];
       const values = own.get(cellKey(cell.cx, cell.cz));
       sum[0] = Math.min(sum[0], values[0]);
+      if (dx === 0 || dz === 0) sum[VALUES + 1] = Math.min(sum[VALUES + 1], values[0]);
       for (let k = 1; k < VALUES; k += 1) sum[k] += values[k];
       sum[VALUES] += 1;
       ring.set(key, sum);
     }
   }
   const all = new Map(own);
-  for (const [key, sum] of ring) all.set(key, [sum[0], ...sum.slice(1, VALUES).map((value) => value / sum[VALUES])]);
+  for (const [key, sum] of ring) {
+    const level = Number.isFinite(sum[VALUES + 1]) ? sum[VALUES + 1] : sum[0];
+    all.set(key, [level, ...sum.slice(1, VALUES).map((value) => value / sum[VALUES])]);
+  }
   return { own, all };
 }
 
@@ -167,10 +183,13 @@ export default {
         const x = x0 + i * dx;
         const z = z0 + j * dz;
         const vertex = j * (cols + 1) + i;
-        positions.push(x, this.fieldValue(field, x, z, 0) - WATER_SINK, z);
+        let level = this.fieldValue(field, x, z, 0);
+        if (this.fieldSpread(field, x, z) > FALL_BLEND_LIMIT) level = levelAcrossStep(all, x, z, level);
+        positions.push(x, level - WATER_SINK, z);
         flows[vertex * 3] = this.fieldValue(field, x, z, 1);
         flows[vertex * 3 + 1] = this.fieldValue(field, x, z, 2);
         flows[vertex * 3 + 2] = this.fieldValue(field, x, z, 3);
+        this.addPlungeFlow(flows, vertex, x, z, level);
       }
     }
     const indices = [];
@@ -181,6 +200,8 @@ export default {
         const b = a + 1;
         const c = a + cols + 2;
         const d = a + cols + 1;
+        const heights = [a, b, c, d].map((vertex) => positions[vertex * 3 + 1]);
+        if (Math.max(...heights) - Math.min(...heights) > FALL_BLEND_LIMIT) continue;
         indices.push(a, c, b, a, d, c);
       }
     }
@@ -311,6 +332,16 @@ export default {
       if (Math.max(gapX, gapZ) <= reach) return true;
     }
     return false;
+  },
+
+  fieldSpread(field, x, z) {
+    const fx = Math.min(field.width - 1, Math.max(0, (x - field.x0) / field.stepX));
+    const fz = Math.min(field.height - 1, Math.max(0, (z - field.z0) / field.stepZ));
+    const i0 = Math.floor(fx);
+    const j0 = Math.floor(fz);
+    const near = [[i0, j0], [Math.min(field.width - 1, i0 + 1), j0], [i0, Math.min(field.height - 1, j0 + 1)],
+      [Math.min(field.width - 1, i0 + 1), Math.min(field.height - 1, j0 + 1)]].map(([i, j]) => field.values[(j * field.width + i) * VALUES]);
+    return Math.max(...near) - Math.min(...near);
   },
 
   fieldValue(field, x, z, channel) {

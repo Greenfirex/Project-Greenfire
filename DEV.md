@@ -562,11 +562,14 @@ a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez p
 - **Vodopád** vznikne sám tam, kde hladina řeky mezi dvěma buňkami trasy klesne aspoň
   o hranici útesu (`AUTO_CLIFF_STEP`, 2 m; `riverFalls`). Při plánování se buňky pod
   útesem nepočítají jako břeh horního toku, jinak by řeka před hranou vykopala kaňon.
-  Hladina se přes výškový rozdíl nad 1 m nevyhlazuje, takže horní tůň je rovná až
-  k hraně. Kreslí ho `waterFalls.js` (část WaterSystem) a `waterfallShader.js`:
-  clona s pruhy stékajícími dolů v oblouku od skály, vířící pěna na dolní hladině
-  a mlha z částic. Funguje i pád do jezera nebo do moře. Stěna útesu pod vodopádem se
-  neobkládá kameny ani terasami (`sceneWorld.waterfallFaces`), jinak by prolézaly clonou.
+  Hladina se přes výškový rozdíl nad 1 m nevyhlazuje ani nespojuje (plošky přes skok
+  se nekreslí), takže horní tůň je rovná až k hraně. Kreslí ho `waterFalls.js` (část
+  WaterSystem) a `waterfallShader.js`: clona přelévaná přes hranu obloukem, nahoře
+  hladká, níž v pruzích, s pulzujícími silnějšími vlnami; kulatá pěna s vlnkami,
+  kapky a mlha. Pod dopadem se proud rozlévá do všech stran (`addPlungeFlow`). Funguje
+  i pád do jezera nebo do moře. Stěny útesu hledící do políček vodopádu
+  (`sceneWorld.waterfallCells`) mají kameny ploché a mokré, bez teras a rohových
+  balvanů, jinak by prolézaly clonou.
 - V editoru štětec Jezero (Terén): klik do prohlubně ji naplní po okraj, klik na jezero
   zvedne hladinu o 0,25 m, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.
   Splynou-li dvě jezera, zůstane jedno.

@@ -183,9 +183,14 @@ export function riverCells(river, cells) {
       dirZ /= length;
     }
     const steps = Math.max(1, last - first);
-    const drop = Math.max(0, (before[2] - after[2]) / steps);
-    const speed = Math.min(FLOW_MAX, FLOW_BASE + drop * FLOW_PER_DROP);
-    const rapids = Math.min(1, Math.max(0, (drop - RAPIDS_FROM) / (RAPIDS_FULL - RAPIDS_FROM)));
+    const stepDrop = (from, to) => {
+      const fall = from[2] - to[2];
+      return fall >= AUTO_CLIFF_STEP - 1e-6 ? 0 : Math.max(0, fall);
+    };
+    const dropIn = stepDrop(before, path[index]);
+    const speed = Math.min(FLOW_MAX, FLOW_BASE + (dropIn + Math.max(0, level - after[2])) / steps * FLOW_PER_DROP);
+    const flowDrop = (dropIn + stepDrop(path[index], after)) / steps;
+    const rapids = Math.min(1, Math.max(0, (flowDrop - RAPIDS_FROM) / (RAPIDS_FULL - RAPIDS_FROM)));
     for (let dz = -side; dz <= side; dz += 1) {
       for (let dx = -side; dx <= side; dx += 1) {
         const key = cellKey(cx + dx, cz + dz);

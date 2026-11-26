@@ -23,6 +23,9 @@ const CLAY_CLIFF_NORMAL = `${ASSET_DIRS.textures}Ground071_1K-JPG_NormalGL.jpg`;
 const DRESS_MOSS_TEXTURE = `${ASSET_DIRS.textures}Grass001_1K-JPG_Color.jpg`;
 const RELIEF_SIZE = 1024;
 const DRESS_STONE_SHADE = 0.8;
+const WET_STONE_SHADE = 0.55;
+const WET_STONE_SHINE = 0.45;
+const WET_STONE_GLOSS = 48;
 const FRAME_STONE_SHADE = 0.85;
 
 export default {
@@ -59,22 +62,29 @@ export default {
     return this.cliffMaterials[key];
   },
 
-  cliffDressMaterial(style, mossy = false, source = null) {
+  cliffDressMaterial(style, mossy = false, source = null, wet = false) {
     if (!this.cliffMaterials) this.cliffMaterials = {};
-    const key = `dress_${style}${mossy ? '_moss' : ''}${source ? `_${source.name}` : ''}`;
+    const suffix = `${mossy ? '_moss' : ''}${wet ? '_wet' : ''}`;
+    const key = `dress_${style}${suffix}${source ? `_${source.name}` : ''}`;
     if (!this.cliffMaterials[key] && source) {
-      this.cliffMaterials[key] = this.dressStoneMaterial(`terrainCliffDressMat_${style}_${source.name}${mossy ? '_moss' : ''}`, style, source, { mossy });
+      this.cliffMaterials[key] = this.dressStoneMaterial(`terrainCliffDressMat_${style}_${source.name}${suffix}`, style, source, {
+        mossy, shade: wet ? DRESS_STONE_SHADE * WET_STONE_SHADE : DRESS_STONE_SHADE,
+      });
     }
     if (!this.cliffMaterials[key]) {
       const cliff = this.cliffMaterialFor(style);
-      const material = new StandardMaterial(`terrainCliffDressMat_${style}${mossy ? '_moss' : ''}`, this.s);
+      const material = new StandardMaterial(`terrainCliffDressMat_${style}${suffix}`, this.s);
       material.diffuseTexture = cliff.diffuseTexture;
       material.bumpTexture = cliff.bumpTexture;
-      material.diffuseColor = cliff.diffuseColor.clone();
+      material.diffuseColor = cliff.diffuseColor.scale(wet ? WET_STONE_SHADE : 1);
       material.specularColor = cliff.specularColor.clone();
       material.backFaceCulling = false;
       if (mossy) new CliffMossPlugin(material, this.cliffBlendTexture(DRESS_MOSS_TEXTURE));
       this.cliffMaterials[key] = material;
+    }
+    if (wet) {
+      this.cliffMaterials[key].specularColor = new Color3(WET_STONE_SHINE, WET_STONE_SHINE, WET_STONE_SHINE);
+      this.cliffMaterials[key].specularPower = WET_STONE_GLOSS;
     }
     return this.cliffMaterials[key];
   },

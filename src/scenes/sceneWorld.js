@@ -145,15 +145,18 @@ export default {
     return this.bodyCache;
   },
 
-  waterfallFaces() {
-    const faces = new Set();
+  waterfallCells() {
+    const cells = new Set();
     for (const fall of this.waterBodies().falls) {
       const half = Math.floor((fall.width - 1) / 2);
       for (let step = -half; step <= half; step += 1) {
-        faces.add(`${fall.cx - fall.dz * step},${fall.cz + fall.dx * step}|${fall.dx},${fall.dz}`);
+        const cx = fall.cx - fall.dz * step;
+        const cz = fall.cz + fall.dx * step;
+        cells.add(`${cx},${cz}`);
+        cells.add(`${cx + fall.dx},${cz + fall.dz}`);
       }
     }
-    return faces;
+    return cells;
   },
 
   riverCellKeys(present) {
