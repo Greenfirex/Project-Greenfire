@@ -1,7 +1,8 @@
-// Šablona volně stojícího nábytku — stůl, židle, truhla, sud, bedna, kotva, lano, loďka a lavička složené
-// z prken, válců a kvádrů. Dřevo má pevné opotřebení (mech a špína dole), každý kus se staví jednou.
+// Šablona volně stojícího nábytku (stůl, židle, truhla, sud, bedna, kotva, lano, loďka, lavička) a drobností
+// na něj, složených z prken, válců a kvádrů. Dřevo má pevné opotřebení (mech a špína dole), každý kus se staví jednou.
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Material } from '@babylonjs/core/Materials/material';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import {
@@ -11,6 +12,8 @@ import {
 import { agePaint } from './agePaint.js';
 import { logEndTexture } from './logEndTexture.js';
 import { plankMaterial } from './plankFactory.js';
+import { pushBottle, pushMug, pushSpyglass, pushCompass, mapSheet, pushMapDagger } from './pirateTrinkets.js';
+import { treasureMapTexture } from './pirateCloth.js';
 import { createRng } from './rng.js';
 import { LOG_TEXTURE, LOG_NORMAL } from '../data/catalogs/assetPaths.js';
 import { FURNITURE_STYLES, FURNITURE_WEAR, LOG_END_COLORS } from '../data/catalogs/furniture.js';
@@ -41,6 +44,21 @@ function materialsFor(scene) {
   const set = { planks: plankMaterial(scene), painted, logs, ends };
   materialSets.set(scene, set);
   return set;
+}
+
+function mapMaterial(scene, materials) {
+  if (materials.map) return materials.map;
+  const material = new StandardMaterial('furnitureMapMat', scene);
+  material.diffuseTexture = treasureMapTexture(scene, 'furnitureMap', FURNITURE_STYLES.map.colors);
+  material.diffuseTexture.hasAlpha = true;
+  material.useAlphaFromDiffuseTexture = true;
+  material.transparencyMode = Material.MATERIAL_ALPHATEST;
+  material.alphaCutOff = 0.4;
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  material.specularColor = new Color3(0.02, 0.02, 0.02);
+  materials.map = material;
+  return material;
 }
 
 function shaded(out, style) {
@@ -228,7 +246,14 @@ function buildBench(out, style, place) {
 function buildPiece(out, piece) {
   const style = FURNITURE_STYLES[piece.kind];
   const place = { x: 0, y: piece.lift || 0, z: 0, yaw: 0, tilt: piece.tilt || 0 };
-  if (piece.kind === 'table') buildTable(out, style, place);
+  if (piece.kind === 'map') {
+    out.sheet = mapSheet(style, place);
+    pushMapDagger(out.painted, style, place);
+  } else if (piece.kind === 'bottle') pushBottle(out.painted, style, place, piece.color, piece.broken);
+  else if (piece.kind === 'mug') pushMug(out.painted, style, place);
+  else if (piece.kind === 'spyglass') pushSpyglass(out.painted, style, place);
+  else if (piece.kind === 'compass') pushCompass(out.painted, style, place);
+  else if (piece.kind === 'table') buildTable(out, style, place);
   else if (piece.kind === 'chair') buildChair(out, style, place);
   else if (piece.kind === 'chest') buildChest(out, style, place);
   else if (piece.kind === 'barrel') buildBarrel(out, style, piece);
@@ -252,16 +277,18 @@ export function furnitureTemplate(scene, piece) {
     painted: createBuffer(),
     logs: createBuffer(),
     ends: createBuffer(),
+    sheet: null,
     rng: createRng(piece.seed),
     paint: agePaint(FURNITURE_WEAR, piece.seed),
   };
   buildPiece(out, piece);
   const materials = materialsFor(scene);
   const root = new TransformNode(`tplFurniture_${piece.kind}_${piece.seed}`, scene);
-  for (const part of ['planks', 'painted', 'logs', 'ends']) {
+  for (const part of ['planks', 'painted', 'logs', 'ends', 'sheet']) {
+    if (!out[part]) continue;
     const mesh = meshFromBuffer(`furniture_${piece.kind}_${piece.seed}_${part}`, out[part], scene);
     if (!mesh) continue;
-    mesh.material = materials[part];
+    mesh.material = part === 'sheet' ? mapMaterial(scene, materials) : materials[part];
     mesh.parent = root;
   }
   root.setEnabled(false);

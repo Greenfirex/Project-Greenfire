@@ -105,6 +105,7 @@ export default class MapEditor {
     };
     this.mode.onDraftChange = (draft) => this.updateDraftView(draft);
     this.mode.onFreeDraftChange = () => this.showFreeDraft();
+    this.mode.entryHeightOf = (entry) => this.s.decoEntryHeight(entry);
     this.mode.onHeightsChange = () => this.s.renderHeights();
     this.mode.onHeightDraftChange = () => this.refreshHeightDraftView();
     this.mode.onHeightBrushChange = (size) => this.heightPanel.setBrushSize(size);

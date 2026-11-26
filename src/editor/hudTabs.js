@@ -66,7 +66,7 @@ export const HUD_TABS = [
     sections: [
       { label: 'Les a skály', brushes: ['rocks', 'deadwood', 'clubs', 'planks', 'palmLeaves', 'cliffDebris'] },
       { label: 'Pláž a moře', brushes: ['driftwood', 'shore', 'starfish', 'reef'] },
-      { label: 'Tábor a poklady', brushes: ['camp', 'chest', 'skeleton', 'furniture'] },
+      { label: 'Tábor a poklady', brushes: ['camp', 'chest', 'skeleton', 'furniture', 'trinkets'] },
       { brushes: ['erase_objects'] },
     ],
   },

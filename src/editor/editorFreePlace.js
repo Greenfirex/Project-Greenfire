@@ -1,4 +1,4 @@
-// Část editoru: volné pokládání dekorací — kus přesně na bod pod myší, bez mazání políčka, i na podlahu stavby.
+// Část editoru: volné pokládání dekorací — kus přesně na bod pod myší, i na podlahu stavby nebo desku nábytku (`raise`).
 // Kliky se sbírají do návrhu (položit / smazat / přenést nejbližší věc) a teprve Aplikovat je zapíše do mapy najednou.
 // Patří k EditorMode (sdílí jeho this).
 import { BRUSHES, PAINT_DECORATIONS } from '../data/catalogs/brushes.js';
@@ -57,12 +57,15 @@ export default {
     const level = this.paintLevel;
     const entry = { ...base, cx, cz, offsetX: round3(spot.x - cellToWorld(cx)), offsetZ: round3(spot.z - cellToWorld(cz)), exact: true };
     if (level) entry.level = level;
-    if (spot.deck && !level) {
-      entry.deck = spot.deck;
-      return entry;
+    if (spot.deck && !level) entry.deck = spot.deck;
+    else {
+      const lift = layerLiftAt(this.layout, cx, cz, level) || 0;
+      if (lift) entry.liftY = lift;
     }
-    const lift = layerLiftAt(this.layout, cx, cz, level) || 0;
-    if (lift) entry.liftY = lift;
+    if (Number.isFinite(spot.surfaceY) && this.entryHeightOf) {
+      const raise = round3(spot.surfaceY - this.entryHeightOf(entry));
+      if (raise > 0.001) entry.raise = raise;
+    }
     return entry;
   },
 
@@ -116,7 +119,7 @@ export default {
     }
     const def = getDecoration(source.key);
     const place = def ? decoPlacement(def, source) : null;
-    const { cx, cz, offsetX, offsetZ, liftY, deck, level, rotation, scale, exact, ...rest } = source;
+    const { cx, cz, offsetX, offsetZ, liftY, deck, level, rotation, scale, exact, raise, ...rest } = source;
     const defScale = def && Number.isFinite(def.scale) ? def.scale : 1;
     const base = { ...rest, rotation: place ? round3(place.yaw / (Math.PI / 2)) : rotation || 0 };
     const size = place ? place.scale / defScale : scale;

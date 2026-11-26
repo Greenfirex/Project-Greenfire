@@ -128,7 +128,7 @@ export default class BuildingSystem {
     return best;
   }
 
-  deckOnRay(origin, direction, storey = null) {
+  deckOnRay(origin, direction, storey = null, cutAway = null) {
     if (direction.y > -1e-4) return null;
     let best = null;
     for (const deck of this.decks) {
@@ -143,6 +143,7 @@ export default class BuildingSystem {
         const z = origin.z + direction.z * t;
         const p = Vector3.TransformCoordinates(new Vector3(x, 0, z), deck.inverse);
         if (p.x < rect.x0 || p.x > rect.x1 || p.z < rect.z0 || p.z > rect.z1) continue;
+        if (cutAway && cutAway(x, y, z)) continue;
         best = { t, x, y, z, storey: level };
       }
     }

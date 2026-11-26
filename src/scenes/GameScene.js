@@ -118,6 +118,7 @@ const SHELF_GRASS_CLEAR = 0.6;
 const DECK_ABOVE_GROUND = 0.05;
 const PEEK_PICK_THROUGH = 0.5;
 const EDITOR_PEEK_RADIUS = 3;
+const FREE_PREVIEW_LIFT = 0.02;
 const DECK_PICK_SLACK = 0.1;
 const DOOR_SHUT_LEAD = 0.24;
 const WADE_SPEED = 0.65;
@@ -2068,12 +2069,26 @@ export default class GameScene {
     if (!cell || !cell.point) return null;
     const level = this.editor.mode.paintLevel;
     const ray = level === 0 ? this.inputSystem.pointerRay() : null;
+    let spot = null;
     if (ray) {
-      const hit = this.buildingSystem.deckOnRay(ray.origin, ray.direction, this.editor.buildingView);
-      if (hit && hit.t <= Vector3.Distance(ray.origin, cell.point) + DECK_PICK_SLACK) return { x: hit.x, y: hit.y, z: hit.z, deck: hit.storey };
+      let reach = Vector3.Distance(ray.origin, cell.point) + DECK_PICK_SLACK;
+      const cutAway = this.inputSystem.seesThrough;
+      const hit = this.buildingSystem.deckOnRay(ray.origin, ray.direction, this.editor.buildingView, cutAway);
+      if (hit && hit.t <= reach) {
+        spot = { x: hit.x, y: hit.y, z: hit.z, deck: hit.storey };
+        reach = hit.t + DECK_PICK_SLACK;
+      }
+      const lifted = new Set(this.editor.mode.freeDraft.filter((item) => item.remove).map((item) => item.entry));
+      const top = this.decoSystem.surfaceOnRay(ray.origin, ray.direction, lifted);
+      if (top && top.t <= reach) return { x: top.x, y: top.y, z: top.z, deck: top.deck, surfaceY: top.y };
     }
+    if (spot) return spot;
     const { x, z } = cell.point;
     return { x, y: this.terrainSystem.walkHeightAt(x, z, level), z, deck: null };
+  }
+
+  decoEntryHeight(entry) {
+    return this.decoSystem.entryHeight(entry);
   }
 
   showFreePreview(cell) {
@@ -2084,7 +2099,7 @@ export default class GameScene {
     const entry = erasing || picking ? mode.freeEraseAt(spot) : mode.freeEntry(spot);
     const def = entry ? getDecoration(entry.key) : null;
     if (!def) return;
-    this.gridSystem.showDecorPreview(def, [decoPlacement(def, entry)], entry.cx, entry.cz, this.decoSystem.entryHeight(entry), 0, entry.key);
+    this.gridSystem.showDecorPreview(def, [decoPlacement(def, entry)], entry.cx, entry.cz, this.decoSystem.entryHeight(entry) + FREE_PREVIEW_LIFT, 0, entry.key);
     if (erasing) this.gridSystem.tintHologram(false);
   }
 
@@ -2098,7 +2113,7 @@ export default class GameScene {
         def,
         remove,
         x: entry.cx * CELL_SIZE + place.offsetX,
-        y: this.decoSystem.entryHeight(entry),
+        y: this.decoSystem.entryHeight(entry) + FREE_PREVIEW_LIFT,
         z: entry.cz * CELL_SIZE + place.offsetZ,
         yaw: place.yaw,
         scale: place.scale,

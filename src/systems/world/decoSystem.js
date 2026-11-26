@@ -306,6 +306,32 @@ export default class DecoSystem {
   }
 
   entryHeight(entry, extraX = 0, extraZ = 0) {
+    return this.standHeight(entry, extraX, extraZ) + (entry.raise || 0);
+  }
+
+  surfaceOnRay(origin, direction, skip = null) {
+    const length = direction.length();
+    if (!length || direction.y >= 0) return null;
+    let best = null;
+    for (const anchor of this.anchors) {
+      const meta = anchor && anchor.metadata;
+      if (!meta || !meta.def || !meta.def.surface || !meta.def.box || anchor.isDisposed() || !anchor.isEnabled()) continue;
+      if (skip && skip.has(meta.entry)) continue;
+      if (levelOfEntry(meta.entry) !== 0) continue;
+      const scale = decoPlacement(meta.def, meta.entry).scale / (meta.def.scale || 1);
+      const y = anchor.position.y + meta.def.surface * scale;
+      const t = ((y - origin.y) / direction.y) * length;
+      if (t <= 0 || (best && t >= best.t)) continue;
+      const x = origin.x + (direction.x / length) * t;
+      const z = origin.z + (direction.z / length) * t;
+      const shape = { box: meta.def.box.map((half) => half * scale), yaw: meta.yaw };
+      if (boxContact(shape, x - anchor.position.x, z - anchor.position.z).gap > 0) continue;
+      best = { x, y, z, t, deck: meta.entry.deck || null };
+    }
+    return best;
+  }
+
+  standHeight(entry, extraX = 0, extraZ = 0) {
     if (entry.deck && this.deckAt) {
       const spot = cellToWorldCoords(entry.cx, entry.cz);
       const deck = this.deckAt(spot.x + (entry.offsetX || 0) + extraX, spot.z + (entry.offsetZ || 0) + extraZ, entry.deck);

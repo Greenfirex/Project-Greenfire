@@ -1251,7 +1251,16 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    židle překážka není. Kus na podlaze přízemí (`deck: 'lower'`) má i vršek (`top`) a postava či tvor, jehož chodidla
    jsou výš (`DECK_FEET_CLEAR`), ho nevidí — jinak by stůl v přízemí zastavil postavu v patře nad ním. Kusy v patře
    (`deck: 'upper'`) zatím překážka nejsou. Původní kusy ze srubu převedl jednorázový skript na stejná místa v mapě.
-   Drobnosti na stole (lucerna, mapa, láhve, hrnky) zůstaly ve srubu na pevných místech; když se stůl posune, zůstanou viset.
+   **Drobnosti** (etapa 2): mapa pokladu s dýkou, láhev zelená, hnědá a rozbitá, cínový hrnek, dalekohled a kompas
+   (`TRINKET_PIECES` ve `furniture.js`, tvary v `utils/pirateTrinkets.js` — ty samé kreslí i police a knihovna ve srubu).
+   Nejsou překážka. Štětec Drobnosti klade volně; kus nábytku se `surface` (výška desky: stůl, truhla, sud, bedna)
+   je pod myší deska (`decoSystem.surfaceOnRay`, paprsek proti obdélníku `box` ve výšce desky, ne přes kus nesený
+   v návrhu) a dekorace dostane `raise` = zvednutí nad tím, na čem by jinak stála (`entryHeight` = `standHeight`
+   + `raise`). Podlahu pod myší hledá `deckOnRay` bez míst vyříznutých průhledem za myší (`seesThrough`), jinak by
+   v pohledu Celé chytila neviditelné patro nad stolem. Náhled je o 2 cm výš (`FREE_PREVIEW_LIFT`), aby nesplýval
+   s povrchem. Drobnost s nábytkem nesvázaná: posunutý stůl ji nechá viset ve vzduchu. Původní drobnosti ze srubu
+   převedl jednorázový skript; dalekohled a kompas leží na ponku, který je zatím součást srubu, takže na ponk
+   editor nové drobnosti položit neumí (až s etapou 3). Lucerna na stole zůstává ve srubu (etapa 3).
    **Pracovní místa:** kus nábytku s `use` (`{ kind, hint }`) má vlastní mesh (`finishStations`), pod myší zlatý obrys
    (`stationAt`, společné `pickInteractive`, `inReach` a `updateInteractive` s dveřmi) a klik ho použije
    (`GameScene`, interakce `station`). Ponk v severozápadním rohu podél zdi s knihovnou (mimo dráhu jejího
@@ -1262,14 +1271,13 @@ nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildin
    a podlahu patra; při rozsvícení a pohybu dveří či knihovny hlásí `dirty`. Ve dne slabě, v noci naplno, lehce
    bliká (`light` ve stylu).
    Rozsvícené lucerny se ukládají spolu s dveřmi (`lit`, verze savu 11).
-   **Pirátské věci** (`buildingPirate.js`, položky v `furniture.items` s druhem z `PIRATE_KINDS`, vzhled v `styles`):
-   mapa pokladu na stole přišpendlená dýkou (`treasureMapTexture`
-   v `utils/pirateCloth.js`), láhve od rumu (na stole, v knihovně, rozbitá na zemi) a cínové hrnky, kormidelní kolo
-   na východní stěně, dalekohled a kompas na ponku. Válce, kvádry a obruče pro ně (i pro nábytek) jsou v `utils/buildingGeometry.js`.
+   **Pirátské věci napevno** (`buildingPirate.js`, položky v `furniture.items` s druhem z `PIRATE_KINDS`, vzhled
+   v `styles`): kormidelní kolo na východní stěně a police. Válce, kvádry a obruče pro ně (i pro nábytek a drobnosti)
+   jsou v `utils/buildingGeometry.js`; mapa pokladu má kreslenou texturu (`treasureMapTexture` v `utils/pirateCloth.js`).
    Tři police na stěnách (`kind: shelf`, prkno na dvou konzolích; zadní stěna, levá nad ponkem, vnitřní u dveří)
    nesou položky `items` s polohou podél police: láhve, hrnky, sklenice, svíčky, mince, truhličku, svitek.
-   V místnosti v patře: druhá lucerna (na okované truhle, ta je dekorace), police na zadní stěně, rozbitá láhev
-   a hrnek u houpací sítě.
+   V místnosti v patře: druhá lucerna (na okované truhle, ta je dekorace) a police na zadní stěně; rozbitá láhev
+   a hrnek u houpací sítě jsou dekorace.
    **Uvolněná prkna** kolem srubu jsou obyčejné dekorace v mapě (`loose_plank_a…d`, tvar z kódu `utils/plankFactory.js`,
    vzhled `LOOSE_PLANKS` v `decorations.js`), sbírají se rukou jako 1 dřevo; v editoru je štětec Prkna. Počet prken
    v textuře prken je jednou v `PLANKS_TEXTURE_PLANKS` (`assetPaths.js`).

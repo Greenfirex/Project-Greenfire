@@ -6,11 +6,12 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createBuffer, meshFromBuffer, pushSheet, pushLog, roughLog, placeAlongX, placeUpright, pushPiece as piece } from '../../utils/buildingGeometry.js';
 import { fishingNetTexture } from '../../utils/pirateCloth.js';
 import { PIRATE_KINDS } from './buildingPirate.js';
+import { pushBottle } from '../../utils/pirateTrinkets.js';
+import { FURNITURE_STYLES } from '../../data/catalogs/furniture.js';
 import { createRng, seedFor } from '../../utils/rng.js';
 
 export default {
   buildFurniture(plan, furniture) {
-    plan.furnitureStyles = furniture.styles;
     for (const [index, item] of furniture.items.entries()) {
       const upper = item.on === 'upper';
       this.useLayer(plan, upper ? 'upper' : 'lower');
@@ -210,7 +211,7 @@ export default {
         piece(decor, origin, [left + thing.size[0] / 2 + thing.shift, floor + thing.size[1] / 2, 0.02], [thing.size[0], thing.size[1], thing.size[0]], colorOf(thing.color), 1);
         piece(decor, origin, [left + thing.size[0] / 2 + thing.shift, floor + thing.size[1] + 0.012, 0.02], [thing.size[0] * 0.7, 0.024, thing.size[0] * 0.7], colorOf(thing.lid), 1);
       } else if (thing.kind === 'bottle') {
-        this.pirateBottle(decor, plan.furnitureStyles.bottle, { x: left + thing.shift, y: floor, z: 0.02, yaw: 0 }, thing.color);
+        pushBottle(decor, FURNITURE_STYLES.bottle, { x: left + thing.shift, y: floor, z: 0.02, yaw: 0 }, thing.color);
       } else if (thing.kind === 'scroll') {
         const scroll = roughLog(rng, plan.walls, left + thing.shift, left + thing.shift + thing.length, floor + thing.radius, thing.radius, 3);
         pushLog(decor, scroll, placeAlongX(0.03), colorOf(thing.color), 1);

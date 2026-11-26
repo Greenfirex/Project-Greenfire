@@ -204,7 +204,8 @@ export default {
     }
     const def = getDecoration(entry.key);
     const name = def && def.displayName ? def.displayName : entry.key;
-    const where = entry.deck === 'upper' ? ' — patro stavby' : entry.deck === 'lower' ? ' — přízemí stavby' : '';
+    const floor = entry.deck === 'upper' ? ' — patro stavby' : entry.deck === 'lower' ? ' — přízemí stavby' : '';
+    const where = entry.raise && !erasing ? `${floor} — na nábytku` : floor;
     const verb = carrying ? 'Přeneseno do návrhu' : erasing ? 'Do návrhu ke smazání' : 'Do návrhu';
     this.hud.setReadout(`${verb}: ${name}${where} · Enter zapíše`);
   },

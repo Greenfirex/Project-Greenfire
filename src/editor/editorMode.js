@@ -66,6 +66,7 @@ export default class EditorMode {
     this.freeDraft = [];
     this.freeCarry = null;
     this.onFreeDraftChange = null;
+    this.entryHeightOf = null;
     this.floorHeight = 0;
     this.floorClearance = DEFAULT_CLEARANCE;
     this.floorExtra = new Set();
