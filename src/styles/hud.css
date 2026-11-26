@@ -758,6 +758,61 @@
   max-height: 60vh;
 }
 
+.side-window.station-window {
+  top: 42%;
+  left: max(24px, 12vw);
+  transform: translate(0, -50%);
+  width: 390px;
+  min-width: 0;
+  height: min(56vh, 520px);
+  min-height: 320px;
+  padding: 8px 12px;
+  border: 15px solid transparent;
+  border-image: none;
+  background: rgba(6, 7, 6, 0.88) padding-box;
+  isolation: isolate;
+  text-shadow: 0 1px 2px #000;
+}
+
+.side-window.station-window::after {
+  display: none;
+}
+
+.station-window .side-window__head {
+  justify-content: flex-start;
+  margin-bottom: 4px;
+  padding: 0 30px 8px 0;
+  background: none;
+  border-bottom: 1px solid rgba(201, 162, 94, 0.35);
+}
+
+.station-window .side-window__title {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.station-window .side-window__close {
+  top: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+}
+
+.side-window.station-window::before {
+  content: '';
+  position: absolute;
+  inset: -15px;
+  z-index: -1;
+  border: 15px solid transparent;
+  border-image: var(--ui-frame) 170 / 32px stretch;
+  opacity: var(--panel-backdrop, 1);
+  pointer-events: none;
+}
+
+.station-window .craft-recipe__make {
+  min-width: 90px;
+}
+
 .loot-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

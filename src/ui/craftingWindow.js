@@ -6,10 +6,10 @@ import { itemIconElement } from './itemIcons.js';
 
 export default class CraftingWindow {
 
-  constructor({ id = 'hud-crafting', title = 'Výroba', closeTitle = 'Zavřít (V)', verb = 'Vyrobit', busyVerb = 'Vyrábím…' } = {}) {
+  constructor({ id = 'hud-crafting', title = 'Výroba', closeTitle = 'Zavřít (V)', verb = 'Vyrobit', busyVerb = 'Vyrábím…', look = '' } = {}) {
     this.frame = new WindowFrame({
       id,
-      className: 'craft-window',
+      className: look ? `craft-window ${look}` : 'craft-window',
       title,
       closeTitle,
     });

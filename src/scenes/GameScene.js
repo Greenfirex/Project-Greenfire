@@ -280,7 +280,7 @@ export default class GameScene {
     this.journalWindow = new JournalWindow();
     this.craftButton = new DockButton({ icon: PANEL_ICONS.craft, label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
-    this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', ...RECIPE_STATIONS.fire });
+    this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', look: 'station-window', ...RECIPE_STATIONS.fire });
     this.craftJob = null;
     this.log = new LogPanel();
     this.toasts = new ToastNotices();

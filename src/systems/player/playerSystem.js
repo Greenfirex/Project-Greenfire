@@ -7,6 +7,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { worldToCellCoords, cellToWorldCoords } from '../../utils/gridMath.js';
 import { warnMissingWiring } from '../../utils/missingWiring.js';
+import { smoothstep } from '../../utils/noise.js';
 import { FOOT_PLANT_RATIO, footTrack, trackFoot, releaseFoot } from '../../utils/footContact.js';
 import { TOOL_TYPES } from '../../data/catalogs/items.js';
 import { PLAYER_BASE } from '../../data/catalogs/player.js';
@@ -695,7 +696,7 @@ export default class PlayerSystem {
 
   sheathPose() {
     const node = this.sheathNode;
-    if (!node || node.isDisposed() || !node.isEnabled()) return null;
+    if (!node || node.isDisposed()) return null;
     node.computeWorldMatrix(true);
     return { rotation: node.absoluteRotationQuaternion.clone(), position: node.getAbsolutePosition().clone() };
   }
@@ -728,7 +729,8 @@ export default class PlayerSystem {
     this.finishHipSwap();
     if (fromHip && !instant && this.ready && !this.lying && !this.dead && this.sheathSlot && this.armNodes) {
       this.strikeTimer = 0;
-      this.hipSwap = { time: 0 };
+      const stow = Boolean(this.toolNode) && this.toolNodeKey === this.sheathedKey && key !== this.sheathedKey;
+      this.hipSwap = { time: 0, stow };
       this.toolSwapLeft = HIP_SWAP_TIME * HIP_SWAP_SHARE;
       return;
     }
@@ -778,7 +780,7 @@ export default class PlayerSystem {
   }
 
   holdInFist(dt) {
-    const tool = TOOL_TYPES[this.heldToolKey];
+    const tool = TOOL_TYPES[this.toolNodeKey];
     const grip = tool && tool.grip;
     if (!grip || !grip.fist || !this.toolNode || !this.handSlot || !this.armNodes) return;
     if (this.toolSwapLeft > 0 && !this.hipSwap) return;
@@ -799,16 +801,24 @@ export default class PlayerSystem {
     const hold = Vector3.TransformNormal(new Vector3(0, grip.hold || 0, 0), this.toolNode.getWorldMatrix());
     const at = fist.subtract(hold);
     const handoff = this.handoff;
-    if (!handoff) {
-      this.toolNode.setAbsolutePosition(at);
+    if (handoff) {
+      handoff.time += dt;
+      const t = Math.min(1, handoff.time / HIP_HANDOFF_TIME);
+      this.blendToolPose(handoff.rotation, handoff.position, wanted, at, smoothstep(0, 1, t));
+      if (t >= 1) this.handoff = null;
       return;
     }
-    handoff.time += dt;
-    const t = Math.min(1, handoff.time / HIP_HANDOFF_TIME);
-    const k = t * t * (3 - 2 * t);
-    this.setToolPose(Quaternion.Slerp(handoff.rotation, wanted, k));
-    this.toolNode.setAbsolutePosition(Vector3.Lerp(handoff.position, at, k));
-    if (t >= 1) this.handoff = null;
+    const hip = this.hipSwap && this.hipSwap.stow && this.toolSwapLeft > 0 ? this.sheathPose() : null;
+    if (hip) {
+      this.blendToolPose(wanted, at, hip.rotation, hip.position, smoothstep(0, 1, 1 - this.toolSwapLeft / HIP_HANDOFF_TIME));
+      return;
+    }
+    this.toolNode.setAbsolutePosition(at);
+  }
+
+  blendToolPose(fromRotation, fromPosition, toRotation, toPosition, k) {
+    this.setToolPose(Quaternion.Slerp(fromRotation, toRotation, k));
+    this.toolNode.setAbsolutePosition(Vector3.Lerp(fromPosition, toPosition, k));
   }
 
   setToolPose(rotation) {
@@ -936,7 +946,9 @@ export default class PlayerSystem {
     }
     const { upper, fore, hand } = this.armNodes;
     if (!upper || !fore || !hand) return;
-    const weight = Math.min(1, Math.sin(Math.PI * t) * HIP_REACH_HOLD);
+    const weight = swap.stow && t < HIP_SWAP_SHARE
+      ? smoothstep(0, 1, t / HIP_SWAP_SHARE)
+      : Math.min(1, Math.sin(Math.PI * t) * HIP_REACH_HOLD);
     this.hipWeight = weight;
     refreshChain(this.sheathSlot);
     const slot = this.sheathSlot.getAbsolutePosition().clone();
