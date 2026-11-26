@@ -17,7 +17,7 @@ function surfaceStepSound(key) {
 export default {
   onPlayerStep(x, z, sprint) {
     const onBridge = this.terrainSystem && this.terrainSystem.bridgeDeckAt(x, z) !== null;
-    const inWater = !onBridge && this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
+    const inWater = !onBridge && this.playerSystem.level === 0 && this.waterDepthNowAt(x, z) > WATER_STEP_DEPTH;
     const key = this.groundKeyAt(worldToCell(x), worldToCell(z));
     this.audioSystem.play(inWater ? 'stepWater' : surfaceStepSound(key), { gain: sprint ? 1.35 : 1 });
   },
@@ -35,7 +35,7 @@ export default {
     const tierScale = creature.tier && Number.isFinite(creature.tier.scale) ? creature.tier.scale : 1;
     const scale = (Number.isFinite(footprint.scale) ? footprint.scale : 0.85) * tierScale;
     const angle = Number.isFinite(creature.renderFacing) ? creature.renderFacing : (Number.isFinite(creature.facing) ? creature.facing : 0);
-    this.footfall(x, z, angle, scale, footprint.kind || 'turtle', 0.45 + scale);
+    this.footfall(x, z, angle, scale, footprint.kind || 'turtle', 0.45 + scale, false, creature.level || 0);
   },
 
   onCreatureDig(creature) {
@@ -45,7 +45,8 @@ export default {
     this.sandBursts.burst(creature.x, y, creature.z, tierScale, creature.emergeSeconds);
   },
 
-  footfall(x, z, angle, scale, kind, strength = 1, mirror = false) {
+  footfall(x, z, angle, scale, kind, strength = 1, mirror = false, level = 0) {
+    if (level !== 0) return;
     this.stepSplash(x, z, strength);
     this.spawnFootprint(x, z, angle, scale, kind, mirror);
   },

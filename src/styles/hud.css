@@ -3012,6 +3012,21 @@ body.has-custom-cursor * {
   border-color: rgba(224, 90, 80, 0.85);
 }
 
+.hud-effects__icon.is-timed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--spent, 0) * 1turn), transparent 0);
+  pointer-events: none;
+}
+
+.hud-effects__detail {
+  display: block;
+  margin-top: 3px;
+  color: #9fe0b5;
+}
+
 .hud-effects__tip {
   position: absolute;
   bottom: calc(100% + 6px);

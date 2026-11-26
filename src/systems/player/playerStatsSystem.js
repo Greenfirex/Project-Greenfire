@@ -226,7 +226,20 @@ export default class PlayerStatsSystem {
   healOverTime(points, perSecond) {
     if (!Number.isFinite(points) || points <= 0 || this.health <= 0) return;
     const rate = Number.isFinite(perSecond) && perSecond > 0 ? perSecond : points;
-    this.heals.push({ left: points, rate });
+    this.heals.push({ left: points, total: points, rate });
+  }
+
+  healState() {
+    if (!this.heals.length) return null;
+    let left = 0;
+    let total = 0;
+    let seconds = 0;
+    for (const heal of this.heals) {
+      left += heal.left;
+      total += heal.total;
+      seconds = Math.max(seconds, heal.left / heal.rate);
+    }
+    return { left, total, seconds };
   }
 
   tickHeals(dt) {

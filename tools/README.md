@@ -138,9 +138,11 @@ buňkám, kde už je výsledek jiného nástroje.
   Vyhýbá se cestám a buňkám, kde stojí něco jiného než strom — keře pod
   stromy růst mohou.
 
-- `scatter/sharpStones.mjs` — ostré kameny (pazourky) vedle kamenů a balvanů na povrchu
-  (jen na stejnou výšku, ne pod útes, do moře, jezer ani řek) a po dně jeskyní (patra −1 a −2).
-  Výšku bere z podlahy buňky v mapě, terén nepočítá.
+- `scatter/stones.mjs` — kameny ke sběru rukou: obyčejné kameny náhodně po celé souši
+  (`anywhere`), ostré kameny (pazourky) vedle kamenů a balvanů (jen na stejnou výšku, ne pod útes)
+  a oba po dně jeskyní (patra −1 a −2). Nikdy do moře, jezer, řek, na obsazené buňky ani do
+  4 buněk kolem staveb. Kolik čeho, je v `KINDS` nahoře v souboru. Výšku bere z podlahy buňky
+  v mapě, terén nepočítá.
 
 ```
 node tools/scatter/corals.mjs --dry         # jen spočítá a vypíše, soubor nezmění

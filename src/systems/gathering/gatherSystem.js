@@ -45,6 +45,7 @@ export default class GatherSystem {
   }
 
   totalFor(def) {
+    if (def.byHand) return 1;
     return Object.values(def.gather).reduce((sum, n) => sum + n, 0);
   }
 

@@ -241,6 +241,14 @@ export const BRUSHES = {
     options: [RANDOM_OPTION],
     deco: true,
   },
+  looseStones: {
+    label: 'Volné kameny',
+    note: 'Rozhodí malé kameny, které jde sebrat rukou jako surovinu. Hodí se k balvanům, na štěrk a do jeskyní.',
+    shape: 'blob',
+    pool: ['loose_stone'],
+    options: [RANDOM_OPTION],
+    deco: true,
+  },
   sharpStones: {
     label: 'Ostré kameny',
     note: 'Rozhodí ostré kameny (pazourky), které jde sebrat rukou. Hodí se k balvanům a do jeskyní.',

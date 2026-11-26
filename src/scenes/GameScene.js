@@ -293,6 +293,7 @@ export default class GameScene {
     this.lootSource = null;
     this.vitalsBar = new VitalsBar();
     this.effectsBar = new EffectsBar();
+    this.healingShown = false;
     this.xpBar = new XpBar();
     this.hoverHint = new HoverHint();
     this.creatureHealthBar = new CreatureHealthBar();
@@ -343,7 +344,7 @@ export default class GameScene {
       for (const key of bar) if (key) this.playerSystem.prefetchTool(key);
     };
     this.playerSystem.onStep = (x, z, sprint) => this.onPlayerStep(x, z, sprint);
-    this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1, side === 'left');
+    this.playerSystem.onFootPlant = (x, z, facing, side, sprint) => this.footfall(x, z, facing, 1, 'human', sprint ? 1.25 : 1, side === 'left', this.playerSystem.level);
     this.creatureSystem.onFootPlant = (creature, x, z) => this.onCreatureFoot(creature, x, z);
     this.creatureSystem.onDig = (creature) => this.onCreatureDig(creature);
     this.playerStats.onChange = (health, maxHealth) => this.vitalsBar.setHealth(health, maxHealth);
@@ -500,6 +501,7 @@ export default class GameScene {
       this.sandBursts.update(dt);
       this.updateGathering(dt);
       this.updateMeal(dt);
+      this.updateHealingEffect();
       this.updateDrink();
       this.updatePlayerAttack(dt);
       const root = this.playerSystem.root;
@@ -944,7 +946,7 @@ export default class GameScene {
     this.playerSystem.inCombat = () => Boolean(this.playerSystem.root) && this.creatureSystem.isPlayerInCombat(this.playerSystem.root.position);
     this.playerSystem.canSprint = () => this.playerStats.canSprint();
     this.playerSystem.speedScale = (x, z) => {
-      if (this.terrainSystem.bridgeDeckAt(x, z) !== null) return 1;
+      if (this.playerSystem.level !== 0 || this.terrainSystem.bridgeDeckAt(x, z) !== null) return 1;
       const depth = this.waterDepthNowAt(x, z);
       if (depth <= WATER_STEP_DEPTH) return 1;
       const wet = Math.min(1, depth / WADE_RAMP);
@@ -2241,7 +2243,7 @@ export default class GameScene {
     const player = this.playerSystem;
     if (!player || !player.ready || !player.root) return;
     const pos = player.root.position;
-    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z)) return;
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.z) || player.level !== 0) return;
     if (this.terrainSystem && this.terrainSystem.bridgeDeckAt(pos.x, pos.z) !== null) return;
     if (this.waterDepthAt(pos.x, pos.z) <= WADE_DEPTH) return;
     const best = this.navigation.nearestWalkable(pos.x, pos.z);

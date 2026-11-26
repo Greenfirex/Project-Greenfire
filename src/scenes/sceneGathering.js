@@ -179,7 +179,10 @@ export default {
   },
 
   describeGatherTarget(target) {
-    if (target.def.byHand) return `Sbírat ${target.def.displayName} (${target.left}/${target.total})`;
+    if (target.def.byHand) {
+      const count = Object.values(target.def.gather).reduce((sum, n) => sum + n, 0);
+      return count > 1 ? `Sebrat ${target.def.displayName} (${count} ks)` : `Sebrat ${target.def.displayName}`;
+    }
     const verb = target.def.kind === 'tree' ? 'Kácet' : 'Těžit';
     return `${verb} ${target.def.displayName} (${target.left}/${target.total})`;
   },

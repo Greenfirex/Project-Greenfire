@@ -1,5 +1,6 @@
 // Efekty na postavě (výhody a postihy) — jméno, ikona, popis, kdy platí a co mění.
 // Úpravy: obnova zdraví a energie a spotřeba energie během násobí, rána (v procentech) a útok se přičítají.
+// Hojení nemá úpravy ani práh: ukazuje se, dokud běží léčení z jídla.
 export const EFFECT_MODS = {
   healthRegen: 'multiply',
   staminaRegen: 'multiply',
@@ -57,6 +58,12 @@ export const EFFECTS = {
     replaces: 'thirsty',
     mods: { staminaRegen: 0.5, sprintCost: 1.5, healthRegen: 0 },
     drainPerSecond: 0.5,
+  },
+  healing: {
+    label: 'Hojení',
+    icon: '💚',
+    kind: 'buff',
+    text: 'Jídlo se tráví a postupně doplňuje zdraví.',
   },
 };
 

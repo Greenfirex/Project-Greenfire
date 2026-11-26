@@ -25,8 +25,20 @@ export default {
 
   applyEffects() {
     this.playerStats.setModifiers(this.survival.mods());
-    this.effectsBar.set(this.survival.effects.map((key) => ({ key, ...EFFECTS[key] })));
+    const keys = this.healingShown ? [...this.survival.effects, 'healing'] : this.survival.effects;
+    this.effectsBar.set(keys.map((key) => ({ key, ...EFFECTS[key] })));
     this.refreshProgress();
+  },
+
+  updateHealingEffect() {
+    const heal = this.playerStats.healState();
+    if (Boolean(heal) !== Boolean(this.healingShown)) {
+      this.healingShown = Boolean(heal);
+      this.applyEffects();
+    }
+    if (!heal) return;
+    const detail = `Doplní ještě ${Math.ceil(heal.left)} zdraví (${Math.ceil(heal.seconds)} s).`;
+    this.effectsBar.setProgress('healing', heal.left / heal.total, detail);
   },
 
   drinkTarget(cell) {

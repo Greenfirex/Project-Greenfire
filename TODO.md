@@ -93,11 +93,12 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 ### Výroba a vaření (chybějící obrázky a modely)
 - [ ] Pečené vejce v ruce má nový model: doladit úchop v dlani (`scale`, `turn`, `at`, `thumbward` u `cooked_egg`).
 - [ ] Palec při jídle: neřídí se (u masa leží ze strany dlaně přes spodek masa); ostatní prsty se zavírají po povrch jídla.
-- [ ] Ostrý kámen a kamenná sekera: vyzkoušet ve hře recepty, kácení tasenou sekerou a doladit úchop sekery v ruce i na boku (`grip`, `sheath` u `stone_axe`). Ostré kameny na mapě rozhazuje `tools/scatter/sharpStones.mjs`.
+- [ ] Ostrý kámen a kamenná sekera: vyzkoušet ve hře recepty, kácení tasenou sekerou a doladit úchop sekery v ruce i na boku (`grip`, `sheath` u `stone_axe`). Ostré i obyčejné kameny na mapě rozhazuje `tools/scatter/stones.mjs`.
+- [ ] Kameny ke sběru: projít ve hře velikost obyčejného kamene (`loose_stone`, zmenšený `rock_small`), hromádku kamínků za 5 kusů a kolik jich na mapě leží.
 - [ ] Další polotovary po jednom (plán: násada, prkénko, miska z kokosu, bylinková pasta), pak recepty z nich a záložky v okně Výroby.
 - [ ] Modely z Meshy (obrázek v Gemini na purpurovém pozadí → Image to 3D; trojúhelníky, ~2 000, textura 1024, GLB do `_sources/`; do hry přes `tools/prepareItems.mjs`, ikona z modelu přes `tools/bl_icon.py`). Prompty jsou v konverzaci z 26. 11. 2026.
   - Hotové modely v `public/assets/props/` (zatím nepoužité): bylina, krunýř.
-  - Na vyhazování z inventáře: kabát, kalhoty a boty (u oblečení přiložit ikonu jako předlohu barev). Kámen na zemi = zmenšený `rock_small`.
+  - Na vyhazování z inventáře: kabát, kalhoty a boty (u oblečení přiložit ikonu jako předlohu barev). Kámen na zemi = dekorace `loose_stone`.
   - Polotovary: násada, prkénko, miska z kokosu, bylinková pasta v mušli.
   - Výbava (až na ni dojde): nůž, štít z krunýře, palmový klobouk. Vesta z listů až po domluvě (napasování na postavu v Blenderu).
 - [ ] Vyzkoušet ve hře okno Vaření (klik na hořící táborák) a doladit léčení: maso 20 zdraví po 2 za sekundu, vejce 12 po 1,5.
