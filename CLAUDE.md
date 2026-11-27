@@ -15,5 +15,5 @@ Navíc jen pro Claude Code:
   hledání opravdu vede přes mnoho souborů. Na 1–3 soubory je nespouštěj,
   přečti je sám. Nikdy je neposílej „velmi důkladně“ přes celý projekt bez
   dohody s uživatelem.
-- `DEV.md` nikdy nečti celý (má přes 1 000 řádků). Hledej v něm (Grep), nebo
-  čti jen řádky, které potřebuješ (Read s offset a limit).
+- `DEV.md` drž krátké (kolem 400 řádků): jen proč a pasti, ne převyprávěný kód,
+  historii ani hotové etapy plánů (ty patří do gitu a TODO). Smíš ho přečíst celý.

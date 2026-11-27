@@ -1,1440 +1,369 @@
 # Vývoj projektu Greenfire
 
-Technický průvodce projektem: jak se hra skládá, kde co v kódu je, co je hotové
-a co následuje. Co hra je, jak se ovládá a jaké má licence, popisuje
-[README.md](README.md); aktuální úkoly jsou v [TODO.md](TODO.md).
+Technický průvodce: jak se hra skládá, kde co v kódu je a hlavně **proč** je něco udělané
+nezvykle. Jak to přesně funguje, říká kód; sem patří jen to, co z kódu vyčíst nejde.
+Hra a ovládání: [README.md](README.md). Úkoly: [TODO.md](TODO.md). Editor:
+[src/editor/README.md](src/editor/README.md). Tvorové:
+[src/data/catalogs/creatures/README.md](src/data/catalogs/creatures/README.md).
 
 ## Architektura
 
 ```
 src/
-  main.js                    engine, plátno, render loop
-  scenes/                    herní scéna — GameScene.js (orchestrátor) a její části:
-                             sceneWorld (stavba světa a přestavby), sceneCombat (tvorové
-                             a souboj), sceneGathering (sběr), sceneSteps (kroky a stopy),
-                             sceneEquipment (výbava a staty z ní), sceneSettings (společná čísla)
-  systems/
-    core/                    sim, save, input, interaction, camera, grid, navigation
-    terrain/                 terrain + části (materials, bridges, caves, mass, picking,
-                             settings), ladicí pohledy (terrainDebug), hmota (runVolume,
-                             runBlocks), pluginy blend/relief/caustic/wet/grass, cliffSurface,
-                             cliffVine
-    water/                   water, waterBodies, waterFalls, waterShader, waterfallShader, waterSettings, waveSpray, fish
-    flora/                   flora, grassShader, treeWind
-    creatures/               creature, footprint, sandBurst, bestiary, crab
-    player/                  player, attack, stats, heldItem, inventory, equipment, portrait
-    gathering/               gather, harvest, felling
-    world/                   deco, decoHighlight, campfire, loot, path, reveal, sight
-    atmosphere/              dayNight, lighting (světla a stíny), sky, audio
-    materials/               modelRim, floraColor, nightLight a další (pluginy materiálů)
-  editor/                    editor mapy (editorMode + části history, layoutEdits, heights,
-                             area, joinBridge, brushApply, query, settings), panely, štětce
-  data/catalogs/             předměty, dekorace, mapy, tvorové, uložený stav
-  data/maps/                 tvar oblasti, nastavení výšek a soubor mapy
-  effects/                   oheň (táborák, pochodeň), výseč rány, vítr za zbraní
-  ui/                        DOM HUD panely nad plátnem
-  utils/                     výpočty mřížky, šum (noise), načítání modelů, ukládání do prohlížeče
-  styles/                    global.css, hud.css, editor.css
+  main.js          engine, plátno, render loop
+  scenes/          GameScene.js (zná celou scénu, propojuje systémy) a její části scene*.js
+  systems/         core, terrain, water, flora, creatures, player, gathering, world,
+                   atmosphere, materials (pluginy materiálů)
+  editor/          editor mapy (editorMode + části editor*.js, mapEditor + části map*.js)
+  data/catalogs/   předměty, dekorace, štětce, tvorové, stavby, uložený stav…
+  data/maps/       tvar oblasti, výšky, soubor mapy (glade/map.json)
+  effects/         oheň, výseč rány, vítr za zbraní
+  ui/              DOM HUD nad plátnem
+  utils/           mřížka, šum, načítání modelů, sdílené výpočty
+  styles/          global.css, hud.css, editor.css
 ```
 
-- Vzhled oken: barvy, písma (Marcellus SC nadpisy, Nunito Sans text) a cesty
-  k obrázkům rámu jsou proměnné v `global.css`. Rám okna se kreslí přes
-  `border-image` (9 dílů, roztahuje se); drahokam nahoře je zvlášť, aby se nedeformoval.
-  Obrázky z Gemini leží v `_sources/ui-frame/`, `node tools/prepareUiFrames.cjs`
-  z nich odstraní purpurové pozadí a uloží je do `public/assets/ui/frame/`.
-
-- Systémy jsou třídy, konstruktor dostane scénu, přístup přes `this.s`.
-- Velké soubory (scéna, terén, editor) jsou rozdělené na **části** připojené přes
-  `Object.assign` (pravidla v `.clinerules`). Editor kódu (VS Code) části nevidí
-  a hlásí „Property … may not exist" — to není chyba.
-- Simulace běží v pevném ticku (10× za sekundu) a o mechanikách nic neví;
-  mechaniky se hlásí přes `simSystem.subscribe`.
-- Ukládání je obecný sběrač stavu; vlastníci se připojují přes
-  `saveSystem.register` (`serialize`, `apply`, `defaultState`).
-- Načtení z menu staví svět a stav se navrství na čerstvě postavený svět. Načtení
-  během hry (`sceneReload.js`) svět nestaví: vrátí ho do stavu z mapy (uhasí ohně,
-  obnoví pokácené a posbírané, odklidí tvory i mrtvoly a postaví je znovu, zruší
-  rozdělané akce hráče) a pak nanese uložení stejnými `apply` jako při startu.
-  Každý nový trvalý stav proto musí umět i tenhle návrat, jinak po načtení zůstane
-  ze hry před ním. V editoru, s neuloženou mapou nebo při chybě se načítá postaru
-  obnovením stránky. Samo se nic nenačítá.
-- Pozice uložení jsou v `SAVE_SLOTS` (`saveSchema.js`): rychlé (F5/F9, klíč zůstal
-  po starém jediném uložení), automatické a pět pojmenovaných. Uložení nese kromě
-  stavu nepovinné `meta` (název, úroveň, herní čas) pro okno s pozicemi; stav se tím
-  nemění, takže verze zůstala. Ovládání ukládání je v části `sceneSave.js`.
-- Automatické uložení se zapíše každých `AUTOSAVE_INTERVAL_S` hraní, jen když je klid
-  (ne v boji, při umírání, v editoru, s otevřeným oknem, vleže); jinak počká.
-  Každé jiné uložení odpočet vynuluje.
-- Start: nejdřív hlavní menu (`mainMenu.js`) a svět se staví až po volbě.
-  „Do hlavního menu“ obnoví stránku. Záložní načtení obnovením stránky nechá
-  v `sessionStorage` značku s pozicí a menu se pak přeskočí.
-- Mezi kousky stavby světa se čeká přes `releaseFrame` (`assetLoader.js`). V kartě
-  na pozadí čeká přes `MessageChannel`, protože časovače tam prohlížeč brzdí až na
-  1 s a stavba by se táhla desítky vteřin.
-- Pozadí menu a načítání (`menuBackdrop.js`) je smyčka `menu-loop.mp4`. Šev smyčky
-  je zapečený přímo ve videu (poslední 1,5 s se prolíná do začátku), prohlížeč ho jen
-  opakuje. Původní video z Gemini, logo na purpurovém pozadí a krajina bez loga jsou
-  v `_sources/ui/`. Při novém videu hlídat, aby poslední snímky nezhoršila komprese
-  (kódovat s rezervou snímků navíc a ty pak odříznout).
+- Systém je třída, dostane scénu (`this.s`). Velké soubory jsou rozdělené na **části**
+  přes `Object.assign` (pravidla v `.clinerules`). VS Code části nevidí a hlásí
+  „Property … may not exist" — to není chyba.
+- Simulace běží v pevném ticku (10×/s), mechaniky se hlásí přes `simSystem.subscribe`.
+- **Ukládání:** vlastník stavu se registruje přes `saveSystem.register` (`serialize`, `apply`,
+  `defaultState`). Načtení během hry (`sceneReload.js`) svět nestaví znovu: vrátí ho do stavu
+  z mapy (uhasí ohně, obnoví posbírané, postaví tvory znovu) a nanese uložení. **Každý nový
+  trvalý stav musí umět i tenhle návrat**, jinak po načtení zůstane ze hry před ním.
+  Pozice uložení v `SAVE_SLOTS` (`saveSchema.js`); autosave jen v klidu (ne boj, okno, editor).
+- Start: hlavní menu, svět se staví až po volbě. „Do hlavního menu" obnoví stránku.
+- Mezi kousky stavby světa se čeká přes `releaseFrame` (`assetLoader.js`). V kartě na pozadí
+  přes `MessageChannel`, protože časovače tam prohlížeč brzdí na 1 s.
+- Během načítání **i přestavby světa** se kreslí jen 2× za sekundu (`shouldDrawFrame`,
+  `SPARSE_DRAW_MS`). Dřív se při Aplikovat kreslil celý svět mezi každou dávkou dekorací
+  a na velké mapě to rostlo „na druhou".
+- Vzhled oken: barvy, písma a rám jsou proměnné v `global.css`; rám přes `border-image`,
+  drahokam zvlášť. Zdroje z Gemini v `_sources/`, převod `tools/prepareUiFrames.cjs`.
+- Video v menu (`menu-loop.mp4`) má šev smyčky zapečený ve videu. Při novém videu kódovat
+  s rezervou snímků a konec odříznout, komprese jinak zhorší poslední snímky.
 
 ### Dvě otázky na výšku
 
-- **Výška země** (`terrainSystem.heightAt`, `heightAtCell`) — kde je terén.
-  Berou ji dekorace, cesty, voda a tráva.
-- **Co je pode mnou** (`terrainSystem.walkHeightAt`) — na čem se dá stát,
-  včetně mostu. Berou ji hráč, tvorové, kurzor a kamera.
+- **Výška země** (`terrainSystem.heightAt`, `heightAtCell`): kde je terén. Dekorace, voda, tráva.
+- **Co je pode mnou** (`terrainSystem.walkHeightAt`, ve scéně `standHeightAt`): na čem se dá
+  stát, i most a podlaha stavby. Hráč, tvorové, kurzor, kamera.
 
-Žádný systém si výšku nepočítá sám z dat mapy — dostane ji od scény jako
-`groundHeightAt`. Chybějící propojení se ozve do konzole (`utils/missingWiring.js`),
-místo aby se tiše počítalo s nulou (nula je platná výška a chyba by se schovala).
-
-## Kde co je
-
-- `src/data/maps/layoutStore.js` — rozsah výšek, krok, předvolby.
-- `src/editor/editorMode.js`, `mapEditor.js`, `editorHud.js` — editor, výběr, panely;
-  `heightPanel.js`, `areaPanel.js`, `brushPanel.js` — okna Výška, Plocha a štětce.
-  Části `editor*.js` patří k `editorMode.js` (zápis do mapy), části `map*.js` k `mapEditor.js`
-  (panely, myš, značky); rozpis je v `src/editor/README.md`.
-- `src/systems/core/gridSystem.js`, `inputSystem.js` — hover, levé/pravé tažení.
-- `src/systems/core/navigationSystem.js` — kudy se dá chodit, přechody mezi patry, strop nad hlavou.
-- `src/utils/terrainField.js` — výškový model (spojitá výška mezi buňkami).
-- `src/systems/terrain/terrainSystem.js` — terén, hrana, útesy, mosty, prolnutí povrchů;
-  `terrainMass.js` a `runVolume.js` — hmota terénu.
-- `src/utils/terrainRuns.js` — pruhy skály a vzduchu ve sloupcích buněk.
-- `src/utils/bridgeShape.js` — tvar skalního mostu.
-- `src/utils/gridPath.js` — hledání cesty tvorů po buňkách (A*).
-- `src/systems/water/waterSystem.js`, `waterShader.js` — hladina a její program;
-  `src/utils/waterWaves.js` — čísla a výpočet vln.
-- `src/systems/atmosphere/` — `skySystem.js` (obloha), `lightingSystem.js` (slunce,
-  mlha, světlo jeskyně, stíny), `audioSystem.js` (kroky, příboj, oheň, ambient, hudba).
-- `src/systems/world/pathSystem.js` — cesty; `src/systems/player/playerSystem.js` — hráč;
-  `src/systems/core/cameraSystem.js` — kamera.
-- `src/data/catalogs/brushes.js` — štětce; `decorations.js` — písek a povrchy.
-- `src/data/maps/glade/map.json` — aktuální mapa.
-
-## Stav projektu
-
-Hotové je jádro hratelného ostrova: izometrická kamera, postava s animacemi
-a staty, sběr dřeva a kamene, batoh a okna postavy, táborák a pochodeň, denní
-cyklus se stíny, zvuky podle povrchu, ukládání do prohlížeče, editor mapy
-a svět kolem toho — terén se skutečnou hmotou, útesy, mosty, jeskyně s patry,
-voda s vlnami a pěnou, ryby, tráva, keře, kameny a palmy, truhly a kostlivci
-s kořistí a první předmět na hlavu.
-
-Tvorové: kajmanka, písečný běs a Koa'tiki — toulání, dvě zóny pozornosti,
-honička s návratem domů, kousnutí, smrt, tělo s kořistí a respawn. Chodí a vidí
-podle stejných pravidel jako hráč (schod, skála v cestě pohledu), jen na kratší
-dohled, a po ztrátě hráče jdou na místo, kde ho viděli naposledy. Tvor s volbou smečky
-(`pack` u záznamu v mapě) při přechodu do varování nebo útoku svolá ostatní tvory se smečkou
-na stejném patře (`callPack`, `PACK_CALL_RANGE` v registru tvorů). Zavolaní přejdou do režimu
-`rally`: běží k vůdci, u něj se postaví do varování a zaútočí, až zaútočí on (nebo když k nim
-hráč přijde moc blízko, zasáhne je nebo vůdce zemře). Vůdce s útokem počká nejvýš
-`PACK_WAIT_SECONDS`, než ostatní doběhnou. Kdo zaútočí, má na chvíli dohled bez omezení
-vzdálenosti (`provokedUntil`, stejně jako u vykradeného hnízda). Panel tvora (vpravo
-uprostřed, hodiny jsou vpravo nahoře) ukazuje statistiky odemčené počtem zabití
-(`bestiarySystem.js`, prahy `UNLOCKS`): životy, útok, obranu, poškození, zbroj, odolnosti,
-dohled a rychlost. Okno bestiáře (klávesa B, `bestiaryWindow.js`) je kniha: vlevo seznam tvorů,
-vpravo stránka s portrétem, popisem, výskytem, kořistí, poznámkami lovce, statistikami po stářích
-a odolnostmi. Texty jsou u druhu tvora (`bestiary: { summary, habitat, notes }`), portréty
-v `public/assets/ui/bestiary/<druh>.png` (fotí je `node tools/capture.cjs <druh> idle --portrait 1`).
-Co se kdy odemkne, drží jen `UNLOCKS` v `bestiarySystem.js`. Ve vývojové verzi má okno
-přepínač „odemknout vše“ (`revealAll`, neukládá se), který každou fázi odemčení obarví. Panel se připíná prostředním klikem (bez tažení; tažení otáčí kamerou). Bez
-připnutí ho v boji ukazuje `refreshCombatFocus`: tvor naposledy zasažený (`onStruck`,
-nejbližší z rány), jinak nejbližší útočící; 3 s po boji (`FOCUS_LINGER`) nebo po smrti zmizí.
-Zavřený panel se k témuž tvorovi nevrátí, dokud se boj nezmění (`mutedFocus`). Tvorové i hráč se léčí pořád, i v boji a bez ohledu
-na zásahy (`regenerate` a `regenPerSecond` u druhu tvora; hráč 0,2 života za sekundu
-v `PLAYER_BASE`). Tvorové mají zbroj a odolnosti jako hráč (`armor`, `resistances` u druhu nebo
-stáří); hráčova rána je odečítá stejným výpočtem (`damageBreakdown` v `damage.js`).
-Záporná odolnost je slabina a ránu zvětší (nejvýš −100 % = dvojnásobek, strop kladné 75 %).
-Volba „Výpočet zásahů v logu“ (`combatDetails`) vypíše pod každý zásah jednotlivé kroky
-výpočtu (`damageDetailText`); log ho drží jako podrobnost záznamu, takže stojí vždy přímo pod svým zásahem. Při najetí na tvora ukazuje nápověda u kurzoru šanci na plný zásah
-(`strikeChances` v `combatRoll.js`). Nápověda u kurzoru má vždy ikonu levého tlačítka myši,
-text proto začíná rovnou činností („Otevřít truhlu“, „Zásah 87 %“).
-Rána zasáhne tvora jen tehdy, když jeho chodidla (`creatureSystem.footY`) jsou ve výškovém
-limitu rány (`playerAttackSystem.levelOk`, `heightLimit` pěsti v `player.js`); totéž hlídají
-`attackCandidates` a přitažení míření. Dřív se měřila zem na místě tvora v nejvyšší vrstvě,
-takže šlo trefit tvora pod převisem útesu. Tvora i tělo pod kurzorem (`creatureSystem.visibleMeshAt`)
-myš vybere, jen když na ně paprsek od kamery narazí dřív než do země nebo skály
-(`groundDistanceAt` = `inputSystem.surfacePoint`, i s vyříznutým průhledem); tvor viditelný
-z útesu dole jde označit, skrz skálu ne.
-
-Výroba: recept (`RECIPES` v seznamu předmětů) drží jen cenu; jeho klíč je klíč vyráběného
-předmětu, název a ikona se berou z předmětu. Okno Výroba (`craftingWindow.js`, klávesa V)
-ukazuje seznam receptů a tlačítko Vyrobit, co jde vyrobit z batohu, počítá a vyrábí
-`sceneCrafting.js` (`inventorySystem.craft`). Vyrábí se kdekoli, výbava na postavě se
-do ceny nepočítá. Recept se `station` (místa v `RECIPE_STATIONS`: nadpis okna, slovo na tlačítku
-a v logu) do Výroby nepatří a má vlastní okno. `fire` = Vaření (`cookingWindow`, stejná třída
-`CraftingWindow`): otevře ho klik na hořící táborák na dosah (`campfireSystem.burning`) a zavře
-se, když hráč od ohně odejde (`updateCraftingStations` v `sceneCrafting.js`). Tak se peče maso
-a vejce Koa'tiki. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
-Kompas a mapa (`sceneMap.js`): sever je +Z ve světě a na mapě nahoře, východ +X. Pruh kompasu
-(`compassBar.js`) bere směr z natočení kamery. Okno Mapa (`mapWindow.js`, klávesa M) kreslí povrch
-(patro 0) po buňkách barvou `surface.mapColor` z katalogu povrchů, útesy tmavší, vodu podle hloubky.
-Odkryté buňky a špendlíky drží `explorationSystem.js` (v uložené hře klíč `exploration`, odkrytí
-jako bajty v base64); odkrývá se v pevném ticku v kruhu kolem hráče, jen na povrchu.
-Objevená místa (`found`): vchod do jeskyně se zapíše na mapu, až když hráč dojde na 2,5 buňky k němu,
-stavba na 2 buňky; vchod uvnitř stavby (tajný) až po vstupu do patra, kam vede. Poprvé objevená jeskyně
-(jméno jeskyně, jinak jméno patra z `floorNames`, jinak „Jeskyně“) a stavba se ohlásí zlatým oznámením „Objeveno“.
-
-Jména jeskyní (`caveNames` v mapě, `src/data/maps/caveNames.js`): jméno patří souvislé jeskyni v patře
-(buňky patra spojené bokem), ne celému patru. Uloží se jen jméno a jedna buňka, zbytek se dopočítá, takže
-jméno roste s jeskyní. Když se dvě pojmenované jeskyně propojí, platí jméno zapsané dřív. Nastavuje se
-v editoru: Patra, vybrat podzemní patro, nástroj Pojmenovat, klik na jeskyni.
-Patro je kvůli výšce (plochy nad sebou), ne kvůli jménu; víc jeskyní, které pod sebou neleží, patří do jednoho patra.
-Vzhled mapy: papír, rámeček a ikony jsou obrázky z Gemini (zdroje v `_sources/`, upravené do
-`public/assets/ui/map/`, bílé pozadí převedené na průhlednost). Krajinu kreslí `mapPainter.js` z mřížky,
-kterou mu dá `prepareMap` (povrch, výška, hloubka vody po buňkách), do obrázku 8 bodů na buňku: povrch
-se v každém bodě vybírá podle váhy čtyř sousedních buněk s roztřesením šumem (oblé hranice), pobřeží
-a vlnky podle vzdálenosti od souše; vrstevnice nejsou, jen útesy jako čára nahoře a stín pod ní. Útes je
-tam, kde terén hranu nevyhlazuje (`terrainSystem.hardEdgeAt`: skok nad 2 m nebo buňka označená jako útes),
-takže strmý svah útesem na mapě není. Ikony se míchají s papírem násobením. Překresluje se jen při
-změně mřížky. Odkryté místo se ořízne rozmazanou maskou a na papír se míchá násobením.
-Rozpracované a plánované věci jsou v `TODO.md`.
-
-Dolní lišta (`src/ui/dock.js`, `dockArea`) má ukazatele zdraví a energie nad lištou nástrojů.
-Tlačítka oken (`DockButton` s písmenem klávesy) jsou ve svislém pruhu u pravého okraje (`#hud-panels`)
-uprostřed místa mezi hodinami a panelem vpravo dole; v nízkém okně se tlačítka zmenší (`flex-shrink`
-s `aspect-ratio`, nejméně 24 px), obal pruhu kliknutí propouští. Panel připnutého tvora stojí vlevo od pruhu. Ikony jsou kresba jednou linkou
-(`src/ui/panelIcons.js`, barvu berou z textu tlačítka); pozadí tlačítka řídí volba Průhlednost panelů (`panelTransparency`, CSS `--panel-backdrop`) stejně
-jako rámeček logu, panelu vpravo dole, hodin a lišty nástrojů; ve výchozím stavu jsou vidět jen obsah a ikony. Tlačítko Menu
-vlevo nahoře (`hud.js`, `onMenu`) i Esc otevřou pauzu (`pauseScreen.js`): pokračovat, uložit,
-načíst, Možnosti, Ovládání, Editor mapy a hlavní menu. Esc nejdřív zavře otevřená okna
-(`closeOpenWindows`), teprve pak pauzuje. Možnosti otevřené z pauzy pauzu schovají a po zavření
-ji vrátí (`holdGameForOptions`); nápověda Ovládání leží nad ztmavením pauzy. Panel vpravo dole (`tooltipPanel.js`) má dvě části: nahoře
-na co se míří (`show`; doplněk rozdělený ` · ` jde na samostatné řádky), pod čarou
-nápověda myši (`setMouse`; co udělá levé, pravé a prostřední tlačítko a klávesy, plní
-ji `refreshMouseHint` ve scéně podle `pointerAction`).
-
-Velikost rozhraní (volba `uiScale`, 80–140 %) zvětšuje celou vrstvu `#hud-layer` přes CSS `zoom`
-(proměnná `--ui-scale`). `ui/hudFit.js` ji na úzkém okně sám sníží (do 80 %), aby se log, lišta
-a panel vpravo dole vešly vedle sebe; když to nestačí, lišta ukáže méně slotů (nejméně 5, klávesy
-schovaných slotů fungují dál), a když se nevejde ani 5 slotů, zmenšuje se dál až na 60 %
-(vejde se zhruba od šířky 600 bodů; telefon na výšku už ne). Přepočítá se při změně velikosti okna (`GameScene.onResize`). Věci umístěné podle bodu na obrazovce (plovoucí čísla, ukazatele nad
-tvory a postavou, nápověda u kurzoru) mají zoom vrácený zpět (`global.css`), aby seděly na místě;
-tažení oken (`draggable.js`) souřadnice přepočítává. Vlastní kurzor leží mimo vrstvu.
+Žádný systém si výšku nepočítá z dat mapy sám, dostane ji od scény. Chybějící propojení
+se ozve do konzole (`utils/missingWiring.js`) — nula je platná výška a chyba by se schovala.
 
 ## Klíčová rozhodnutí (nevrátit omylem)
 
-- Výšky jsou v metrech, krok 0,25 m, rozsah −15 až +24 m; předvolby −15, −10, −5,
-  0, 5, 10, 15, 20 a 24 m (`layoutStore.js`). Krok, výška schodu a hranice útesu
-  jsou tři oddělená čísla: postava i tvor vylezou schod do 0,55 m (`STEP_LIMIT`),
-  hranice útesu je 2,0 m (`AUTO_CLIFF_STEP`). Přes hranu útesu se svah nepřelévá —
-  kdyby některá cesta přestala být průchozí, je to tohle číslo.
-- Mapa má verzi 10 (`MAP_VERSION` v `src/data/catalogs/mapFile.js`). Mapa starší
-  než 10 se při načtení převede na krok 0,25 m (`quantizeMapFileHeights`).
-  Hladina vody je nepovinné číslo a verzi nemění, stejně jako nepovinný seznam jezer.
-- Hráčova výška se dopočítá z terénu; sav drží jen x, z, natočení a patro.
-- `Effect.PersistentMode = true` (`src/main.js`): engine nikdy nemaže programy pro
-  grafickou kartu. Bez toho konzole po přepočtu v editoru hlásila
-  `glGetProgramiv: Program object expected` — program se smazal, i když ho materiál
-  ještě používal.
-- Materiály s vlastním programem (voda, tráva) se mažou bez obrázků:
-  `dispose(false, false)`, u meshe `mesh.dispose(false, false)`. Drží totiž i sdílené
-  mapy rentgenu a dohledu; smazání „i s obrázky“ je zahodí všem a voda i tráva se
-  tiše přestanou kreslit (materiál nikdy nebude připravený).
-- Výškový panel je samostatné okno; hlavní HUD výšky neobsahuje.
-- Výběr buněk: hover + levé přidá + pravé kliknutí odebere; 0 m srovnává.
-- Střed buňky zůstává přesný; kraj mapy a díry berou výšku nejbližší buňky.
-- Terén se dělí podle povrchů; cesty jsou jemné a 2,5 cm nad zemí.
-- Pláž je štětec, ne razítko: mění jen existující buňky a svah staví prstenci po
-  0,25 m. Plynulý okraj = jeden prstenec písku navíc. Novou zem z prázdna umí jen
-  Herní plocha. V pánvi pláže mizí objekty a tráva.
-- Hranice povrchů jsou rovné. Tráva se u okraje prolíná do písku, písek do trávy ne.
-- Kopce a stupně se staví výškami, ne skládáním skalních bloků.
-- Označená buňka je plošina: drží rovnou výšku a kde je soused níž, stojí stěna.
-  Stejně vysoký soused se napojí plynule.
+- Výšky v metrech, krok 0,25 m, rozsah −15 až +24 m (`layoutStore.js`). Schod postavy
+  i tvora 0,55 m (`STEP_LIMIT`), hranice útesu 2,0 m (`AUTO_CLIFF_STEP`) — tři oddělená čísla.
+  Přes hranu útesu se svah nepřelévá; když přestane být cesta průchozí, je to tohle číslo.
+- Mapa verze 10 (`MAP_VERSION` v `mapFile.js`). Nepovinné části (hladina, jezera, stavby)
+  verzi nemění.
+- Hráčova výška se dopočítá z terénu; sav drží x, z, natočení, patro a výšku (`y`, kvůli podlahám).
+- `Effect.PersistentMode = true` (`main.js`): bez toho po přepočtu v editoru konzole hlásila
+  `glGetProgramiv: Program object expected` (smazaný program, který materiál ještě používal).
+- Materiály s vlastním programem (voda, tráva) se mažou **bez obrázků** (`dispose(false, false)`):
+  drží sdílené mapy rentgenu a dohledu a jejich smazání by vodu i trávu tiše vypnulo všem.
+- Kopie modelů (`instantiateModel`) zahazují vlastní seznam bodů pro klikání
+  (`dropOwnPointCopy`): Babylon ho při klonu dělá každé kopii zvlášť, u stovek keřů to bylo
+  přes 1 GB paměti a editor padal na nedostatek paměti.
+- Kopie tvorů přes `LoadAssetContainerAsync` + `instantiateModelsToScene`; ruční `clone()`
+  rozbije kostru.
+- Kopie s thin instances (krabi, skalní obklad) potřebují vlastní geometrii
+  (`makeGeometryUnique`): buffery instancí leží v geometrii a sdílená by se přepsala.
+- Označená buňka je plošina: rovná výška, kde je soused níž, stojí stěna. Kopce a stupně
+  se staví výškami, ne skalními bloky. Hranice povrchů jsou rovné.
+- Pláž je štětec, ne razítko: mění jen existující buňky. Novou zem z prázdna umí jen
+  Herní plocha. Kopec a Prohlubeň měří od země pod tahem, Pláž od hladiny moře.
+- Editor ukládá stav otevřené stránky. Když se mapa změní mimo hru, obnovit stránku (F5),
+  jinak ji uložení vrátí (tak jednou zmizel vchod).
+
+## Kde co je
+
+- Výšky a předvolby: `data/maps/layoutStore.js`. Výškový model: `utils/terrainField.js`.
+- Terén: `systems/terrain/terrainSystem.js` (+ části), hmota `terrainMass.js`, `runVolume.js`,
+  pruhy skály `utils/terrainRuns.js`, most `utils/bridgeShape.js`.
+- Chůze a patra: `systems/core/navigationSystem.js`. Hledání cesty tvorů: `utils/gridPath.js`.
+- Voda: `systems/water/` (`waterSystem`, `waterBodies`, `waterFalls`, shadery), vlny `utils/waterWaves.js`.
+- Světlo a zvuk: `systems/atmosphere/` (`skySystem`, `lightingSystem`, `fireLightSystem`, `audioSystem`).
+- Editor: `src/editor/`, rozpis v `src/editor/README.md`. Štětce: `data/catalogs/brushes.js`.
+- Mapa: `src/data/maps/glade/map.json`.
 
 ## Terén
 
-Terén má **skutečnou hmotu**: každá buňka drží seznam plných pruhů skály (od–do)
-v krocích 0,25 m, mezi nimi je vzduch (`utils/terrainRuns.js`, `buildColumnAir`,
-`terrainSystem.solidRunsAt`). Pruhy se odvozují ze stávajících dat mapy. Viditelný
-vršek zůstává hladká plocha (pohyb, tráva a voda se nemění), hmota k ní dodává
-boky, stěny jeskyní a stropy (`terrainMass.js`, `runVolume.js`).
+Terén má **skutečnou hmotu**: buňka drží plné pruhy skály po 0,25 m, mezi nimi vzduch
+(`utils/terrainRuns.js`). Viditelný vršek je hladká plocha, hmota k ní dodá boky, stěny
+jeskyní a stropy (`terrainMass.js`, `runVolume.js`). Stavba je rozdělená na kroky
+(`createSteps`: pole, povrch každého patra, hmota, mřížka a výběr myší); povrch je rozdělený
+na čtverce (`SURFACE_CHUNK`).
 
-Stavba terénu je rozdělená na kroky (`terrainSystem.createSteps`: výškové pole, povrch
-každého patra, objem skal, mřížka a výběr myší). Editor je pouští všechny najednou
-přes `create`. Při startu hry je `setupTerrain` v `sceneWorld.js` pouští postupně
-a po nich i vodu; mezi kroky dá prohlížeči chvilku na překreslení a načítací obrazovka
-ukáže nápis kroku (`TERRAIN_STEP_LABELS` ve `worldStages.js`, úsek pruhu 26–50 %).
-Přechody povrchů (`weightsFor` v `createSurface`) si zjištění o sousedech počítají
-jednou za buňku, ne za každý bod obrázku; buňky bez přechodu se přeskočí. Přechody
-se počítají pro každé patro, jeskyně se berou jako suché (voda je jen na povrchu).
-Materiál jeskyně s přechodem má v klíči i číslo patra (`Cave-1|…`), aby si patra
-nepřepisovala váhové obrázky; jeskynní materiál bez přechodu je dál společný (`Cave|…`).
-Váhy až tří sousedů jsou v jednom obrázku (`packWeights`: kanál R = první soused, G = druhý,
-B = třetí); všechny mají stejný obdélník celé mapy, takže sloučení nic nemění a šetří dvě textury.
-Přes práh vchodu se povrchy míchají taky: `thresholdKeys` (`terrainCaves.js`) podle spojení
-mezi patry řekne buňce u prahu, jaká podlaha je za ním v druhém patře, a ta se pro přechod
-bere jako soused (bez kontroly schodu, práh je srovnaný). Mění se jen barva a nerovnosti.
+- **Přechody povrchů** (`weightsFor` v `createSurface`): váhy až tří sousedů v jednom obrázku
+  (`packWeights`, R/G/B), přes práh vchodu se míchá i s podlahou v jiném patře (`thresholdKeys`).
+  Jeskynní materiál s přechodem má v klíči patro (`Cave-1|…`), jinak by si patra přepisovala váhy.
+- **Reliéf** (`terrainReliefPlugin.js`): normálové mapy ve formátu GL (zelená = +V), všechny
+  ve vrstveném obrázku 1024 × 1024 (`RELIEF_SIZE`), jedna textura místo čtyř. Natočení vrstvy
+  (`angle`) se musí otočit i ve sklonech, jinak stín nesedí. `cavity` ztmaví boky nerovností
+  v barvě, aby byly vidět i při slunci shora.
+- **Limit 16 textur na materiál:** materiály země ušetřily pět textur sloučením váh a reliéfu.
+  Se třemi stíny ohně má nejhorší materiál země 13 textur. Každé nové světlo se stínem stojí jednu.
+- **Boky:** nahoře pás v materiálu buňky, pod ním skála; rozřezané po 0,25 m s vlastním výřezem
+  textury (jinak se obrázek táhne a jsou švy). Horní hrana boku bere výšku jako okraj plochy
+  (`edgeHeightAt`), jinak se rozcházejí o centimetry.
+- **Obrys útesu se vlní** do ±0,16 m, jediný zdroj je `cliffShifts` (bere ho povrch i bok).
+- Okraj mapy končí 2 m pod povrchem (`EDGE_DEPTH`).
+- **Skalní obklad útesů** (`cliffDressSystem.js`): stěna se nemění, jen se obalí kameny
+  (recepty `cliff_stone_*`, hroudy `cliff_clod_*`). Pod kusy zůstává celá stěna, takže
+  nejsou díry. U volného konce se kusy zúží, na vnějším rohu je menší kus (jinak převisy).
+  Kameny rámů vchodů jsou modely `boulder_*` s texturou a reliéfem stěny (`cliffStonePlugin.js`).
+- **Liany** (`cliffVineSystem.js`): z hran útesů, poliček, nad vchody a ze stěn staveb.
+  Svislé, vodorovné (`drape`) a do U (`swag`, jen listové); vodorovná a U jen kde hrana
+  pokračuje (`edgeContinues`), jinak by visely do vzduchu.
+- Ladění: `?solid` ukáže pruhy jako kostky, `?corners` obarví rohy útesů.
 
-- **Reliéf povrchu** (`terrainReliefPlugin.js`) čte normálové mapy ve formátu GL
-  (zelená = +V). Všechny mapy reliéfu z katalogu povrchů jsou vrstvy jednoho
-  vrstveného obrázku (`createReliefLayers` v `terrainMaterials.js`, `sampler2DArray`, jedna textura
-  místo čtyř); musí mít 1024 × 1024 (`RELIEF_SIZE`). Řádky se při skládání otáčejí jako u
-  běžné textury (`invertY`), takže bitangenta míří
-  k +Z (`cross(tangent, n)`). Natočení vrstvy (`angle`) se musí otočit i ve sklonech
-  z mapy, jinak stín nesedí na tvar. Do 17. 11. 2026 byla osa Z obrácená a vlnky
-  písku vypadaly dopoledne ploše. `cavity` v nastavení povrchu ztmaví boky nerovností
-  přímo v barvě, aby byly vidět i při slunci shora (zatím jen písek). V přechodu
-  si materiál bere od prvního souseda (`reliefNeighbourFor`) obě mapy nerovností
-  i `cavity` a míchá je podle váhy přechodu; dřív bral jen první mapu bez `cavity`
-  a písek v přechodu vypadal v poledne jinak než písek vedle. Odstín ve stínu
-  (`ambient`) se v přechodu zatím nemíchá.
-- **Boky terénu:** nahoře pás v materiálu buňky (na útesu 0,25 m, na měkkém schodu
-  `SURFACE_DEPTH` 1 m), pod ním skála. Bok je rozřezaný na pláty po 0,25 m, každý
-  s vlastním výřezem textury, aby se obrázek netáhl a mezi buňkami nevznikaly švy.
-  Pás má stěnovou hliněnou texturu obarvenou barvou buňky (půdorysná textura na
-  svislé ploše dělá pruhy). Skála dostává odstín podle výšky (`wallTint`: mech
-  nahoře, tma u paty).
-- **Horní hrana boku** bere výšku stejnými pravidly jako okraj hladké plochy
-  (`edgeHeightAt`), jinak se okraje rozcházejí o centimetry.
-- **Obrys útesu se vlní** v půdorysu do ±0,16 m; jediný zdroj je `cliffShifts`,
-  bere ho povrch i bok. Rohy buněk zůstávají pevné.
-- **Okraj mapy** končí `EDGE_DEPTH` (2 m) pod povrchem; zvenčí je pod ním prázdno.
-- **Na hraně útesu rostou rostliny:** kotvy (`EDGE_ANCHOR_DEPTH`) berou tráva
-  (`addShelfGrass`) i liany (`CliffVineSystem`, modely `cliff_vine.glb` a
-  `cliff_vine_2.glb`, zkrácené podle výšky stěny, pod 0,6 m se nedávají). Liany
-  visí z horní hrany, z poliček (`terraceAnchors` z `cliffDressSystem`) a po 3–5
-  nad každým vchodem do jeskyně (visí z překladu do otvoru, před kameny rámu); staví se v `refreshCaveLighting` až po kamenech.
-  Houpou se přes `TreeWindPlugin` s volbou `hangFrom` (pevné nahoře, kmitá spodek).
-- **Skalní kusy na útesech** (`terrain/cliffDressSystem.js`): stěna se nemění, jen
-  se obalí překrývajícími se kameny (kamenné útesy, recepty `cliff_stone_*` v `rocks.js`)
-  nebo hroudami (hliněné, recepty `cliff_clod_*`). Stejné kameny tvoří obklad v jeskyních.
-  Mají texturu stěny, mech na vršcích přidává `cliffMossPlugin.js`. Modely `cliff_stone_*`
-  z tmavé sady vypadaly na stěně hůř, proto se obklad vrátil k receptům (modely jsou teď tmavé
-  volné kameny). Kameny rámů jeskyní jsou
-  modely `boulder_*`; tvar mají z modelu, barvu, texturu a světlo stejné jako stěna
-  (`cliffStonePlugin.js`, textura promítnutá podle polohy ve světě). Rámy navíc dostanou
-  reliéf stěny (její mapa nerovností promítnutá ze tří stran) a kolísání odstínu jako
-  stěna (`wallTint` v `terrainMass.js`), aby splynuly se skálou; obklad útesů ne. Obklad stíny nevrhá, jen přijímá. Pod kusy zůstává celá stěna, takže
-  nevznikají díry. Seznam stran dává `terrainMass.cliffFaces()`; strana nad vchodem
-  dostane jen řadu nad otvorem. Kusy u volného konce stěny se zúží a přitisknou, na
-  vnějším rohu stojí menší zapuštěný kus (jinak převisy). Horní řada má občas mech
-  (v `cliffStonePlugin.js`, vršek zezelená celý, boky v ostrůvcích ze šumu, spodek ne). Občas je ve stěně
-  římsa — převrácený plochý kus s mechem, na který se sází podrost jako na hranu
-  (`shelfGrassAnchors` ve scéně). Kusy jsou hromadné kopie po oblastech; každá má
-  vlastní kopii tvaru (`makeGeometryUnique`), sdílený tvar si pozice přepisuje.
-- **Ladicí pohledy** (`terrain/terrainDebug.js`): `?solid` ukáže pruhy jako kostky,
-  `?corners` obarví rohy útesů (červená roh, modrá vnitřní kout, žlutá diagonála).
-
-**Zkoušeno a zamítnuto** (nezkoušet znovu bez nového nápadu):
-
-- reliéf stěn (posun bodů dělal díry u hrany i u paty),
-- zaoblení rohů (vykrojení, vyboulení i řez dna; nedá se sladit s vyhlazením země),
-- nahnutí normál na horní hraně (u svislé stěny dělá tmavý pruh),
-- procedurální kůže útesů s římsami — odstraněná; s ní zmizelo i dolícování mostů
-  ke skále, mosty navazují jen na břehy.
-
-Další fáze objemového terénu jsou v `TODO.md`.
+**Zkoušeno a zamítnuto** (nezkoušet bez nového nápadu): reliéf stěn posunem bodů (díry
+u hrany a paty), zaoblení rohů (nedá se sladit s vyhlazením země), nahnutí normál na horní
+hraně (tmavý pruh), procedurální kůže útesů s římsami.
 
 ## Jeskyně a patra
 
-Rozhodnuto: skutečná patra v jedné mapě (ne kulisa ani samostatná mapa — ta zůstává
-vhodná pro jiné vnitřky, třeba dům, přes registr `src/data/catalogs/maps.js`).
+Skutečná patra v jedné mapě. Samostatná mapa (`catalogs/maps.js`) zůstává pro jiné vnitřky.
 
-**Model sloupců:**
+- Buňka může mít víc pochozích ploch nad sebou, každá s výškou a případně stropem (`ceilY`).
+- Číslo patra (0, −1 …) je **jmenovka, ne pořadí** a nikdy se nepřečíslovává (rozbilo by
+  mapy, spoje i savy). Pořadí se počítá z výšek. Víc jeskyní, které pod sebou neleží, smí sdílet patro.
+- Mezi plochami se chodí **jen po spoji** (`connectors`); spoj = díra ve stropě/podlaze
+  a vynechaná stěna. V buňkách spoje neplatí stěnová kolize útesu.
+- Světlá výška aspoň 2,6 m (postava 2,0 m), výchozí 3,0 m.
+- Jeskynní a venkovní buňka ve stejné výšce (do 0,6 m) dají průchod samy. Podlaha se na prahu
+  přimkne k zemi venku (`setDoorBlends`), úprava závisí jen na poloze, takže nevzniká škvíra.
+  **Švy u vchodu** (pás, kterým je vidět prázdno) vznikají, když zem venku a podlaha nejsou
+  ve stejné výšce; lék je srovnat buňky kolem vchodu v mapě.
+- Otvor vchodu zúží kameny rámu (`caveFrameSystem.js`, `DOOR_OPEN_HALF`, `DOOR_OPEN_HEIGHT`);
+  chůze to hlídá stejně (`navigationSystem.inDoorFrame`), jinak by postava procházela kameny.
+  Styl rámu (hlína/kámen) se ukládá jako `frameStyle` u buňky za vchodem.
+- Jména jeskyní (`caveNames`) patří souvislé jeskyni, ne patru; ukládá se jméno a jedna buňka.
+- Jeskyně nemá vlastní světlo. Slunce a obloha se v materiálech tlumí podle mapy vchodů
+  (`revealPlugin.js`). **Past:** Babylon v kódu vkládaném regulárním výrazem doplní každé
+  `$1`, `$2` … jen jednou, proto má vzor tolik závorek, kolikrát se číslo světla použije.
+- Skála se do stínů a dohledu kreslí z obou stran (`utils/bothSidesMaterial.js`) a do stínu
+  slunce bez posunu podél normály (`keepRockWhole`), jinak hranami prosvítá čára světla.
+- Schod ve stropě má stěnku jen pro stíny (`SHADOW_ONLY_LAYER`), jinak škvírou svítí slunce.
+- Stěny jeskyně se kreslí odvrácenou stranou (blízká stěna zmizí); Babylon pak pro světlo
+  stranu neotočí, proto mají normály otočené do jeskyně už v datech (`terrainMass.js`).
 
-- Buňka může mít víc pochozích ploch nad sebou; každá má výšku a případně strop
-  (`ceilY`). Strop je údaj plochy, ne dopočet z plochy nad ní.
-- Číslo patra (0, −1, −2 …) je **jmenovka, ne pořadí** a nikdy se nepřečíslovává
-  (rozbilo by mapy, spoje i savy). Pořadí si buňka spočítá z výšek.
-- Mezi plochami se chodí **jen po spoji** (sekce `connectors` v mapě: odkud, kam,
-  druh; v mapě je zatím jen `passage` a kód druhy nerozlišuje). Spoj znamená i díru ve stropě
-  či podlaze a vynechanou stěnu. V buňkách spoje neplatí stěnová kolize útesu (pro hráče
-  i tvory, `navigationSystem.bodyFree`).
-- Světlá výška aspoň 2,6 m (postava měří 2,0 m, `MODEL_HEIGHT` v `playerSystem.js`), výchozí 3,0 m.
-- „Jsem pod střechou" se odvozuje ze stropu nade mnou, neukládá se.
-- Kde jeskynní buňka sousedí s venkovní ve stejné výšce (do 0,6 m), vznikne sama
-  průchozí díra. Když editor kope jeskyni a venkovní soused je výš než podlaha, ale pod
-  stropem (prokopnutí ven), sníží ten soused na výšku podlahy (`lowerDugOutside`
-  v `editorFloors.js`), takže vznikne vchod. Hotová díra už zem venku nemění; podlaha jeskyně se k ní na prahu přimkne
-  v každém bodě a rozdíl se rozlije do půl buňky dovnitř a do boků až o půl buňky
-  za ostění (`setDoorBlends` v `terrainField.js`). Úprava závisí jen na poloze, ne na
-  buňce, takže mezi buňkou vchodu a sousedy nevznikne škvíra. Každá plocha se jinak
-  vyhlazuje jen podle svých buněk; dřív tak na prahu vznikal zub a u ostění škvíra.
-  Švy (pás, kterým je vidět voda a prázdno) se ale objeví, když zem venku u vchodu
-  a podlaha jeskyně nejsou ve stejné výšce, i když je rozdíl do 0,6 m a průchod vznikne.
-  Lék je v mapě: srovnat buňky kolem vchodu na výšku podlahy (díry u −16,−2 a −18,−4
-  zmizely právě tak).
-- Otvor vchodu je užší a nižší než díra ve skále: kameny rámu (`caveFrameSystem.js`)
-  ho zúží na `DOOR_OPEN_HALF` od středu a sníží na `DOOR_OPEN_HEIGHT` nad podlahou
-  (`areaShape.js`). Chůze to hlídá stejně: v pásu `DOOR_FRAME_DEPTH` kolem prahu je
-  pochozí jen střed do `DOOR_WALK_HALF` (`navigationSystem.inDoorFrame`), jinak by
-  postava procházela kameny. Kameny rámu vrhají stín (bez nich svítil dovnitř pravoúhlý
-  stín díry ve skále). Horní část otvoru tvoří oblouk z menších kamenů (půlkruh o poloměru půlky otvoru), aby nebyl hranatý;
-  sedí nad výškou postavy.
-- Kameny rámu jsou zapuštěné do skály: přední hrana každého končí `CLIFF_STONE_MAX_OUT`
-  před stěnou, stejně daleko jako obklad útesu, zbytek kamene je ve skále.
-- Hlína nebo kámen rámu: podle útesu nad jeskyní a vedle vchodu (`cliffStyleAt`),
-  v editoru jde přepsat kliknutím na vchod (Patra, povrch). Volba se ukládá jako
-  `frameStyle` u buňky jeskyně za vchodem (`doorFrameStyleOf` v `areaShape.js`).
+### Rentgen, dohled a průhled
 
-**Hotovo:** data a dotazy, geometrie (podlahy, stropy, stěny, šachty, vchody),
-pohyb hráče po patrech i přes spoj, tma v jeskyni a jeskynní zvuk. Jeskyně nemá
-vlastní světlo (svítí jen slunce a obloha vchodem, táborák a pochodeň; pochodeň i táborák
-svítí v podzemí naplno jako v noci). Slunce i obloha se v materiálu tlumí podle mapy vchodů
-stejně (`revealPlugin.js`, `CUSTOM_LIGHT{X}_COLOR` pro směrové a polokulové světlo), takže na
-prahu svítí jako venku a asi 3 buňky dovnitř plynule slábnou; dřív obloha do jeskyně
-nesvítila vůbec a na prahu byl skok v jasu. Pozor: Babylon v kódu vkládaném přes regulární výraz
-doplní každé `$1`, `$2` … jen jednou, proto má vzor tolik závorek, kolikrát se číslo světla použije. Zvláštní přisvícení podlahy
-od vchodu (světlo oblohy) bylo zrušené, dělalo za prahem ostře světlejší pruh. Stěny a strop jeskyně vrhají stín od slunce i táboráku; do map
-stínů (i do mapy dohledu) se skála kreslí z obou stran (`utils/bothSidesMaterial.js`),
-jinak by ji některé strany krychle i slunce viděly odvrácenou stranou a světlo by
-prošlo. Skála (`metadata.volume`) se do stínu slunce kreslí bez posunu podél normály
-(`lightingSystem.keepRockWhole`): posun odsune každou plochu jinam a na hranách stropu
-a stěn otevře škvíru, kterou občas prosvítí čára světla (bliká s pohybem kamery).
-Ostatní vrhače (stromy, modely, mosty) posun dál mají.
-Schod ve stropě mezi dvěma buňkami jeskyně má svou svislou stěnku (`runVolume.js`, druh
-`ceilingStep`, bez přesahu dolů); vynechává se jen schod v podlaze, kterou vyhladí povrch.
-Stěnka je ve vrstvě `SHADOW_ONLY_LAYER` (`terrainSettings.js`): kamera ji nekreslí (strop je
-taky schovaný), stín slunce, táboráku i dohled ji mají. Dřív chyběla
-i u stropu a čtvrtmetrovou škvírou svítilo slunce na podlahu pravoúhlou čarou po obvodu buněk. Modely v podzemí (postava, tvorové a dekorace v patře pod 0) tlumí slunce a oblohu stejně
-jako terén jeskyně (`revealUnder`, seznam drží `GameScene.updateUndergroundMeshes`). Když je
-hráč pod stropem, schovají se přesně stropní dlaždice nad jeskyní (`overCave`,
-samostatný mesh `_roof`) a skryjí se dekorace i tráva na těch buňkách. Strop je zeshora neviditelný.
-Terén výš než podlaha, na které hráč stojí, zmizí v celém rozsahu stejně jako
-v editoru pater (`revealColumn`), nezávisle na natočení kamery. Výjimka je zem venku
-osvětlená vchodem (`caveLightMap`): ta se ve hře řeže až nad výškou očí postavy, jinak
-by zmizela i zem za prahem, která je jen o kousek výš než podlaha jeskyně. Co z okolí je
-vidět, řeší dohled postavy (níž); bez dohledu (editor pater) zůstává
-jen osvětlené okolí vchodu podle mapy `caveLightMap` a tma od 8–14 m.
+- **Rentgen** (`revealSystem`): pod stropem se schová strop nad jeskyní a terén výš než
+  podlaha hráče. Materiálům se připojuje přes `utils/newMaterials.js` před každým výběrem
+  modelů. **Na `onNewMaterialAddedObservable` spoléhat nejde**: Babylon ho hlásí se zpožděním,
+  materiál se mezitím nakreslí bez rentgenu a karta hlásí „Two textures of different types
+  use the same sampler location".
+- **Dohled postavy** (`sightSystem.js`, `utils/revealGlsl.js`): krychlová mapa vzdáleností
+  z očí, stín vrhá jen skála (`metadata.volume`). Pod zemí ztmaví, co zakryje skála nebo je
+  dál než 14 m; venku od ~15 m opar. Zem se testuje o 0,6 m výš (za nízkým schodem není tma),
+  modely podle paty (`vRevealBase`), aby koruny nezahalil. Vypnout nejde, bez něj je vidět skrz skálu.
+- **Průhled ke kameře** (`revealPeekAt`, čísla v `PEEK`): trubka od kamery k postavě rozptýleně
+  vyřízne, co je před ní. Stejný výpočet v JS používá myš (`seesThrough`). Pod řezem se kreslí
+  kamenné dno (`revealSystem.updateCap`), protože terén je jen slupka.
+- **Prstenec skály při řezu** (`ringWall`/`ringCap` v `runVolume.js`): jen při otevřeném řezu,
+  nevrhá stín a neblokuje dohled.
 
-**Světla ohně** (`atmosphere/fireLightSystem.js`): pochodeň, táboráky i lucerny jsou jen zdroje (`source`:
-poloha, barva, síla, dosah, `shadow` none/prefer/need, patro, `refresh`, `dirty`, vlastní meshe `own`);
-skutečná světla jsou čtyři a každý snímek (`GameScene.fireFocus` = postava, v editoru střed kamery) dostanou
-nejbližší hořící zdroje v dosahu a ve stejném patře: tři se stínem (`SHADOWED_LIGHTS`, nejbližší táboráky
-a lucerny), čtvrté bez stínu (pochodeň, jinak další táborák; lucerna bez stínu ne, svítila by skrz stěny).
-Čtvrtá a další lucerna v dosahu proto dál zhasne. Přechod mezi zdroji je plynulý (0,25 s).
-Výchozí strop materiálu jsou 4 světla; `lightingSystem.fitMaterials` ho každému materiálu zvedne na počet
-světel scény (nové materiály přes `utils/newMaterials.js` ještě před prvním kreslením, aby se nesestavovaly
-dvakrát). Obloha a slunce mají přednost (`renderPriority`), takže jsou v pořadí světel první a o slunce
-materiál nepřijde, ani když by strop někde nestačil. Přidat nebo ubrat světlo by přepočítalo všechny materiály, proto světla existují
-pořád a zdroje jen mění sílu. Stín (krychlová mapa 512) vrhají boky, stěny a stropy terénu (`metadata.volume`,
-ploché podlahy ne, jinak pruhy pod ostrým úhlem) a díly staveb v dosahu (`GameScene.fireCastersNear`, bez `own`);
-při jeho kreslení se na okamžik zapnou i schované díly staveb. Překreslí se při přeskoku na jiný zdroj,
-u táboráku jednou za 1,5 s (`refresh`) a když zdroj hlásí `dirty` (lucerna při pohybu dveří).
-Zdroje ohlásí vlastníci přes `onLightSource` (táboráky, pracovní místa — lucerny, postava při první pochodni).
-Pochodeň svítí ve dne slabě, v noci naplno; v jeskyni a uvnitř stavby (`torchFire.setIndoors`, z `GameScene.updateIndoor`)
-naplno i ve dne, aby uvnitř dosvítila stíny od lucerny.
-Blikání všech tří zdrojů je plynulé (`utils/flicker.js`: síla se přelévá k náhodné hodnotě, ne skokem), jinak se
-pochodeň a lucerna přes sebe trhaně přeblikávaly. Zdroj může mít `darkness` (jak moc stín propouští, 0 = černý);
-lucerna i táborák mají 0 — lucerna dřív 0,5 a polovina světla pak prosvítala zdí ven. Babylon dá stín světla
-do programu materiálu jen tehdy, když má jeho mapa při sestavení programu nějaké meshe; proto je v seznamu stínících
-meshů vždy vypnutý zástupný mesh (`fireShadowStub`) — materiály mají stín ohně od načtení a rozsvícení nic
-nepřestavuje (dřív bez něj stín nepřijal nikdo). Každý stín ohně stojí materiál jednu texturu z limitu 16.
-Materiály země ušetřily pět textur sloučením váhových map přechodů a map reliéfu (viz povrch terénu výš);
-se třemi stíny ohně používá nejhorší materiál země 13 textur, modely nejvýš 11 (včetně mapy dohledu).
-Vlastní programy (tráva, hladina a boky vody, vodopády) světla Babylonu nedostávají; `fireLightSystem` jim
-každý snímek posílá polohu, barvu se silou a dosah všech čtyř světel a stínové mapy (`FIRE_UNIFORM_NAMES`,
-`FIRE_SAMPLERS`), výpočet je v `utils/fireGlsl.js` (`fireLightAt`) a odpovídá Babylonu: slábnutí k okraji
-dosahu a stín ze 4 vzorků krychlové mapy, takže zdi světlo lucerny ven nepustí. Program se přihlásí tím,
-že má ve `uniforms` jména z `FIRE_UNIFORM_NAMES`; nové se najdou přes `utils/newMaterials.js` ještě před
-prvním kreslením. Počty světel se stínem a blízká mez stínu jsou jen ve `fireGlsl.js`.
+## Světla ohně
 
-**Dohled postavy** (`world/sightSystem.js`, výpočet v `utils/revealGlsl.js`). Z očí
-postavy (`PLAYER_EYE_HEIGHT`) kreslí neviditelné bodové světlo krychlovou mapu
-vzdáleností; stín vrhá jen skalní hmota (`metadata.volume`). Mapa se čte stejně jako
-stín táboráku a překresluje se při každém posunu očí. Pravidla:
-- Pod zemí: co zakryje skála nebo je dál než 14 m, ztmavne a zešedne (jeskyně
-  tušeně, povrch úplně do černa, takže ven je vidět jen otvorem); modely se
-  mimo dohled rozplynou a tvorové se schovají celí (paprsek `sceneCombat.seesCreature`).
-- Venku: od ~15 m (z vyvýšeného místa až o 10 m dál) přibývá oparu v barvě mlhy
-  (nejvýš 60 %) a černobílé. Opar dostane i zem výrazně výš než postava. Skála venku
-  zemi ani dekorace nezakrývá (za rohem by se kreslily pruhy mlhy); jen tvor na vyšší
-  zemi za skálou zmizí (`sceneCombat.creatureFogAt`).
-  Tvorové se v oparu rozplynou, dekorace jen zešednou.
-- Země se testuje o 0,6 m výš (za nízkým schodem není tma); modely podle své paty
-  (`vRevealBase`), ne podle bodu modelu, aby koruny stromů nezahalil.
-- Model na vyšší zemi venku zešedne jen v místech, kam čáru od očí zakrývá skála
-  (`revealSightBlocked` pro bod modelu). Kmen palmy pod hranou útesu je v oparu,
-  koruna nad hranou je vidět. Zem na vyšší zemi se řídí dál jen výškou.
+`atmosphere/fireLightSystem.js`. Pochodeň, táboráky a lucerny jsou jen **zdroje** (poloha,
+barva, síla, dosah, `shadow` none/prefer/need, patro). Skutečná světla jsou **čtyři** a dostanou
+je nejbližší hořící zdroje kolem postavy: tři se stínem (krychlová mapa 512), čtvrté bez stínu.
 
-**Připojení rentgenu k materiálům** (`revealSystem.attachPending`): před každým výběrem viditelných modelů
-(`onBeforeActiveMeshesEvaluationObservable`) připojí rentgen materiálům, které od minula přibyly
-(`utils/newMaterials.js`: vyšší `uniqueId`, než jaké už zná). Na `onNewMaterialAddedObservable` spoléhat nejde: Babylon ho hlásí se zpožděním
-(přes `setTimeout`), a nový materiál (třeba kruh útoku) se mezitím nakreslil bez rentgenu. Program sestavený
-v té chvíli navíc mohl do kódu dostat rentgen bez přidělených obrázků a grafická karta hlásila
-„Two textures of different types use the same sampler location“.
-
-**Průhled ke kameře** (`revealPeekAt` v `utils/revealGlsl.js`, stav v `revealSystem.setPeek`, zapíná
-`GameScene.updateReveal` jen na povrchu a mimo editor, náběh 0,3 s). Od kamery k hrudi postavy vede trubka
-o poloměru 2,2 m (`PEEK_RADIUS`, měkký okraj od 55 %). Co v ní leží aspoň 0,6 m před postavou a výš než
-0,3–0,7 m nad jejíma nohama, se rozptýleně vyřízne (`discard` se zrnem jako rentgen). Platí pro terén,
-rámy vchodů, modely kromě tvorů (`REVEAL_PEEK` v `revealPlugin.js`) a pro trávu a vodu (výchozí `peek`
-v `revealBlock`). Jeskynní materiály, značky a pozadí se nevyřezávají. Čísla trubky jsou jednou v `PEEK`
-(`revealGlsl.js`); stejný výpočet v JS (`peekAmount`, `revealSystem.peekAt`) používá myš: paprsek
-(`inputSystem.surfacePoint`, `seesThrough`) ignoruje zem, která je z poloviny a víc vyříznutá, a jde skrz
-díru na okolí postavy. Terén je jen slupka (pod vrškem útesu nic není), proto `revealSystem.updateCap` kreslí
-ve výšce spodku řezu (nohy + `PEEK.feetFrom`) ztmavené kamenné dno s texturou skály útesů
-(`CLIFF_TEXTURE`, `CLIFF_NORMAL` v `assetPaths.js`, sdílí je s materiály terénu, opakování po 2 m): mřížka 0,2 m v okruhu 5 m kolem postavy,
-jen tam, kde je terén (`GameScene.rockHeightAt`) nad touto výškou a buňka nemá jeskyni (`navigation.hasCaveAt`
-— nad jeskyní je terén vysoko, ale uvnitř je dutý); přestaví se po posunu o 0,25 m. Dno má vlastní druh
-materiálu (`peekCap`) a kreslí se jen tam, kde pohled na něj vede dírou: bod na spojnici s kamerou ve výšce
-nohy + `PEEK.behind` musí být vyříznutý (`revealPeekBehind`), jinak by dno vykukovalo pod stěnami. Rub útesu kreslit
-nejde — všechno, co je dírou vidět, leží v trubce a vyřízlo by se.
-- Volba Ostrost dohledu: jednoduchá (mapa 256) / plná (512). Vypnout dohled ve hře
-  nejde, protože bez něj je vidět skrz skálu (tvorové, tma v jeskyni, zvýraznění).
-
-**Prstenec skály při řezu** (`runVolume.js`, kind `ringWall`/`ringCap`): kolem jeskyně
-se kreslí jedno políčko skály (i po úhlopříčce) od podlahy do výšky řezu
-(`REVEAL_CUT_ABOVE_FLOOR`); poklička kopíruje terén a v řezu se usekne, boky se zaoblí
-jako útesy. Je vidět jen při otevřeném řezu, nevrhá stín, neblokuje dohled
-a dohled ho neztmavuje. Část, za kterou z pohledu kamery leží jeskyně, se schová
-(`revealCaveAhead`). Buňka hned za vchodem prstenec nedostane (není to skála).
-V jeskyni se kolize počítá celým tělem postavy (ne jen středem), aby oči nevlezly do
-stěny. Oheň pod zemí svítí vždy naplno. Stěny jeskyně se kreslí odvrácenou stranou
-(blízká stěna ke kameře tak zmizí) a Babylon pak pro světlo stranu neotočí, proto mají
-směr ploch (normály) otočený do jeskyně už v datech (`terrainMass.js`).
-
-Zkušební jeskyně v Glade: 4×4 buňky pod plošinou u spawnu, vchod ve skalní stěně
-na buňce −6,−10.
-
-**Pozor:** editor ukládá to, co má otevřená stránka. Když se mapa změní mimo hru,
-obnov stránku (F5) — jinak uložení starý stav vrátí (takhle jednou zmizel vchod).
+- Světla existují pořád a zdroje jen mění sílu: přidat nebo ubrat světlo by přepočítalo
+  všechny materiály (bliknutí).
+- `lightingSystem.fitMaterials` zvedne materiálům strop světel; obloha a slunce mají přednost
+  (`renderPriority`), takže o slunce materiál nepřijde.
+- Babylon dá stín světla do programu jen, když má mapa stínu při sestavení nějaké meshe;
+  proto je v ní vždy vypnutý zástupce (`fireShadowStub`).
+- Lucerna i táborák mají `darkness` 0, jinak světlo prosvítá zdí.
+- Vlastní programy (tráva, voda, vodopády) dostávají světla přes `utils/fireGlsl.js`
+  (`FIRE_UNIFORM_NAMES`); počty světel se stínem jsou jen tam.
+- Víc luceren se stínem najednou nejde (limit 16 textur, viz Terén); nový systém světel je v TODO.
 
 ## Voda
 
-Jedna hladina pro celou mapu, uložená jako nepovinné číslo v souboru mapy; jen se
-kreslí a nic v mapě nemění. Kde je terén pod ní, je voda. V editoru se zapíná
-tlačítkem Voda a ladí po 0,25 m.
+Jedna hladina moře (nepovinné číslo v mapě), jezera a řeky jsou vodní plochy.
 
-- Vlastní program pro ortografickou kameru — Babylon WaterMaterial dělá na ortho
-  kameře bílé pruhy a zrcadlové fleky.
-- **Vlny:** do ~6 m od břehu běží hřebeny podle vzdálenosti od břehu (sledují
-  obrys ostrova, stáčí se kolem mysů), od ~24 m dál volné vlnění z pěti směrů;
-  mezi tím se plynule míchají. Výšku tlumí hloubka. Fáze se láme po celých
-  periodách, takže hladina necukne. Jemné vlnky jsou jen v programu (síť na ně
-  nemá vrcholy) a mizí, když jsou na obrazovce menší než ~18 pixelů.
-- **Útes vs. pláž** se pozná podle sklonu: kde země u vody stoupá aspoň o 1,2 m,
-  vlna se rozbije a stříká a krajková pěna se vypne.
-- **Pěna** jde ze stejných vln, posouvá se jedním společným směrem (aby se vzorek
-  na zakřiveném pobřeží nedeformoval) a nikdy se nekreslí nad suchou zemí.
-- **Odraz** z odrazové sondy nad středem vody (terén a objekty; obloha je barva).
-  Síla zrcadlení se počítá z hladké vlny, ne z vlnek.
-- Hloubka z terénu pod hladinou: mělko prosvítá, hloubka tmavne; kaustika na dně,
-  v noci tmavší hladina. Hustota sítě podle kvality: 0,5 / 1 / 2 m.
-- **Mokrý pruh** na zemi u vody: nízko nad hladinou a zároveň blízko moře či jezera.
-  Vzdálenost od vody je v zeleném kanálu mapy suchých jam (`waterSystem.limitToOcean`,
-  dosah `SEA_DISTANCE_REACH`), čte se plynule mezi buňkami.
-
-### Jezera a řeky (vodní plochy)
-
-Mimo moře jsou dva druhy vodních ploch; obě skládá scéna (`sceneWorld.waterBodies`)
-a výsledek dává vodě i terénu. Každá buňka plochy má svou výšku hladiny, směr
-a rychlost proudu a sílu peřejí; jezero je plocha se stejnou výškou a bez proudu.
-
-- **Jezero:** v mapě `lakes: [{ cx, cz, level }]` — buňka, odkud se voda rozlévá, a výška
-  hladiny. Voda se rozlije do sousedních buněk níž než hladina (`src/utils/lakeFill.js`).
-  Když doteče na kraj mapy, jezero přeteče a nekreslí se.
-- **Řeka:** v mapě `rivers: [{ cells: [[cx, cz, hladina], …], width, ground: [[cx, cz, výška], …] }]`, pořadí buněk je
-  směr proudu (`src/utils/riverPlan.js`), `ground` je výška země před vykopáním koryta
-  (řeky nakreslené dřív ji nemají — jejich koryto se zasype odhadem 0,25 m nad bývalou
-  hladinu, `riverRestore`, protože hladina se vždy držela tolik pod břehem). Hladinu spočítá editor při kreslení: po proudu
-  nikdy nestoupá a drží se 0,25 m pod nejnižším sousedním břehem (políčka o 2 m a víc
-  níž — pod útesem — se nepočítají); proti přetečení na svah stačí `SHORE_SPILL`
-  (hlídat víc sousedů stahovalo hladinu na svazích zbytečně hluboko). Koryto se vyhloubí jako
-  obyčejná úprava výšek. Hloubka se volí jako rozmezí od–do zvlášť pro mělkou
-  (0,25–0,5 m, přebrodí se) a hlubokou (0,75–2,5 m) řeku; rozdílné hodnoty se podél
-  toku plynule střídají (šum po zhruba 5 buňkách, `depthAlong`). Buňky řeky
-  v jezeře nebo v moři se nekreslí — tam už je jiná voda. Moře je jen to, co je spojené
-  s otevřeným mořem (`limitToOcean`). Buňka řeky s hladinou nad mořem moře zastaví, i když
-  má dno pod ním, takže moře koryto nezaplaví. Hladina řeky nikdy neklesne pod moře —
-  u ústí se s ním srovná a tam řeka přejde v moře. Končí-li tah v jiné řece nebo jezeře,
-  hladina nové řeky po celé délce neklesne pod jejich hladinu v místě napojení
-  (odbočka, která se zase spojí, do řeky vteče, ne „vyleze“). Kde je terén nižší než
-  ta hladina, stojí voda nad zemí — editor to po Aplikovat napíše.
-- Plochy kreslí `waterBodies.js` (část WaterSystem): výška a proud se po 0,5 m vyhladí,
-  takže řeka klesá plynule. Program vody je stejný jako u moře, bez vln a příboje
-  (`swellScale` 0) a bez odrazu okolí (zrcadlí se jen rovina moře).
-- Proud: pěna a čeření se posouvají po proudu dvěma obrazy, které se střídají po
-  `FLOW_CYCLE` sekundách, takže se textura časem neroztahuje. Peřeje (pěna navíc) jsou
-  tam, kde hladina klesá víc než o 0,2 m na buňku.
-- Kde přesně voda je, určuje maska v modrém kanálu mapy hloubky, takže voda nepřeleze
-  hřbet za břehem. Mimo své buňky smí voda nejvýš 0,75 m (`SHORE_SPILL`), jen na svah břehu. U útesu se hloubka protáhne do skály (`extendIntoCliffs`, sdílí
-  i moře), aby voda dotekla až ke stěně. Podle masky odpovídá `waterSystem.bodyAt`.
-- Pro terén je výška hladiny v modrém kanálu mapy suchých jam (krok 0,25 m,
-  0 = žádná plocha), i 3 buňky kolem břehu kvůli mokrému pruhu. Kaustika se kreslí jen
-  v buňkách plochy, mokrý pruh jen na zemi zhruba ve výšce hladiny.
-- Hloubka, brodění, šplouchání a zákaz vstupu do hloubky platí stejně jako u moře.
-- Ryby a sprej jsou jen u moře. Zvuk má moře, řeka, vodopád i jezero — každý vlastní
-  smyčku, hlasitost podle vzdálenosti (`waterSystem.waterDistancesAt`,
-  `audioSystem.setWaterDistances`, dosahy ve `WATER_LOOPS`).
-- **Ryby** jsou modely z Meshy (`public/assets/fish/<druh>/`, textura 512 WebP), otočené
-  hlavou k +X a sjednocené na 1 m. Hejno z jedné šablony kreslí thin instances, takže
-  drží pohromadě i při stovkách kusů; ocas vlnit `FishWigglePlugin` ve shaderu, žádná
-  kostra se neanimuje. Modely se načítají při startu (`collectStartupUrls`).
-- **Krabi** jsou jen ozdoba, nic se o nich neukládá do savu. Jeden model z Meshy
-  (`public/assets/nature/crab/`, klepety k +Z, šířka 1 m, nohy na nule), všichni krabi
-  jsou thin instances jedné šablony. Nohy a klepeta hýbe `CrabLegsPlugin` ve shaderu
-  podle čtyř čísel na kraba (`crabPose`: fáze kroku, síla chůze, zvednutí klepet,
-  vlastní posun). Oblasti modelu (tělo do |x| 0,2, klepeta vpředu od z 0,11 a pod
-  y 0,16 kvůli očím na stopkách) jsou vyměřené pro tento model; nový model je potřeba
-  vyměřit znovu. Krabi se objeví sami na suchém písku do `beachReach` buněk od moře
-  (podíl `beachShare` v `crabs.js`) a navíc tam, kde je položí štětec Krabi
-  (`layout.crabs`). Běhají bokem kolem svého místa, před hráčem utečou a na písku se
-  zahrabou (rozstřik přes `sandBursts`), jinde zvednou klepeta. Velikost se losuje
-  mezi `sizeMin` a `sizeMax`, malých je víc. Barva je v textuře ztlumená (`tools/prepareCrab.mjs`).
-  Kraba pod myší hledá `crabSystem.hoverAt` podle vzdálenosti na obrazovce (thin instances
-  nejdou rozumně pickovat a krab je malý), v pořadí až po tvorech a mrtvých tělech.
-  Vybraný krab se v hromadném bufferu schová a kreslí ho samostatný mesh s jednou instancí
-  a zeleným obrysem (`OUTLINE_CALM`, stejný jako klidný tvor); popisek jde do `tooltipPanel`.
-  Tento mesh musí mít vlastní geometrii (`makeGeometryUnique`), protože buffery thin
-  instances leží v geometrii a sdílená by přepsala buffery všech krabů. Dál než 45 m od hráče stojí.
-- **Vodopád** vznikne sám tam, kde hladina řeky mezi dvěma buňkami trasy klesne aspoň
-  o hranici útesu (`AUTO_CLIFF_STEP`, 2 m; `riverFalls`). Při plánování se buňky pod
-  útesem nepočítají jako břeh horního toku, jinak by řeka před hranou vykopala kaňon.
-  Hladina se přes výškový rozdíl nad 1 m nevyhlazuje ani nespojuje (plošky přes skok
-  se nekreslí), takže horní tůň je rovná až k hraně. Kreslí ho `waterFalls.js` (část
-  WaterSystem) a `waterfallShader.js`: clona přelévaná přes hranu obloukem, nahoře
-  hladká, níž v pruzích, s pulzujícími silnějšími vlnami; kulatá pěna s vlnkami,
-  kapky a mlha. Pod dopadem se proud rozlévá do všech stran (`addPlungeFlow`). Funguje
-  i pád do jezera nebo do moře. Stěny útesu hledící do políček vodopádu
-  (`sceneWorld.waterfallCells`) mají kameny ploché a mokré, bez teras a rohových
-  balvanů, jinak by prolézaly clonou.
-- V editoru štětec Jezero (Terén): klik do prohlubně ji naplní po okraj, klik na jezero
-  zvedne hladinu o 0,25 m, pravé tlačítko ji sníží, v režimu Mazat jezero zmizí.
-  Splynou-li dvě jezera, zůstane jedno.
-- Štětec Řeka (Terén): tah od pramene k ústí je návrh, Aplikovat ho postaví; volí se šířka 1 nebo 3 buňky a hloubka.
-  Pravé tlačítko nebo Mazat řeku smaže i se zasypáním koryta. Tah přes existující řeku
-  (aspoň 2 společná políčka) zakreslený úsek nahradí: staré koryto se tam zasype,
-  vykope se nové a zbytek staré řeky zůstane jako samostatné kusy. Tah proti proudu
-  staré řeky se otočí po proudu, jinak by řeka tekla do kopce a vyhloubila kaňon.
-- Buňky řek jsou pro jezero zeď (`fillLake` s `blocked`): jezero se korytem nevylije,
-  řeka z něj vyteče ve výšce hladiny, kterou si vzala při kreslení. Změní-li se
-  potom hladina jezera, vznikne mezi nimi schod — řeku je pak třeba nakreslit znovu.
+- Vlastní program pro ortografickou kameru — Babylon WaterMaterial na ní dělá bílé pruhy.
+- Vlny u břehu sledují obrys ostrova, dál volné vlnění; fáze se láme po celých periodách.
+  Útes vs. pláž podle sklonu (1,2 m), u útesu se vlna rozbije a pěna se vypne.
+- Hloubka, mokrý pruh a „suché jámy" jsou v obrázcích pro terén (`limitToOcean`, kanály
+  mapy suchých jam). Moře je jen to, co je spojené s otevřeným mořem.
+- **Jezero** (`lakes`): voda se rozlije od buňky do sousedních níž než hladina
+  (`utils/lakeFill.js`); doteče-li na kraj mapy, nekreslí se.
+- **Řeka** (`rivers`, pořadí buněk = směr proudu, `utils/riverPlan.js`): hladina po proudu
+  nestoupá, drží se 0,25 m pod nejnižším břehem (buňky pod útesem se nepočítají) a nikdy
+  neklesne pod moře ani pod vodu, do které ústí. `ground` je výška země před korytem, aby šlo
+  koryto zasypat. Buňky řek jsou pro jezero zeď; změní-li se pak hladina jezera, vznikne schod.
+- Kde voda je, určuje maska v mapě hloubky; mimo své buňky smí voda nejvýš 0,75 m (`SHORE_SPILL`).
+- **Vodopád** vznikne sám při poklesu hladiny o hranici útesu (`riverFalls`). Stěny útesu
+  u vodopádu mají jen ploché mokré kameny, jinak by prolézaly clonou.
+- **Ryby** a **krabi** jsou thin instances jedné šablony, pohyb ocasu a nohou je v shaderu
+  (`FishWigglePlugin`, `CrabLegsPlugin`). Oblasti modelu kraba jsou vyměřené pro tento model;
+  nový model je potřeba vyměřit znovu. Krabi se neukládají.
 
 ## Postava
 
-Model `public/assets/characters/castaway/castaway.glb` má kostru i animace v GLB;
-nástroj se přichytí na kost `RightHand`. Mapování animací a nastavení modelu jsou
-v `src/data/catalogs/modelCatalog.js`, načtení a přepínání v `playerSystem.js`.
-Bojové animace leží v `castaway_combat.glb` a `castaway_double.glb` (`PLAYER_ANIMS`).
-`castaway_combat.glb` je stejná postava stažená z Meshy v pojmenování „mixamo“ (kosti `mixamorig:…`). Kostra je jinak totožná, takže se animace
-přenášejí podle pořadí kostí (`sameBoneNodes`), ne podle jmen. Další animační soubor stejné
-postavy stačí přidat do `PLAYER_ANIMS`. Z jedné animace jde vzít jen úsek
-(`PLAYER_ANIM_RANGES`); bojové animace se přehrávají na místě (`PLAYER_ANIM_ROOTLESS`).
-Násada vede pěstí podél řady kloubů od malíčku k ukazováčku (`gripAxis`,
-`PLAYER_GRIP_LINE_BONES`), takže z pěsti vychází jen jedním směrem; klacek je posunutý
-od středu pěsti kus k palci (`grip.toThumb`, jako u pochodně), aby seděl v dlani, ne u konečků prstů. Úchop se ladí jen v bojovém postoji
-(`guard` u zbraně); během rány se zápěstí zamkne v natočení z postoje (`guardWrist`,
-`holdSwingWrist`, náběh 0,1 s), takže klacek se hýbe jen s předloktím a animace ho nekroutí.
-Bez předchozího postoje se zamkne do klidové polohy ruky. U ran z `PLAYER_ANIM_SWING_ALONG` (vodorovný
-sek `slash`) se zápěstí během rány narovná a klacek míří víc v linii předloktí
-(`alignSwing`), jinak by při vodorovném máchnutí trčel nahoru. Rána s `pitch` (silná `smash`)
-vede klacek místo podle předloktí po oblouku v rovině těla: od úhlu `pitch[0]` (stupně, 0 = dopředu,
-90 = nahoru, 180 = dozadu) k `pitch[1]` během okna `from`–`full` (`bodyPitch`); `grab` je část okna,
-za kterou se klacek do oblouku chytí, `limit` povolí větší otočení zápěstí. Bez toho trčel klacek po
-úderu za záda, a když mířil rovnou dopředu, předběhl ruce a mezi dvěma snímky se přetočil o půl kruhu. Po konci rány srovnání dobíhá spolu se zápěstím (`swingHold`), jinak klacek v prvním snímku postoje cukl. Narovnání najíždí až od vrcholu
-nápřahu (`from`/`full` jako podíl rány) a otočení zápěstí je omezené (`SWING_TURN_LIMIT`):
-na začátku seku míří předloktí dolů a klacek nahoru, takže by se ruka přetočila naruby. Prsty pravé ruky se ohýbají
-opačným směrem než levé (`RIGHT_CURL_SIGN` = −1, kostra je zrcadlená); s +1 se prsty ohýbaly
-dozadu a ruka s klackem vypadala otevřeně. Zkoušené a vrácené (16. 11. 2026):
-klacek obrácený v pěsti a klacek ve směru paže; oba při nápřahu mířily dolů nebo k tělu. Zkoušené a vyřazené (16. 11. 2026): `Charged_Axe_Chop` (úder trvá jediný snímek, nemá
-švih), `Axe_Spin_Attack` (chaotická otočka), `Thrust_Slash` (postava skončí bokem k cíli),
-`Roll_Dodge_1` (skok šipkou místo převalu).
+Model `characters/castaway/castaway.glb`; bojové animace v `castaway_combat.glb`
+a `castaway_double.glb`, pití v `castaway_drink.glb` (`PLAYER_ANIMS` v `modelCatalog.js`).
+Další animace stejné postavy stačí přidat do `PLAYER_ANIMS`; přenášejí se **podle pořadí kostí**
+(`sameBoneNodes`), protože soubor z Meshy v pojmenování „mixamo" má jiná jména. Nové pohyby
+se dělají v Meshy, kódem se jen dolaďují. Ladí se ve fotoateliéru: `node tools/capture.cjs player …`.
 
-Nový svět začíná na buňce **−1, −16**, hráč leží a vstane po stisku WASD nebo šipek.
-Uložená hra vstávání přeskočí. Když dojde zdraví, hráč se probudí na startu.
-
-Zdraví, energii (v kódu `stamina`), zbroj, resistity a vlastnosti drží `playerStatsSystem.js`,
-čísla jsou v `src/data/catalogs/player.js`, proužky kreslí `src/ui/vitalsBar.js`. Energii ubírá
-běh, útok a máchnutí do stromu či kamene; doplňuje se po prodlevě, kterou restartuje
-i kousnutí. Při prázdné energii postava přejde do chůze a běh povolí až nad mezí —
-Shift je potřeba pustit a stisknout znovu (jinak by kmitala).
-
-Vlastnosti (síla, obratnost, výdrž, inteligence) jsou v `PLAYER_ATTRIBUTES` v katalogu postavy.
-Čísla postavy v `PLAYER_BASE` platí pro průměr (10); každý bod nad ním přidá to, co má vlastnost
-v `effects` (síla ránu v procentech a nosnost, obratnost útok a obranu, výdrž zdraví a energii,
-inteligence magické odolnosti), pod průměrem stejně ubere.
-
-Vlastnosti rostou přes úrovně. Úroveň, zkušenosti, volné body a vlastnosti drží a ukládá
-`playerStatsSystem.js` (`gainXp`, `spendPoint`, po změně `applyAttributes` přepočítá maxima
-a zdraví i energii posune o stejný rozdíl). Kolik zkušeností chce úroveň a kolik bodů dá, je
-v `PLAYER_LEVELS` (`xpForNextLevel`: 100, pak o 50 víc za každou úroveň; 3 body). Zkušenosti
-za zabití má tvor u stáří jako `xp`. Scénu propojuje `sceneProgress.js`: `gainXp` (i pro budoucí
-úkoly), `spendAttributePoint` z tlačítek + v okně postavy a `refreshProgress`, který po každé
-změně (`onProgress`) předá útok a násobek rány do `playerAttackSystem` (`setAttributeBonus`)
-a překreslí tenký proužek `src/ui/xpBar.js` pod lištou nástrojů.
-
-Poškození je rozsah (`bite: [3, 5]`, pěst `[4, 8]`). Losuje ho `rollDamage`
-v `combatRoll.js`. `defense` rozhoduje o zásahu, `armor` snižuje jen fyzické
-poškození pevným číslem a resistity ho snižují procenty (strop 75 %). Pořadí je
-los → kritický násobek → resistita → zbroj → nejméně 1. Typy poškození a výchozí
-nuly drží `src/data/catalogs/damage.js`.
-
-Okno **Postava a batoh** otevírá **I** i **C** a jde tahat myší. Vlevo drží výbavu
-a staty (zdraví, energie a úroveň jako proužky, pod nimi vlastnosti s tlačítky + pro volné body, boj a dva sloupce resistit),
-uprostřed batoh s počtem obsazených políček a vpravo detail předmětu. Najetí na
-stat ukáže vpravo jeho hodnotu a popis. Předmět má tagy odvozené z druhu a nástroje
-(klacek je Produkt i Zbraň), krátký popis a u zbraně typ poškození, rozsah a bonus
-útoku. Ikony předmětů mohou být PNG obrázky z `public/assets/ui/items/`; bez nich
-se použije emoji.
-
-**Batoh a lišta:** batoh má pevná políčka (`INVENTORY_SLOTS`, mřížka 6 sloupců).
-Každý druh předmětu leží na jednom políčku, `inventorySystem.slots` pamatuje kde;
-přetažením se políčka prohodí. Nový předmět jde na první volné políčko, vypotřebovaný
-políčko uvolní. Lištu dole (`HOTBAR_SLOTS`) drží `heldItemSystem.bar` (klíče nástrojů
-a jídla). Na lištu jde předmět, ke kterému existuje nástroj (`toolForItem`), nebo jídlo
-(`food` u předmětu, `itemFood`); co na lištu smí, říká `barItem`, co se na ní ukáže
-`barEntry`. Jídlo se nebere do ruky, klik nebo klávesa ho sní. Přetáhne se
-z batohu, mezi sloty se prohazuje, pravé tlačítko nebo přetažení zpět do batohu ho
-z lišty sundá. První kus nového nástroje se na lištu přidá sám (`GameScene.receiveItems`).
-Každý nástroj má `item`; pochodeň je předmět a leží v truhlách.
-
-**Jídlo:** předmět s `food: { heal, perSecond }` jde sníst tlačítkem Použít v detailu
-batohu, pravým klikem, dvojklikem nebo z lišty. Detail ukazuje oddíl Efekt. Jídlo řídí
-`sceneFood.js`. Pohyb není animace, ale tah ruky v kódu nad chůzí nebo stáním
-(`playerGestures.js`, část PlayerSystem): levá ruka donese jídlo k puse (bod spočítaný z kosti
-hlavy a `headTop`) a zase klesne. Ve chvíli, kdy je u pusy (`EAT_BITE_AT`), jídlo z ruky zmizí,
-kus se odebere a začne léčení v čase (`playerStats.healOverTime`). Jíst jde i za chůze, běh se
-při jídle vypne. V ruce je model z `food.hold`: buď dekorace (`decoration`, `scale`
-se násobí s měřítkem dekorace), nebo vlastní model jídla (`model`, `scale`; pečené maso
-z `public/assets/props/meat`, připravuje `tools/prepareMeat.mjs`). Osa Y modelu míří k puse, pěst drží podíl délky `grip` od spodku (výchozí
-`MEAL_GRIP`; maso má 0, pěst drží konec kosti). Jídlo v pěsti leží v ose pěsti (`gripAxis` levé ruky, kosti `PLAYER_LEFT_GRIP_LINE_BONES`) ve žlábku dlaně (`placeInFist`: u kořenů prstů `FIST_AT`, odsazené o `thickness` + `PALM_DEPTH`), ruka se natočí osou k puse (`aimMealFist`) a plochou stranou míří jídlo k obličeji; prsty se kolem třeně nebo kosti zavřou po válec o poloměru `thickness` jen v délce jídla. `curl` u `food.hold` mění sevření prstů (výchozí `EAT_CURL`). `palm: true` položí jídlo do dlaně místo do osy pěsti (`placeInPalm`: mezi zápěstí a kořen prostředníku, `PALM_AT`, odsazené o polovinu nejmenšího rozměru ke dlani); nejdelší rozměr jídla vede podél prstů (`turn` ho natočí k palci), nejtenčí z dlaně; `at` je místo mezi zápěstím a kořenem prstů, `thumbward` posun k palci. Prsty se pak ohýbají každý zvlášť jen po povrch jídla (`wrapFingers`, jídlo jako elipsoid podle jeho rozměrů) — tak se drží vejce. Model i jeho materiál se připraví předem (`prefetchMeal`, modely všech jídel
-při startu hry v `prepareGame`), jinak by se první jídlo nevykreslilo. Levá ruka zavírá prsty záporným `EAT_CURL`;
-kladný ohne prsty dozadu. Pochodeň v levé ruce se na dobu jídla schová. Úder, úskok, sebrání věci nebo zásah jídlo přeruší; před
-kousnutím se pak nic nesní. Léčení v čase se neukládá (trvá pár sekund, jako ochrana po
-úskoku); po smrti a po načtení se zahodí.
-
-**Hlad, žízeň a efekty.** Sytost a vodu (v kódu `hunger`, `thirst`, 0–100) drží a ukládá
-`src/systems/player/survivalSystem.js` (klíč `survival`). Ubývají v pevném ticku (`tickSurvival`
-v `sceneSurvival.js`), při běhu `sprintFactor`krát rychleji; čísla jsou v `PLAYER_BASE.survival`.
-Po smrti se doplní aspoň na `reviveAt`. Efekty (jméno, ikona, popis, kdy platí, úpravy) jsou
-v `src/data/catalogs/effects.js`: efekt s `need` platí nad `above` nebo pod `below`, `replaces`
-ho nahradí horším. `combineEffects` sečte úpravy: obnova zdraví a energie a spotřeba energie
-během se násobí (`playerStats.setModifiers`), rána v procentech a útok se přičtou k bonusu
-z vlastností (`combatBonus`), `drainPerSecond` ubírá zdraví (`playerStats.drain`, bez zbroje
-a ochrany). Jídlo s `food.hunger` a `food.thirst` je doplní při kousnutí (kokos je pití).
-Ikonky kreslí `src/ui/effectsBar.js`, proužky sytosti a vody `vitalsBar.js` a okno postavy.
-
-**Pití:** klik na vodu (operace `drink`, nízká priorita). U moře (voda bez jezera či řeky,
-`waterSystem.bodyAt`) jen hláška. Jinak `drinkSpot` jde od místa kliku k hráči, najde první
-suchou schůdnou zem (břeh) a postava tam dojde (`walkTo`); stojí-li hráč už ve sladké vodě,
-pije na místě. Pohyb je animace `Scoop_Water` ze souboru `castaway_drink.glb` (vygenerovaná
-v Meshy pro stejnou postavu), klíč `drink`, úsek 0–4 s (`PLAYER_ANIM_RANGES`): klek, nabrání,
-doušek. Druhé nabírání a prudké vstávání z konce animace jsou vystřižené; do kleku
-a zpět se postava prolne (`DRINK_ENTER_BLEND`, `DRINK_RISE_BLEND`). Běží přes stejný časovač
-jako dřep při sbírání (`pickupKey = 'drink'`). Animace nabírá u přední nohy (ruce šly nohou),
-proto `cupDrinkHands` v `playerGestures.js` v úseku `DRINK_SCOOP` (sekundy animace) přitáhne
-obě ruce přes `reachPoint` na hladinu před postavou a trochu předkloní záda (`DRINK_LEAN`);
-voda musí být aspoň `DRINK_HAND_AHEAD` před postavou, blíž leží přední chodidlo.
-Ve chvíli nabrání `onDrinkScoop` šplouchne, doušek (`DRINK_SIP_AT`) hlásí `onDrinkSip`
-a přidá `PLAYER_BASE.drink.thirst`. Pohyb klávesami, úder, úskok i zásah pití přeruší.
-Fotoateliér: `node tools/capture.cjs player drink --view diag` (`--depth` je hladina pod zemí, `ahead` vzdálenost vody před postavou). Jídlo v levé ruce
-je nejlíp vidět z `--view diag --focus left`; z boku ho zakryje hlava. Ateliér model jídla
-před jídlem připraví (`itemWarmup` a `forceCompilationAsync` jako `warmItem` ve hře), jinak
-se nevykreslí.
-
-**Použití věci:** u dveří (otevření i zavření), knihovny na páku a věcí na stole (lucerna,
-ponk) pravá ruka natáhne a máchne směrem k věci (`playerSystem.useToward`, stejný soubor
-`playerGestures.js`). Chůzi nezastaví. Fotoateliér postavy zná scény `eat` a `use`
-(`node tools/capture.cjs player eat --view side2 --focus head --zoom 0.6`).
-
-**Vybavení:** předmět s `slot` se přetáhne z batohu
-na slot v okně postavy, zpět ho sundá přetažení do batohu (`dragTypes.js`). Co má
-hráč na sobě drží `equipmentSystem.js` (ukládá se), propojení dělá
-`sceneEquipment.js`, model na postavě `playerWear.js` (část `playerSystem`). Model na hlavě
-(`wear.model`) sedí na uzlu odvozeném z kostí `Head`, `head_end` a `headfront`; velikost,
-výška, posun vpřed a natočení jsou v `wear` u předmětu. Oblečení s `wear.fitted`
-(pirátský kabát, kalhoty, boty v `public/assets/characters/castaway/outfit/`) je
-přizpůsobené postavě a napojené na její kostru už v Blenderu; ve hře se jeho kosti
-přečíslují podle jmen na kostru postavy a ohýbá se s ní. Patří jen k modelu Castaway:
-nová postava = oblečení znovu napasovat. `wear.hipGap` a `wear.hipTilt` odsunou
-a vykloní zbraň zandanou na boku (v šířkách boků), aby do ní oblečení nelezlo; sčítají se
-přes všechno nasazené. Rukavice zatím nejsou (rovné prsty z Meshy
-nesedí na pokrčenou ruku).
-`bonus` u předmětu (např. `{ defense: 1 }`) se sečte přes nasazené věci (`gearBonus`)
-a `playerStatsSystem.setGear` ho přičte k základu z `player.js`; nic z toho se
-neukládá, po načtení se přepočítá z výbavy. Modely věcí, které hráč má (batoh i výbava), se připravují předem
-(`warmOwnedItems` v `sceneEquipment.js`, volá se z `refreshInventory` a při startu):
-stáhne se model nástroje, oblečení nebo jídla v ruce, připojí se rentgen
-(`revealSystem.attachPending`) a materiály se sestaví (`forceCompilationAsync`), až pak
-první nasazení nebo jídlo nezasekne hru. Každý předmět jen jednou, po jednom na pozadí;
-s velikostí katalogu to neroste. Náhled v okně postavy (zeleně lepší,
-červeně horší) počítá `previewStats`: u oblečení výměnu v jeho slotu, u zbraně držení
-v ruce. `weight` u předmětu a `carryWeight` v `player.js` se zatím jen ukazují
-(`carriedLoad`, počítá batoh i výbavu), přetížení nemá žádný důsledek.
-
-**Nástroje v ruce.** Nástroj může mít vlastní `grip`; úchop se počítá vůči ruce, takže
-jde s rukou i při úderu.
-- Pochodeň (`props/torch/torch.glb`, `upright`): po animaci se předpaží paže, sevřou
-  prsty a pochodeň stojí svisle (`holdUpright`, `turnBone`, `closeFist`). Její světlo
-  existuje od startu a jen se ztlumí — přidání světla by přepočítalo materiály celého
-  světa (bliknutí). Výměna nástroje ve stoje se odehraje sáhnutím (`toolSwapLeft`).
-- Klacek (`TOOL_TYPES.club`, `weapon`: poškození, prodleva, animace, zvuk zásahu):
-  úchop `fist` (`holdInFist`) vede klacek středem pěsti podél osy ruky; `tilt` ho
-  nakloní, `hold` je místo úchopu. `wrist` zamkne zápěstí (`lockWrist`), během úderu
-  a sbírání se zámek plynule uvolní (`WRIST_BLEND`). Na zemi leží osm tvarů větví
-  (`club_a`–`club_h`), v ruce je `props/club/stick.glb`; opracovaný `club.glb` čeká na výrobu.
-- Šavle (`TOOL_TYPES.saber`, sečná) a kopí (`TOOL_TYPES.spear`, bodné, dlouhý dosah a úzká
-  výseč) drží stejný úchop `fist` jako klacek. Modely z Meshy jsou při vložení narovnané:
-  zbraň stojí podél osy Y, konec rukojeti je v nule a délka je 1, takže `hold` je podíl
-  délky a velikost v ruce určuje jen `grip.scale`. Kopí má ztenčenou násadu (Meshy ho
-  udělal moc tlusté). `grip.edge` je směr ostří v modelu: v ruce se zbraň kolem své osy
-  natočí ostřím ke kloubům prstů (`rollEdgeToward`), u boku podle `sheath.edge` dopředu (1)
-  nebo dozadu (−1), aby čepel ležela naplocho podél stehna. Bez `edge` se zbraň nenatáčí.
-  Kopí bodá začátkem animace `Thrust_Slash` (`thrust`, 0–1 s: natažení volné ruky je
-  nápřah, výpad zbraní přijde kolem 0,85 s; dál pokračuje otočkou). Animace je dělaná pro
-  meč, při výpadu by kopí mířilo do strany, proto ho `PLAYER_ANIM_SWING_ALONG.thrust`
-  srovná s předloktím. Výpad je v `PLAYER_ANIM_PLANTED` (`plantLegs`): pánev se neposune
-  do strany ani dopředu (jen klesá a stoupá), otočí se o podíl `hips` (0,5) původního otočení
-  a zbytek dotočí spodní páteř; nohy se hýbou podílem `legs` (0,5) původního pohybu, měřeno
-  od první pozice výřezu. Postava nevykročí, ale kolena a váha pracují.
-  Přenést do páteře celé otočení nejde (trup se zalomí), odebrat ho úplně taky ne (trup
-  zůstane bokem a kopí bodá do strany); samotné přišpendlení pánve (`PLAYER_ANIM_ROOTLESS`)
-  nechá nohy klouzat. Sekundární rána kopí je otočka dokola (`spin`, animace
-  `Axe_Spin_Attack`, výseč 360°, pánev přišpendlená přes `PLAYER_ANIM_ROOTLESS`).
-- Nástroj je na liště zamčený, dokud hráč jeho předmět nemá v batohu (`GameScene.ownsTool`).
+- Staty, úrovně a vlastnosti: `playerStatsSystem.js`, čísla v `catalogs/player.js`
+  (`PLAYER_BASE`, `PLAYER_ATTRIBUTES`, `PLAYER_LEVELS`). Hlad a žízeň `survivalSystem.js`,
+  efekty `catalogs/effects.js`. Výbava `equipmentSystem.js` + `sceneEquipment.js`;
+  bonusy z výbavy se neukládají, přepočítají se.
+- Batoh má pevná políčka (`INVENTORY_SLOTS`), lišta drží jen nástroje a jídlo (`barItem`).
+- Oblečení s `wear.fitted` je napasované na kostru v Blenderu; **nová postava = oblečení
+  napasovat znovu**. Rukavice nejsou (rovné prsty z Meshy nesedí na pokrčenou ruku).
+- Modely věcí, které hráč má, se připravují předem (`warmOwnedItems`, `forceCompilationAsync`),
+  jinak první nasazení nebo jídlo zasekne hru nebo se nevykreslí.
+- Pochodeň je vždy v levé ruce, pravá zůstává pro zbraň. Její světlo existuje od startu.
+- **Ruce kódem** (`playerGestures.js`): jídlo k puse, pití (ruce na hladinu), použití věcí,
+  sáhnutí k boku. Úchop zbraně (`gripAxis`, `holdInFist`, `guard`, `sheath`) se ladí jen
+  v bojovém postoji; během rány se zápěstí zamkne (`guardWrist`).
+- Model je **zrcadlený**: kost `RightHand` je z pohledu `front` vpravo, prsty pravé ruky se
+  ohýbají opačně (`RIGHT_CURL_SIGN` = −1), dopředu boků je `Cross(side, up)`.
 
 **Animace — pasti:**
-- Každá animace začíná s pánví v klidové poloze kostry (`settleRoot`), jinak postava
-  při přepnutí sklouzne; `PLAYER_ANIM_ROOTLESS` mají pánev přišpendlenou úplně.
-- Údery se hrají jednou, ne ve smyčce (`STRIKE_HOLD` by pustila úder znovu). Kolik
-  z úderu se přehraje a kdy je zásah, drží `STRIKE_PLAY_SHARE` a `STRIKE_IMPACT_SHARE`;
-  `animLength` vrací skutečnou délku úseku (rychlost už započítá). Bez zbraně se
-  střídá pěst a kop, se zbraní se máchá jako sekyrou.
-- Natáčení kostí: `turnBone` umí víc natočení jedné kosti za snímek (sčítají se);
-  `restoreBones` na začátku snímku vrátí kosti, které animace nepřepsala, jinak by
-  `aimBone` měřil minulé natočení a paže by kmitaly.
-- Ve stoji `relaxIdle` přitáhne paže k tělu (`IDLE_*`), `updateGlance` občas otočí hlavu.
-- Výřezy animací (`PLAYER_ANIM_RANGES`) a rychlosti (`PLAYER_ANIM_SPEEDS`) jsou
-  v `modelCatalog.js`. Ladí se ve fotoateliéru:
-  `node tools/capture.cjs player strike --tool club --view side2`.
+- Každá animace začíná s pánví v klidu (`settleRoot`), jinak postava sklouzne;
+  `PLAYER_ANIM_ROOTLESS` mají pánev přišpendlenou úplně.
+- Údery se hrají jednou, ne ve smyčce. Kdy je zásah: `STRIKE_IMPACT_SHARE` (nejrychlejší pohyb ruky).
+- `restoreBones` na začátku snímku vrátí kosti, které animace nepřepsala, jinak `aimBone`
+  měří minulé natočení a paže kmitají.
+- Výpad kopím (`PLAYER_ANIM_PLANTED`) přenese jen část otočení pánve do páteře: celé zalomí
+  trup, žádné nechá kopí bodat do strany.
+- Zkoušené a vyřazené: `Charged_Axe_Chop` (úder jediný snímek), `Axe_Spin_Attack` jako
+  primární (chaos), `Thrust_Slash` celý (skončí bokem), `Roll_Dodge_1` (šipka místo kotoulu),
+  `Heavy_Hammer_Swing` a `Left_Slash` jako sekundární.
 
-**Sbírání a kořist.** Sbírání (`pickUp`) hraje jen dřep k zemi; předmět se vezme na konci
-dřepu a postava se narovná prolnutím (`RISE_BLEND`). `reachDown` předkloní záda
-(`REACH_BEND`) a natočí paži k zemi (`aimBone`), protože animace sahá jen ke kolenům.
-Okno kořisti (truhla, kostlivec, mrtvý tvor) se otevírá vždy stejně: postava dojde
-(`walkTo`, skončí i když se přestane přibližovat — `AUTO_WALK_STUCK`), dřepne si
-(`kneeling`) a natáhne ruce (`reachTarget`); dokud je okno otevřené, přehrabuje se
-(`rummageOffset`). Tělo se k truhle nepřisouvá (dřívější posun modelu vypadal jako sklouznutí).
-Pohyb klávesami dřep zruší. Truhla si spočítá čelo (`lootSystem.shapeOf`), jde se vždy
-před víko (`standSpot`) a sahá kousek dovnitř (`reachPoint`, `REACH_INSIDE`); kostlivec
-a tvor čelo nemají. Truhla, ve které něco zůstalo, se po zavření zaklapne, prázdná
-zůstane otevřená (`settle` po načtení). Překážka truhly (`deriveBlocked`) stojí
-i s posunem `backToEdge`, jinak by k ní postava nedošla.
+**Portrét v okně postavy** (`portraitSystem`): dvojník hráče ve vrstvě `PORTRAIT_LAYER`,
+druhá kamera kreslí do výřezu a výsledek se kopíruje do `<canvas>` v okně. Po vykreslení
+se `scene.activeCamera` vrací na hlavní, jinak klikání a voda počítají s portrétní. Mlha se
+přepíná jen na dvojníkovi — na celé scéně by dvakrát za snímek přepočítala všechny materiály.
 
-Modely z Meshy se před vložením zmenšují (textury WebP 1024, nekovový materiál);
-pandánům se listí posunulo do teplé žlutozelené přímo v textuře (Meshy dává studenou modrozelenou);
-hustý keř z Meshy vyšel uvnitř i z boku skoro černý, proto je ibišek procedurální
-(textura se dvěma větvičkami, `sprigs` v receptu určuje, kolik karet nese květ);
-nahraný model ztratí posun svých dílů, proto pohyblivé díly (víko truhly) mají osu
-otáčení spočítanou až ve hře z tvaru dílu.
-
-**Volné kameny** (`rock_small`, `rock_small_flat`, `rock_large`, `rock_large_c`, `rock_tall`,
-`rock_jagged`, `rock_pair`, `rock_pebbles`) jsou modely z jedné sady z Meshy
-(`public/assets/nature/rocks/`). Sadu rozřeže a poskládá `tools/prepareRocks.mjs`
-s `bl_rocks.py` (slepení bodů na švech textury, rozdělení na oddělené kusy, zjednodušení,
-složené kameny z několika kusů). Kameny jsou `.gltf` se společnou texturou sady
-(`rocks_light_*.webp`, `rocks_dark_*.webp`), aby ji hra načetla jen jednou. V katalogu mají
-`stone: true` (náhodné natočení a velikost jako u kamenů z receptů). Světlá sada dává volné
-kameny a světlé sesuvy pod útesy, tmavá sada tmavé sesuvy, tmavé volné kameny `rock_dark_*`
-(modely `cliff_stone_*`, dřív obklad útesů) a kameny `boulder_*` pro rámy jeskyní a táborák. Kameny, které dřív stavěl recept, mají rozměry
-z uložených receptů (`tools/rock_recipes.json`) a kusy sady se na ně natáhnou.
-Rámy a táborák kameny potřebují hned, proto jsou v `ROCK_MODELS` (`rocks.js`),
-načítají se při startu hry a `rockRoot` (`rockFactory.js`) je bere z načtených modelů.
-Kameny rámů jeskyní mají texturu stěny, ve které je vchod (hlína nebo skála). Recepty zbývají
-pro obklad kamenných útesů a jeskyní, hroudy hlíny a černé sesuvy (čekají na své sady).
-Štětec Kameny má skupiny Všechny, Světlé a Tmavé (`poolByStyle`). S volbou `randomInStyle`
-střídá náhoda tvary jen ve vybrané skupině a výběr jednoho tvaru nabízí tvary té skupiny.
-
-Mušle jsou dva modely (`shell_fan`, `shell_conch`) v `public/assets/nature/shells/`;
-oba se pokládají naplocho a sbírají se jako stejný předmět `shell`. Hvězdice
-(`starfish`) leží na dně v hloubce 0,5–4 m; štětec je pouští jen pod vodu.
-
-Hnízdo Koa'tiki (`koa_nest`, `public/assets/nature/koa_nest/`) je dekorace s nastavením
-`nest` v katalogu dekorací (druh vejce, počet, kdo ho hlídá a na jakou vzdálenost).
-Štětec Hnízdo Koa'tiki k němu do stejné buňky položí vejce (`koa_egg`, sbírá se rukou)
-s posunem v buňce (`dropNestEggs`). Sebrané věci se proto v `harvestSystem` rozlišují
-i podle posunu v buňce, ne jen podle buňky a druhu. Scéna předá hnízda tvorům
-(`nestSpots` → `creatureSystem.setNests`) při stavbě tvorů a po přestavbě dekorací.
-Tvor hlídá nejbližší hnízdo svého druhu do `guardLink` od svého domova. Samotné
-přiblížení k hnízdu nic nespustí; až krádež vejce (`provoke`) pošle hlídače hned do útoku
-a na `provokeSeconds` jim prodlouží dosah zpozornění až k hráči.
-Kdo které hnízdo hlídá, počítá jedno pravidlo v `src/utils/nestGuard.js` (`nestSpots`,
-`guardedNest`) pro hru i editor. Editor při štětci na tvory nebo na hnízdo kreslí
-v `creatureOverlay.showNests` kruh `guardLink` kolem hnízda (zlatý, bez hlídačů červený)
-a spojnice k živým hlídačům (podle `creatureStatusAt`); k mrtvému hlídači vede slabší
-spojnice na místo, kde se znovu objeví.
-Hnízdo bylo z Meshy zjednodušené v Blenderu (`tools/bl_decimate.py`), protože
-meshoptimizer se na samostatných větvičkách zastavil kolem 10 000 trojúhelníků.
-
-Živá postava v okně postavy (`portraitSystem`): dvojník hráče, kopie hierarchie pod
-`playerSystem.root` (`instantiateHierarchy`, sdílí model a materiály) s vlastní kopií
-kostry a vlastní kopií animace `idle`. Bez nástroje v ruce (`handSlot`), klobouk má.
-Stojí na místě hráče, otočený ke kameře okna, a je jen ve vrstvě `PORTRAIT_LAYER`.
-Hlavní kamera ho proto nevidí. Když se počet dílů hráče změní (nasazení, nástroj),
-dvojník se postaví znovu. Při otevřeném okně jde do `scene.activeCameras` hlavní
-kamera a za ní druhá, která vidí jen tuto vrstvu.
-Druhá kamera kreslí do výřezu pod rámečkem okna ve dvojnásobné velikosti (vyhlazení
-hran, hra nemá MSAA), výřez se smaže do průhledna a po vykreslení se zkopíruje
-(`drawImage`) do `<canvas>` v okně. Kopie místo „díry“ v okně, protože pozadí okna by
-plátno hry zakrylo. Po vykreslení se `scene.activeCamera` vrací na hlavní kameru,
-jinak by klikání a voda počítaly s portrétní. Druhá kamera prochází jen díly postavy
-(vlastní `getActiveMeshCandidates`). Dvojník je na seznamu modelů, které rentgen
-v jeskyni nechá vidět (`setKeptMeshes`), nemá mlhu (`applyFog`) a po dobu jeho kreslení
-scéna nastaví denní světlo a ostatní světla zhasne (`portraitLightOn/Off`); světla se
-nahrávají pro každou kameru zvlášť, takže hlavní obraz to neovlivní. Mlha se přepíná
-jen na dvojníkovi: přepnutí na celé scéně by dvakrát za snímek přepočítalo všechny materiály.
+**Modely z Meshy:** zmenšují se před vložením (WebP 1024, nekovové). Nahraný model ztratí
+posun dílů, proto pohyblivé díly (víko truhly) mají osu spočítanou ve hře. Hustý keř vyšel
+uvnitř černý, proto je ibišek procedurální. Volné kameny jsou jedna sada rozřezaná
+`tools/prepareRocks.mjs` + `bl_rocks.py`. Zjednodušovat přes Blender (`tools/bl_decimate.py`):
+meshoptimizer se na samostatných kouscích zastaví. Před zjednodušením slepit body, jinak se
+model roztrhá, a hlídat, že větší plošky nezmění vzhled (monstera dostala černé okraje
+od `modelRim`, řešeno slabším `modelRim`).
 
 ## Klikání ve světě
 
 Levé tlačítko rozhoduje podle toho, co je **pod kurzorem** — žádné „vezmi nejbližší".
-Mimo dosah se nestane nic; držené tlačítko akci opakuje.
+`interactionSystem.js` podle priority operací (registrace v `GameScene.registerInteractions`):
+tvor 100, mrtvola 90, těžená věc 50, truhla/kostlivec 45, táborák 40, dveře a stanice.
+Operace dodá `pick(context)` a `act(target)`; nápověda i klik používají stejné rozhodnutí.
 
-Rozhoduje `src/systems/core/interactionSystem.js` podle priority registrovaných
-operací (registrace v `GameScene.registerInteractions`):
+- Dosah rukou `handReach` v katalogu postavy (2,6 m, ±1 m výšky), přes útes se nic nedělá.
+- Bez nástroje jde sbírat jen `byHand`. Nástroj na sběr: tasená zbraň, jinak věc z lišty.
+- Na buňce smí ležet víc věcí ke sběru; sebrané se evidují i podle posunu v buňce
+  (`harvestSystem`), jinak by se vejce v hnízdě pletla.
+- Tvora pod kurzorem vybere myš jen, když na něj paprsek narazí dřív než do země nebo skály.
 
-| priorita | operace | co udělá |
-| --- | --- | --- |
-| 100 | tvor | útok |
-| 90 | mrtvola | sebrat kořist |
-| 50 | těžená věc | máchnutí (kácení, těžba, sběr) |
-| 45 | truhla, kostlivec | otevřít / prohledat |
-| 40 | táborák | zapálit |
+## Tvorové
 
-**Truhly a kostlivci** (`world/lootSystem.js`): dekorace s `loot` se otevře (E nebo
-klik) do okna kořisti (`ui/lootWindow.js`): klik na předmět ho vezme, E nebo „Vzít vše"
-vezme zbytek. Co hráč nechá, zůstane v truhle i v savu (`remaining`); mrtvola tvora
-drží zbytek, dokud se nepropadne. Okno se zavře při odchodu dál než dosah ruky
-+ 1,2 m (nebo vzdálenost při otevření + 1,2 m). Víko truhly (`lid`) se
-zvedne kolem zadní horní hrany. `backToEdge` posune předmět zády ke kraji buňky
-podle natočení ze štětce (R).
-
-**Bez nástroje** jde sbírat jen to, co má `byHand` (houby, mušle, kokosy, klacky).
-Stromy jen sekerou, kameny jen krumpáčem (`gatherSystem.canHarvest`). Nástroj na sběr
-určuje `harvestTool()` ve `sceneEquipment.js`: tasená zbraň, jinak věc z lišty. Kamenná
-sekera je zbraň s `harvest`, takže tasená i kácí. Krumpáč zatím ve hře není, kameny
-opracovat nejde.
-
-**Víc věcí na buňce**: na jedné buňce smí ležet víc věcí ke sběru (palma a kokos).
-Sběr, zlatý obrys i popiska berou tu, která je nejblíž bodu pod kurzorem. Sebrání
-označí jen tu věc (`gatherSystem.markTaken(anchor)`), uvolnění místa
-(`decoSystem.releaseCell`) se týká jen věcí, které blokují cestu, nebo stromů. Evidence
-sebraných věcí (`harvestSystem`) si drží buňku i druh věci, takže dorůstání po
-3 dnech vrátí správný kus.
-
-**Dosah rukou** je v katalogu postavy (`handReach`: 2,6 m vodorovně, nejvýš 1 m výš
-nebo níž) a čte ho sběr, truhly i táborák (ten má vlastní vodorovný dosah 3,2 m).
-Přes útes tak nejde kácet, otevírat ani zapalovat.
-
-Každá operace dodá `pick(context)` (vrátí `{ ref, inReach, detail? }` nebo `null`)
-a `act(target)`. Nápověda u kurzoru i klik používají stejné rozhodnutí. Nová
-operace = jeden nový řádek v registraci.
-
-## Tvorové (NPC)
-
-Každý tvor má **jeden vlastní soubor** v `src/data/catalogs/creatures/` (data, tiery
-a rig pohromadě) a řádek v `index.js` (`CREATURE_TYPES`). Obecné věci (spawn, stavy,
-ikony, obrysy, tooltip, ukládání) řeší `src/systems/creatures/creatureSystem.js`
-a o kostech nic neví. Model a `CREDITS.txt` patří do `public/assets/creatures/<kind>/`.
-Jak postavit nového tvora, všechna pole a rozhraní rigu popisuje
+Každý tvor má vlastní soubor v `data/catalogs/creatures/` a řádek v `index.js`; obecné věci
+řeší `creatureSystem.js` a o kostech nic neví. Návod a všechna pole:
 [manuál pro tvory](src/data/catalogs/creatures/README.md).
 
-- Tvor ve hře je jen ten zapsaný v mapě; každý je zároveň **spawní místo**
-  a po `respawnDays` herních dnech se obnoví. Počet tvorů určuje mapa.
-- Tělo leží přes tři minuty a jde z něj sebrat kořist, pak se propadne.
-- **Stav živý/mrtvý není v mapě**, patří do savu. **`kind` a `tier` jsou v savu** —
-  nepřejmenovávat; při přejmenování tierů zvednout `SAVE_VERSION`.
-- Zásah: útok² proti obraně², ohraničeno na 5–95 %. Kdo útok zahájí, dokončí ho.
-  Citlivý zásah se odvozuje sám: (šance − 50 %) × 0,75, strop 40 %, poškození ×2.
-- Poškození je rozsah; losuje se až po zásahu. Hráč pak uplatní resistitu podle typu
-  a u fyzického poškození odečte zbroj. Minimum je 1.
-- Kopírovat model přes `LoadAssetContainerAsync` + `instantiateModelsToScene`;
-  ruční `clone()` rozbije kostru.
+- Tvor v mapě je zároveň spawní místo (`respawnDays`). Živý/mrtvý patří do savu.
+  **`kind` a `tier` jsou v savu** — nepřejmenovávat, jinak zvednout `SAVE_VERSION`.
+- Chodí a vidí podle stejných pravidel jako hráč. **Kudy se vejde tělo** je jedno pravidlo pro
+  oba (`navigationSystem.bodyFree`); dřív měl každý svoje a tvorové se zasekávali ve vchodech.
+- Výška pod tvorem je jedna funkce (`sceneCombat.creatureGroundAt`), i podlahy staveb.
+- Do jiného patra jen s `entersCaves`; míří nejdřív na vchod (`floorWaypoint`), protože
+  hledání cesty vchody nezná a má omezený počet kroků.
+- Smečka (`pack`), hnízda (`utils/nestGuard.js`, jedno pravidlo pro hru i editor), bestiář
+  (`bestiarySystem.js`, prahy `UNLOCKS`).
+- Rozestupy: od hráče se odtlačí jen tvor, hráč projde vždy, aby ho smečka neuvěznila.
 - Ladicí čísla patří do souboru tvora, ne do systému.
+
+## Boj
+
+- Zbraň je v políčku Zbraň (`weapon`), lišta je pro nástroje. Zbraň se tasí (útok ji tasí
+  sám) a zandává klávesou X; co je v které ruce, rozhoduje jen `refreshHands`.
+- Rána míří ke kurzoru a zasáhne všechny ve výseči (dosah k okraji těla, úhel); poškození
+  se mezi ně dělí. Primární a sekundární rána (`utils/weaponBlows.js`, sekundární ×1,5).
+- Útok proti obraně rozhodne kvalitu (`rollQuality` v `combatRoll.js`): kritická, běžná,
+  škrábnutí, minutí. Poškození: los → kritický násobek → odolnost → zbroj → nejméně 1
+  (`damageBreakdown` v `damage.js`). Záporná odolnost je slabina.
+- Tvorové bijí stejným systémem: výseč s nápřahem, směr zamknou až `BITE_AIM_LOCK` před
+  dopadem (jinak chůze dokola nešlo nikdy trefit), v posledních 0,15 s vyrazí vpřed. Uhnout
+  jde sprintem nebo úskokem (kotoul, `PLAYER_BASE.dodge`).
+- Výseče patří v rentgenu mezi vlastní modely (`attackArcMeshes`); zařazení mezi překryvy
+  vyvolalo chybu „same sampler location".
+- Otevřené: sekyra a krumpáč jako zbraně (odloženo).
+
+## Stavby
+
+První stavba je opuštěný pirátský srub (−20…−18, 11…14). Stavba se **skládá z dílů v kódu**,
+ne z jednoho modelu: model z Meshy je jen na pohled zvenku (vnitřek bez tloušťky), z dílů jde
+chůze dovnitř, dveře i pohled dovnitř. Stěny z jednotlivých klád v kódu, protože samostatné
+modely na sebe nenavazují. Opuštěná stavba — nic podle pravítka, žádné rámy oken ani okenice.
+
+- **Data:** `catalogs/buildings.js` (rozměr, podlaha, obrys a otvory stěn, patro, schody,
+  střecha, zabudovaný nábytek). Strany a otvory platí pro neotočenou stavbu, otočí se celek.
+  V mapě `buildings` (`key`, `cx`, `cz` = roh, `rotation`). Staví `world/buildingSystem.js`
+  a části `building*.js`.
+- **Chůze:** podlahy jsou obdélníky s výškou (`walkHeightAt`), vystoupit jde do 0,7 m.
+  Zdi jsou úsečky s výškovým pásmem (`plan.blocks`, `wallGapAt`), takže v patře nezastaví
+  stěny přízemí. Zavřené dveře jsou zeď, hledání cesty o nich ví samo.
+- **Tvorové ve stavbě:** uzel cesty má i vrstvu a výšku, u stavby se hrana počítá chůzí po čáře
+  (schod po schodu). Stěny neleží na hranách buněk (`shift`), proto se začátek a cíl cesty
+  berou jen z dosažitelných buněk. Na podlaze stavby se nehlídá blízkost útesu.
+- **Vrstvy:** přízemí, patro, střecha; uvnitř se plynule schová, co je nad postavou, a horní
+  půlky stěn mezi kamerou a postavou. Prkna mizí až po kládách (`fadeLate`), jinak prosvítají trámy.
+- **Zvuk uvnitř:** venkovní zvuky jdou přes společnou propust, v úkrytu se ztlumí.
+- Na stěnách útesu, které míří do stavby, není skalní obklad (lezl by dovnitř). Na střechu se
+  tráva nedává: dohled zahaluje oparem vše výrazně výš než postava.
+- **Nábytek a drobnosti jsou dekorace v mapě** (`catalogs/furniture.js`, `utils/furnitureFactory.js`),
+  kladou se volně i na podlahy (`deck`). Věc pod podlahou nebo nad hlavou nevadí (`missesBody`).
+- **Pracovní místa** (`world/stationSystem.js`): dekorace s `use` — ponk (okno výroby) a lucerna
+  (zdroj světla ohně se stínem povinným). Použít jen ze stejné místnosti (`roomAt`).
+  Rozsvícení se ukládá (`stations`).
+- **Tajná chodba:** knihovna na páku (posuvné dveře `slide`) před vchodem do patra −3;
+  rám vchodu uvnitř stavby je zasunutý hlouběji (`SUNK_DEPTH`).
+- Zbývá (v TODO): stavění po dílech v editoru, nábytek ze srubu převést na dekorace,
+  stěny vrhající stín a blokující dohled.
 
 ## Editor mapy
 
-Otevírá se **F2**, hra pod ním běží dál (**P** pauza). Umí zóny (rostliny, objekty,
-cesty, pláž, útes, most, tvorové), výšky, razítko Herní plochy a vodu; ukládá přímo
-do `src/data/maps/<mapa>/map.json`. Podrobnosti v
-[dokumentaci editoru](src/editor/README.md).
+F2, hra běží dál. Podrobnosti v [dokumentaci editoru](src/editor/README.md).
 
-**Tvarování terénu:** se štětcem, který mění terén (`brushShapesTerrain`), v nástrojích Výška
-a Herní plocha a v záložce Jeskyně (kopání a zasypávání; `mapEditor.shapesTerrain`, `SHAPING_MODES`) se schovají všechny předměty, cesty, stíny pod keři i tráva
-(`decoSystem.setHidden`, `floraSystem.setHidden`) a hra stojí jako v pauze. Terén a voda
-se přepočítávají hned; přestavba předmětů se odloží (`sceneWorld.setDecorShaping`,
-`decorStale`: celá přestavba, nebo jen přesazení na novou výšku) a proběhne jednou,
-až se přepne na jiný štětec nebo záložku nebo se editor zavře. Data mapy se ukládají
-celá vždy, odkládá se jen vykreslení.
+- Se štětcem, který mění terén, se schovají předměty i tráva a přestavba předmětů se odloží
+  (`setDecorShaping`, `decorStale`) až na přepnutí štětce nebo zavření editoru. Data se ukládají hned.
+- Aplikovat přestaví celou dotčenou část světa (terén, nebo dekorace), ne jen kus kolem změny;
+  plán zrychlení a čísla pro větší ostrov jsou v TODO.
 
-## Tráva a podrost
+## Tráva a barvy rostlin
 
-Tráva jsou čtyři modely (pobřežní tráva, širokolistý trs, polštářek, kapradina)
-a pod nimi koberec krátkých stébel. Štětec Tráva umí Obojí / Jen trsy / Jen koberec.
-Zem i stébla počítají barvu stejným kódem, stéblo bere barvu země pod sebou. Druh
-určí poloha nebo předvolba Směs uložená k buňce. Trsy se kreslí jako kopie jednoho
-tvaru po čtvercích mapy. Aby okraj porostu nekopíroval čtverce, koberec stébel k okraji řídne a je
-nižší (`edgeShare`: vzdálenost k hraně se sousedem bez trávy, šířka pásu se vlní podle šumu) a trsy
-i stébla kousek přerůstají do sousedních volných buněk (`addSpill`); čísla jsou v `GRASS_EDGE` (`grass.js`).
-Velké trsy se u okraje neředí ani nezmenšují — v úzkých pruzích porostu by jinak skoro zmizely.
-Velikost trsu je mezi `GRASS_CLUMP_SIZE.min` a `max`, rozložená tak, že malých je víc a velkých málo (`skew`). V Možnostech jde vypnout míchání tří textur země.
+- Tráva jsou čtyři modely a koberec krátkých stébel; stéblo bere barvu země pod sebou.
+  Okraj porostu řídne a přerůstá do sousedů (`GRASS_EDGE`), aby nekopíroval čtverce.
+- Barvy rostlin: `catalogs/floraColor.js` (`FLORA_GRADE` pro všechny, `MODEL_COLORS` srovná
+  listí modelů z Meshy na společnou zelenou), provádí `FloraColorPlugin`.
+- Modely z Meshy (PBR) počítají světlo lineárně a v noci by „svítily" proti terénu;
+  `nightLightPlugin.js` jim slabé světlo ztlumí (`NIGHT_CURVE`).
 
-Barvy stromů a keřů drží `src/data/catalogs/floraColor.js`. `FLORA_GRADE` (jas,
-teplota, sytost) dolaďuje všechny rostliny najednou; `MODEL_COLORS` srovnává listí
-každého modelu z Meshy na společnou žlutozelenou (mezi palmou a banánovníkem).
-Procedurální keře a listnáče se na stejnou barvu srovnávají svými odstíny v katalogu.
-Obojí provádí `FloraColorPlugin`; listí pozná podle toho, že je zelenější než okolí.
-Tráva má vlastní barvení podle země; trsy se na společnou zelenou (o kousek světlejší
-než koberec stébel) srovnávají svým `tint` v `grass.js`, pobřežní tráva je o něco sušší.
+## Rozhraní
 
-Modely z Meshy mají fyzikální materiál (PBRMaterial), který počítá světlo lineárně
-a slabé světlo pak při převodu na obrazovku zesílí; terén (StandardMaterial) ne.
-Bez korekce by v noci modely „svítily“. `materials/nightLightPlugin.js` se přes
-`RegisterMaterialPlugin` sám přidá ke každému PBR materiálu a v noci ztlumí slabé
-světlo křivkou `NIGHT_CURVE` (1,2 = přesná shoda s terénem, nechává se mírnější 0,7).
-Sílu noci a denní úroveň světla mu posílá `refreshAmbient` přes `setNightLight`.
-
-## Boj se zbraněmi — plán po etapách
-
-Schváleno 13. 11. 2026. Etapy jdou dělat a zkoušet po jedné; po každé je hra hratelná.
-Odškrtávají se v `TODO.md` (Tvorové a boj → Zbraně a mířené rány).
-
-**Stav (16. 11. 2026):** etapy 1, 1b a 2 hotové a vyzkoušené, etapy 3 a 4 napsané a čekají
-na vyzkoušení ve hře. Úskok je kotoul (`Roll_Dodge_2`), rány klackem mají vlastní animace
-z `castaway_combat.glb` (16. 11. 2026, čeká na vyzkoušení).
-Sekyra a krumpáč jako zbraně odloženy na později.
-
-**Rozhodnuto:**
-- Zbraň patří do políčka Zbraň ve výbavě (`EQUIP_SLOTS`, klíč `weapon`). Lišta rychlé
-  volby (`heldItemSystem.js`) zůstává pro nástroje a spotřební věci.
-- Zbraň se tasí a zandává. Útok ji tasí sám; zandává hráč (X), sama se zandá jen při
-  otevírání kořisti a po smrti. Tasená = bojový postoj (animace `combatStance` už existuje).
-- Útok míří ke kurzoru a zasáhne všechno ve výseči před postavou (dosah + úhel
-  podle zbraně). Jemné přitažení míření k nepříteli do zhruba ±20°.
-- Míření rozhoduje, na koho rána dopadne (tvor musí být ve výseči). Útok proti obraně pak
-  rozhodne, jak sedla: kritická, běžná, škrábnutí (poloviční poškození), nebo minutí
-  (změněno 16. 11. 2026, dřív rána ve výseči nikdy neminula).
-- Mezerník je úskok (etapa 4).
-
-**Etapa 1 — zbraň ve výbavě, tasení a zandávání**
-- Klacek dostane `slot: 'weapon'`; zbraň se bere z výbavy, ne z lišty. Útok a rána
-  (`playerAttackSystem.setWeapon`) se počítají z nasazené zbraně, i když je zandaná:
-  každý útok ji nejdřív vytáhne, takže s nasazenou zbraní se pěstmi bojovat nedá.
-- Stav tasená/zandaná drží postava (`playerSystem.weaponDrawn`); klávesa **X** ho
-  přepíná. Bez nasazené zbraně X postaví postavu do bojového postoje s pěstmi (mířené
-  rány pěstí a výseč fungují stejně). Ukládá se u postavy; starší uložení ho nemají.
-- Co je ve které ruce, rozhoduje jen `refreshHands` v `sceneEquipment.js` (tasená zbraň,
-  jinak věc z lišty). Zbraně na lištu nesmí (`hotbarTool`). Klik na tvora zbraň tasí
-  z boku a rána přijde po vytažení; zandá se jen klávesou X, při otevírání kořisti
-  (`beginLootPickup`) a po smrti. První sebraný klacek se sám nasadí do prázdného políčka Zbraň.
-- Model: tasená v ruce (`handSlot`), zandaná visí na boku u ruky se zbraní (pozor: model je
-  ve scéně zrcadlený, kost `RightHand` je z pohledu `front` vpravo; `sheath.side` záporné
-  = strana ruky se zbraní; úchyt na kosti boků,
-  poloha a sklon v `sheath` u zbraně v `TOOL_TYPES`, měřeno v šířkách boků, takže sedí
-  při jakékoli velikosti modelu). Tasení i zandání klávesou X je naprogramovaný pohyb
-  pravé paže k boku (`reachHip`), v půlce se zbraň přehodí. Paže se ohýbá v lokti
-  (`reachArm`) a pěst se dorovnává několikrát za snímek i se sevřením prstů a natočením
-  zápěstí, aby dosedla přesně na úchyt. Zápěstí se natočí jen o půl cesty podle rukojeti
-  (`HIP_GRIP_TURN`) a loket jde víc dozadu a nahoru (`HIP_ELBOW_UP`) — plné natočení
-  zalomilo zápěstí dolů do nepřirozené polohy; s předchozí pózou se prolíná kost po kosti
-  (částečné natočení kostí zvlášť dává skoky). Fotoateliér hlásí odstup úchopu od úchytu
-  na boku. Osy boků se počítají ze stehen a páteře; kvůli zrcadlení je dopředu
-  `Cross(side, up)`. Model postavy vlastní
-  animaci tasení nemá. Klik na tvora tasí stejně a rána přijde až po vytažení.
-- Bojový postoj (`Combat_Stance`) je dělaný pro štít; s tasenou zbraní ho `holdGuard`
-  přepíše: paže míří do bodů kolem ramene (`guard` u zbraně: loket, ruka, levá ruka
-  v metrech do strany / nahoru / dopředu) a zbraň drží směr `guard.club`. Při úderu,
-  tasení a sbírání se úprava plynule vypne.
-- Pochodeň se drží vždy v levé ruce (`offHand` u nástroje v `TOOL_TYPES`,
-  `setOffHandTool`, úchyt `leftSlot`, prsty levé ruky `PLAYER_LEFT_*`), pravá zůstává
-  volná pro zbraň, takže se nic nepředává. Mimo bojový postoj drží levá paže pochodeň
-  zvednutou (`grip.raise`/`bend`), v postoji míří do bodů `offHand.hand`/`elbow`.
-  Co v levé ruce opravdu je, říká `offNodeKey`. Výběr pochodně z lišty zbraň nezandá.
-  Vytažení a schování pochodně: levá ruka sáhne k levému boku (`stow` u nástroje, stejné
-  míry jako `sheath`; `reachPocket` sdílí s tasením `reachPoint`), v půlce se pochodeň
-  objeví nebo zmizí. Modely nástrojů z lišty se načítají předem, aby se pochodeň
-  při vytažení neobjevila pozdě.
-- Hotovo, když: klacek jde nasadit do políčka Zbraň, klávesou se tasí a zandá,
-  postava s tasenou zbraní stojí v bojovém postoji a bije klackem; zandaná bije pěstí.
-
-**Etapa 2 — mířená rána do prostoru**
-- S tasenou zbraní levé tlačítko útočí směrem ke kurzoru (bod na zemi pod ním),
-  chodí se na WASD. Se zandanou zbraní levé tlačítko funguje jako dnes.
-- Katalog zbraně dostane dosah a úhel výseče; pěst má vlastní malou výseč v `player.js`.
-- V okamžiku dopadu rány se vyberou tvorové ve výseči (vzdálenost, úhel, výškový limit
-  jako dnes v `canHit`). Zatím jen nejbližší jeden. Prázdná rána = zvuk minutí.
-- Přitažení míření: nepřítel do ±20° od směru natočí ránu k sobě (navazuje na
-  dnešní `assistCreatureAtPointer`).
-- `rollStrike` přestane rozhodovat o minutí; výsledek je kritická / běžná / škrábnutí.
-- Hotovo, když: rána jde máchnout kamkoli, trefí tvora ve výseči, mimo výseč mine,
-  a „Minul“ se neukazuje, když rána geometricky sedla.
-- Jak je to udělané: dosah (`reach`) se měří k okraji těla tvora (poloměr = 0,3 × délka
-  tvora, `BODY_SHARE` v `playerAttackSystem.js`), úhel výseče (`arc`) ve stupních, tělo
-  výseč o kus rozšíří (čísla v etapě 3). Míří se na bod na zemi pod
-  kurzorem (`pointerGroundPoint`), přitažení do 20° bere tvory do dosahu + 0,4 m
-  (`aimPoint`). Klik na tvora bez tasené zbraně míří na něj. Podržené tlačítko opakuje
-  ránu ke kurzoru (`attackHeld`). Kostka `rollQuality`: kritická / běžná / škrábnutí
-  (poloviční poškození). Od etapy 4 stejně i tvorové.
-  S tasenou zbraní ukazuje výseč na zemi `src/effects/attackArc.js` (dosah a úhel zbraně,
-  míří tam, kam by šla příští rána; při úderu zesvětlí).
-
-**Etapa 3 — víc cílů, primární a sekundární rána**
-- Rozhodnuto 16. 11. 2026: každá rána zasáhne všechny tvory ve výseči a poškození se mezi
-  ně rozdělí (tři zasažení = každý třetinu). Výseče jsou proto úzké; víc tvorů naráz bude
-  trefovat až zbraň s obrovskou výsečí (třeba šavle).
-- Každá zbraň (i pěst) má dvě rány: primární (levé tlačítko) a sekundární (pravé).
-  Sekundární je pro všechny zbraně stejně silnější (`SECONDARY_DAMAGE_SCALE` = 1,5
-  v `src/utils/weaponBlows.js`); zbraně se liší dosahem, úhlem, prodlevou a cenou v energii.
-  Sekundární rána = krátký klik pravým tlačítkem v bojovém postoji; tažení pravým dál otáčí
-  kamerou, tvor se připíná prostředním klikem; mimo bojový postoj pravý klik nic nedělá.
-- Odhození zasaženého a posekání trávy se nedělají (zatím).
-- Hotovo, když: dva tvorové těsně u sebe ve výseči dostanou každý zhruba polovinu a sekundární
-  rána je znatelně silnější, pomalejší a dražší.
-- Jak je to udělané: zbraň v `TOOL_TYPES` (pěst v `PLAYER_BASE.punch`) má `damage` a sekce
-  `primary` a `secondary` (`reach`, `arc`, `cooldown`, `anim`, sekundární i `cost`; co
-  sekundární neurčí, převezme z primární). Cena primární rány je společná
-  (`PLAYER_BASE.stamina.attackCost`). Obě rány spočítá `weaponBlows` a čte je útok
-  (`playerAttackSystem.blows`) i detail předmětu v okně postavy (sekce Primární a Sekundární
-  rána; prázdné políčko Zbraň ukazuje pěsti). `swingAt` dostane druh rány, dopad vybere
-  všechny ve výseči (`struckAll`) a kostka `rollQuality` se hází pro každého zvlášť.
-  Výsledky hodu `rollQuality`: z ran, které podle útoku proti obraně nesedly, je polovina
-  škrábnutí a polovina minutí (`GRAZE_SHARE` v `combatRoll.js`; minutí ukáže „Minul“
-  nad tvorem, `missCreature`). Žádná rána (primární ani sekundární) se neprovede, když na ni
-  nestačí energie (`canSpend`); hráč počká, až se energie doplní. Poškození hráče je od
-  16. 11. 2026 snížené na třetinu: pěst 1–3, klacek 3–5 (sekundární ×1,5). Klacek: primární
-  1,7 m / 70° / 1 s, sekundární 1,9 m / 40° / 1,6 s / 22 energie. `anim` rány může být
-  seznam: každá rána vybere náhodně jednu položku, jen ne stejnou jako minule (`pickAnim`
-  v `playerAttackSystem.js`). Klacek: primární náhodně střídá tři rány: původní sek
-  `Right_Hand_Sword_Slash` (bojová kopie `slash`, aby se nezměnilo sbírání s `chop`) s prvním švihem z `Double_Combo_Attack` (`double1`, soubor
-  `castaway_double.glb`; první dva seky `Triple_Combo_Attack` vypadaly divně, 16. 11. 2026),
-  a třetí sek z `Triple_Combo_Attack` (`triple3`, velký úder přes hlavu, do 16. 11. 2026
-  sekundární); všechny tři primární rány trvají zhruba stejně (asi 0,9 s; rychlost
-  a úsek v `PLAYER_ANIM_SPEEDS` a `PLAYER_ANIM_RANGES`). Vodorovný sek má švih: nápřah běží
-  pomalu (0,7) a od vrcholu nápřahu se animace zrychlí na 1,8 (`PLAYER_ANIM_SNAP`, `applySnap`;
-  `at` = vrchol nápřahu v sekundách animace), zásah přijde asi v 0,69 s, když klacek letí před tělem. Sekundární je `Attack`
-  (`smash`): nápřah oběma rukama za hlavu s výpadem a úder dopředu k zemi, zásah
-  asi v 0,95 s; pak se v animaci vlastním pohybem zvedne z výpadu (od 1,15 s dvojnásobnou rychlostí, `PLAYER_ANIM_SNAP`), celkem asi 1,85 s. Dřív končila ve výpadu a přechod do postoje přetáčel tělo. Vyzkoušené a nepoužité pro sekundární: `Heavy_Hammer_Swing` (pomalé, končí s klackem
-  za hlavou; zůstává na kopání), `Left_Slash` (rozmáchlá otočka bez síly). Okamžik dopadu je podle nejrychlejšího pohybu ruky
-  v animaci (`STRIKE_IMPACT_SHARE`). Pěst: primární úder pěstí 1,4 m / 50° / 1 s (už se nestřídá s kopem),
-  sekundární kopnutí 1,6 m / 50° / 1,5 s / 16 energie (klíč `heavyKick`, pomalejší `kick`).
-  Výseč na zemi během sekundární rány ukazuje její výseč.
-  Za zbraní se při ráně táhne vítr (`src/effects/swingTrail.js`, volá ho `updateSwingTrail` v `playerSystem`):
-  pruh od třetiny zbraně ke špičce, kreslí se jen během rány a jen když špička letí vůči postavě
-  rychleji než 5 m/s (naplno od 12 m/s), takže pomalý nápřah ani chůze stopu nenechají; každý
-  vzorek zmizí za 0,14 s. Materiál `swingTrailMaterial` patří v rentgenu mezi překryvy, aby pruh
-  nemizel v jeskyních; připravuje se hned po vzetí zbraně, jinak by se při první ráně nestihl zkompilovat.
-
-**Etapa 4 — tvorové stejným systémem, úskok**
-- Kousnutí tvora se stane výsečí před ním v okamžiku dopadu, s viditelným nápřahem;
-  hráč, který z výseče uteče, není zasažen.
-- Úskok na mezerník: krátký přískok, stojí energii, chvilka nezranitelnosti.
-- Hotovo, když: útoku Koa'tiki jde uhnout pohybem i úskokem.
-- Jak je to udělané: na začátku nápřahu se tvor natočí k hráči, během nápřahu ho sleduje svou
-  rychlostí otáčení (`turnRate`) a směr zamkne až `BITE_AIM_LOCK` (0,2 s) před dopadem; dřív ho
-  zamkl hned a chůzí dokola kolem tvora se nedalo nikdy trefit. Při dopadu
-  (`resolveBite`) musí hráč stát ve výseči (`biteRange` k okraji těla hráče 0,3 m,
-  úhel `biteArc` u tvora), jinak „Uhnul“. Ve výseči rozhodne stejná kostka jako u hráče
-  (`rollQuality`: zásah, kritický, škrábnutí, minutí); `rollStrike` zmizel. Během nápřahu
-  je pod tvorem slabá červená výseč a v ní se od tvora k okraji vyplňuje sytější výseč;
-  když dojde na konec, tvor kousne (`updateBiteArcs`, `biteView`, `AttackArc` s barvou
-  `DANGER_COLOR` a `progress`). Výseče hráče i tvorů jsou v rentgenu mezi vlastními modely
-  (`attackArcMeshes`, přidává je `GameScene.updateReveal`), jinak by se v jeskyni schovaly jako cizí
-  modely. Zařazení mezi překryvy (`OVERLAY_MATERIALS`) zkoušené a vrácené: grafická karta pak hlásila
-  „Two textures of different types use the same sampler location“. Nápřahy a výseče: Koa'tiki 0,35 s a 100°, běs 0,4 s a 80°,
-  hryzokrysa 0,4 s a 80°, kajmanka 0,45 s a 60°. V posledních 0,15 s nápřahu tvor vyrazí vpřed (`biteLunge`:
-  1 m / 0,8 m / 0,5 m, `lunge`; zastaví se, když se čumákem — půl délky těla od středu —
-  dotkne okraje těla hráče, aby nezajel do postavy), takže chůzí se uhnout nedá,
-  na útěk je potřeba sprint nebo úskok. Výseč ukazuje skutečný dosah včetně výpadu
-  a okraje těla hráče.
-- Úskok (`tryDodge` ve scéně, `dodge`/`stepDodge` v `playerSystem`, čísla
-  `PLAYER_BASE.dodge`): kotoul 3 m za 0,75 s směrem WASD, bez pohybu pryč od kurzoru;
-  animace `roll` se přizpůsobí délce úskoku. Kotoul v animaci vede šikmo, o 0,79 rad
-  vpravo od pohledu (`PLAYER_ROLL_HEADING`), proto se postava natočí o tolik doleva od směru
-  úskoku (rychlým otočením `DODGE_TURN_SPEED`); 20 energie, 0,5 s nezranitelnost (`protect`), 0,4 s pauza do dalšího. Nejde během
-  nápřahu vlastní rány (do dopadu), po dopadu ránu přeruší. Kousnutí během
-  nezranitelnosti ukáže „Uhnul“.
-
-**Otevřené otázky (rozhodnout před danou etapou):**
-- Sekyra a krumpáč: jen nástroje, nebo i slabé zbraně, když jsou v ruce? (Odloženo.)
-
-## Stavby — plán po etapách (první: opuštěný pirátský srub)
-
-Srub stojí v buňkách (−20…−18, 11…14), otočený o 90° (`rotation: 1`), zadní stěnou
-přitisknutý k útesu na západě; půdorys 4 × 3 buňky (8 × 6 m), přízemí bez předních rohů −18,11 a −18,14
-(tam je kryté zápraží pod pavlačí, pavlač nesou kůly). Je to opuštěná, ne dokonalá
-stavba, kterou si bere příroda: nic nemá být podle pravítka ani zdobné (žádné rámy oken). Stavba se skládá z dílů na mřížce, ne z jednoho modelu:
-model z Meshy je dělaný na pohled zvenku (vnitřek bez tloušťky, dveře často jen
-namalované), z dílů jde postavit chůze dovnitř, otvírání dveří i pohled dovnitř.
-Stěny se staví v kódu z jednotlivých klád, ne z dílů z Meshy: samostatné modely by na
-sebe nenavazovaly (jiná tloušťka a rozestup klád, jiný odstín, nepřesné hrany).
-
-**Data.** Katalog `src/data/catalogs/buildings.js` popisuje stavbu: rozměr v buňkách,
-podlahu, stěny (`walls.sides`, obrys přízemí `walls.outline` = rohy v neotočené stavbě, bez něj obdélník)
-s otvory (`walls.openings`: strana, poloha podél stěny, šířka, spodek a vršek; otvor patří úseku obrysu s tou
-stranou, na kterém leží), kůly pod věncem tam, kde obrys vynechá roh (`walls.posts`), a střechu. Každý úsek obrysu
-je stěna se svou stranou; na vystupujícím rohu klády přečnívají, na vnitřním jen dosednou. Podlaha, věnec a patro
-zůstávají na celém obdélníku (vynechané rohy jsou zápraží), boční zábradlí terasy vede až k ustoupené stěně
-(`porch.sideFrom`). „Uvnitř“ se pozná podle obrysu (`storeyInside`). Strany a otvory platí pro neotočenou stavbu;
-`world/buildingSystem.js` ji poskládá kolem jejího středu a celou otočí podle `rotation`
-(podlaha na kůlech v `buildingFloor.js`, stěny v `buildingWalls.js`, terasa se zábradlím a schody
-v `buildingPorch.js`, vlajka a síť v `buildingProps.js`, tvary v `utils/buildingGeometry.js`, kreslené
-textury v `utils/pirateCloth.js`). `shift` posune stavbu v buňkách (srub o 25 cm od útesu, aby klády
-neprolézaly skálou). Vše se skládá do pár těles: prkna, klády, čela klád, vlajka, síť.
-**Chůze:** podlaha, terasa, patro i schody jsou obdélníky s výškou (`plan.walk`); `buildingSystem.walkHeightAt`
-dává nejvyšší z nich, na který se dá z výšky postavy vystoupit (`STEP_UP` 0,7 m), takže v přízemí
-postava zůstane dole a do patra se dostane jen po schodech. `GameScene.standHeightAt` to na povrchu
-(patro 0) použije pro postavu a klikání místo země, když je výš.
-**Zdi:** stěny přízemí a místnosti v patře a zábradlí (`railRun`, jen když z něj zbyla aspoň jedna tyč)
-si při stavbě zapíšou úsečku s tloušťkou a výškovým pásmem (`plan.blocks`, `addBlock`). Stěna se dělí jen
-otvory od podlahy (`PASSABLE_BOTTOM` v `buildingWalls.js`), okna jsou zeď. `buildingSystem.wallGapAt`
-dá vzdálenost postavy k nejbližší zdi v jejím výškovém pásmu (nohy až výška postavy), takže v patře
-nezastaví stěny přízemí. Postava (`playerSystem.free`, `buildingGapAt`) nesmí vkročit blíž ke zdi, než
-je její poloměr, ledaže se tím od zdi vzdaluje (aby se nezasekla). Šikmé zábradlí schodů zeď nemá
-(ze schodů se stejně nesestoupí).
-**Tvorové a stavba:** výška pod tvorem je jedna funkce `sceneCombat.creatureGroundAt(x, z, patro, odkud)`:
-terén a na povrchu nejvyšší podlaha stavby, na kterou tvor z výšky `odkud` vystoupí (jako u postavy).
-Tvor si nese svou výšku (`creature.y`, ukládá se od verze savu 9; po načtení se ověří, že tam ta podlaha je — `savedFootY` —, jinak tvor stojí dole) a každý krok ji posune
-(`walkTo`); vykreslení, stopy a kousnutí ji používají taky. Zdi se ptají ve výšce tvora
-(`creatureSystem.wallGapAt`): krok blíž než 0,3 m ke zdi projde, jen když se tím tvor od zdi vzdaluje
-(platí i při úniku ze zaseknutí); přímá chůze (`walkLine`) jde po 0,3 m, drží výšku a zdi se drží 0,3 m.
-**Hledání cesty ve stavbě:** uzel cesty má vedle buňky a patra i vrstvu (`layer` 0 dole, 1 přes 1 m nad
-zemí — patro, horní schody) a výšku (`gridPath` ji nese v uzlu). U stavby (`buildingSystem.nearCell`,
-buňka s podlahou ± 1) se hrana počítá „chůzí“ po čáře (`walkLine`) z výšky uzlu, takže tvor vyjde po
-schodech schod po schodu; hrana nesmí projít kládou (`BUILDING_WALL_HIT`). Jinde zůstává rychlý výpočet
-po buňkách. Narovnání cesty nepřeskočí změnu vrstvy. Přímá chůze k cíli platí, jen když dojde do výšky
-cíle (`directReach`), jinak se hledá cesta (po schodech).
-**Tvorové přes patra:** do jiného patra smí jen tvor s `entersCaves` (v honičce kamkoli, mimo ni jen zpět
-na svoje patro `homeLevel`). Když je cíl v jiném patře, tvor míří nejdřív na buňku za vchodem, který
-k cíli vede nejkratší cestou (`creatureSystem.floorWaypoint`, vchody dává `navigation.doorsBetween`),
-a teprve na cílovém patře hledá cestu k cíli. Dřív hledal rovnou k cíli; hledání nezná vchody a má
-omezený počet kroků, takže k domovu hluboko v jeskyni nedošel a zůstal stát u skály. Mrtvoly v podzemí
-tlumí slunce a oblohu jako živí tvorové (`creatureSystem.meshesBelowGround`).
-**Kudy se vejde tělo** je jedno pravidlo pro hráče i tvory: `navigationSystem.bodyFree` dostane místo,
-patro, odkud tělo jde (`here`, i výška chodidel) a tělo (`radius`, `margin`; hráč 0,3 + 0,08, tvor
-0,22 + 0,08). Hlídá pochozí místo (i úzký rám vchodu), zdi staveb, předměty (`objectGapAt` z
-`decoSystem.nearestContact`), blízkost útesu, šířku těla v podzemí a převýšení skály kolem; útes, šířka
-a převýšení platí jen mimo buňky vchodu. Předměty, útes, šířka i převýšení platí tak, že se tělo nesmí
-dostat hlouběji, než je teď (z horšího místa vždy odejde). Hráč k tomu přidává vytlačení z předmětu
-(`pushOut`) a klouzání podél něj, tvor výškový krok a únik ze zaseknutí (`relaxed`, hlídá se jen zeď
-stavby). Hledání cesty tvorů bere políčko, kterému uprostřed stojí předmět, jako neprůchozí
-(`creatureSystem.cellInfo`); paměť políček se smaže, když se předměty změní (`decoSystem.blockedVersion`).
-**Rozestupy:** živí tvorové na stejném patře a ve stejné výšce se každý krok jemně rozestoupí
-(`creatureSystem.keepApart`, rozestup = délka × velikost × 0,3, krok jen tam, kam smí tělo); od hráče
-(`PLAYER_BODY`) se odtlačí jen tvor, hráč projde vždy, aby ho smečka nemohla uvěznit v chodbě.
-Od hráče je rozestup menší (`PLAYER_APART_REACH` 0,7 běžného) a odtlačení pomalejší (`PLAYER_APART_SPEED`).
-Rozestup od hráče je u všech tvorů menší než dosah kousnutí. Seznam všech těl tvorů,
-živých i mrtvých, dává jen `creatureSystem.bodies()`; podle něj se tvorové v jeskyni neschovají
-a tlumí se jim světlo. Dřív měl každý svá pravidla a pravidlo „ve vchodu se útes nehlídá“ měl jen
-hráč, proto se tvorové ve vchodu zasekávali.
-Stěny srubu neleží na hranách buněk (posun `shift`), proto se začátek i cíl cesty berou jen z buněk,
-kam se z tvora, resp. z cíle dojde (`searchRoute`, `reachable`). Kousnutí přes zeď neprojde
-(`inBiteRange`, `biteReaches`); honička se za zdí nezastaví na dosah kousnutí a míří přímo na postavu
-(ne na bod před ní, ten by byl na straně tvora), takže cesta vede dveřmi. Stejně, když je postava o víc
-než 1 m výš nebo níž (patro): tvor míří přímo na ni a hledá cestu po schodech.
-Na podlaze stavby (`GameScene.onBuildingDeck`) se nehlídá blízkost útesu (`cliffOverlap`) a převýšení
-terénu (`riseNear`) se měří od podlahy, ne od země pod ní — jinak by z pavlače nešlo na schůdky na útes.
-Místa, která mají zůstat volná (`plan.keepClear`, i konec schůdků na útesu), zná stavba i ve světě
-(`buildingSystem.keepsClear`); tráva na hraně útesu se tam nesází (`GameScene.shelfGrassAnchors`).
-**Vrstvy a pohled dovnitř:** stavba se skládá do tří vrstev (`lower`, `upper`, `roof`); díly si vrstvu
-přepnou přes `buildingSystem.useLayer` (každá vrstva má vlastní prkna, klády a čela klád). Patro = věnec,
-podlaha patra, místnost a zábradlí pavlače a věci `on: 'upper'`; venkovní schody a schůdky na útes zůstanou
-v přízemí. Střecha = štíty a model střechy. `buildingSystem.updateInside` (volá `GameScene.updateBuildingInside`
-každý snímek, jen na povrchu a mimo editor) plynule schová vrstvy nad postavou (`mesh.visibility`, za 0,4 s; prkna až po kládách, `fadeLate`,
-aby přes mizející podlahu neprosvítaly trámy — při objevování obráceně):
-v půdorysu stěn pod patrem patro i střechu, v místnosti v patře střechu.
-Schovávají se **části** (`plan.parts`, `deck.parts`): tři vrstvy a k nim horní půlky stěn — klády nad
-`walls.insideCut` (1,1 m nad podlahou podlaží) si stěna dá do části `vrstva|strana` (`useWallTop`).
-Díl patří vrstvě i své části a je vidět jen tolik, kolik ta méně viditelná. Když je postava uvnitř podlaží,
-schovají se horní půlky jeho stěn, za kterými je kamera (kamera je na vnější straně stěny).
-Liany ze staveb mají skupinu `jméno stavby:část` a `cliffVineSystem.hideGroups` je schová, když jejich
-část nebo vrstva zmizí z víc než poloviny; liany z vršku stěny patří k její horní půlce.
-**Zvuk uvnitř:** stejné „uvnitř“ (`buildingSystem.storeyInside`, `shelterAt`) ztlumí venek: `GameScene.updateIndoor`
-plynule nastaví `audioSystem.setSheltered`. Venkovní zvuky (smyčky lesa ve dne a v noci, voda, hlasy zvířat
-kromě jeskyně) jdou přes společnou cestu `outdoor` → dolní propust; v úkrytu klesne na 75 % hlasitosti a
-řez na 1 600 Hz (`SHELTER_LEVEL`, `SHELTER_CUTOFF`). Jeskyně má dál vlastní přepnutí na jeskynní smyčku (`setIndoor`).
-Zvuky stavby (`audio/building/`): dveře mají vlastní otevření a zavření; každý krok po dřevě má šanci 16 %
-na vrzání prkna (`stepWood` → `with: plankCreak`); uvnitř občas zavrzají trámy (hlas prostředí `when: shelter`,
-netlumí se). Hlasy prostředí (`LIFE_CALLS`) mají `when` den, noc, jeskyně, úkryt nebo seznam; `sea` = jen u moře
-(vlny u skal).
-**Patro** (`upper`, `buildingUpper.js`): na stěnách přízemí leží po obvodu věnec z klád překřížený
-v rozích (`walls.ringSeat` = jak hluboko sedí na horní kládě), aby mezi patry neprosvítalo přízemí;
-na něm trámy a pevná podlaha přes celý půdorys — spodní vrstva prken napříč (`upper.subfloor`)
-a horní vrstva bez chybějících a ulomených prken (`upper.planks`), aby shora nebylo vidět do přízemí; místnost z klád nad buňkami −20…−19 × 12…14 (`upper.room` v neotočených souřadnicích), ustoupená
-o 30 cm dovnitř, aby stěna nešla rovně odspodu (kolem zůstane římsa podlahy),
-zbytek otevřená pavlač do L (nad −20…−18, 11 a nad −18, 12…14) se zábradlím (`upper.rails`) a schůdky z kulatiny na útes u −21,11 (`upper.sideSteps`). Venkovní schody: na −18,15 je mezipodesta
-na kůlech (`stairs.platform`, 70 cm nad podlahou, zábradlí na vnější straně) a z ní tři ramena (`stairFlight`: schody
-z kulatiny, nosníky, kůly pod vysokými místy, volitelně zábradlí) — nahoru k plošině u −20,15 před dveřmi patra,
-dolů na východ do rohu zápraží −18,14 (`stairs.terrace`; boční zábradlí terasy tam začíná dál, `porch.sideFrom`
-pro každou stranu) a dolů na zem (`stairs.run`). Dveře z plošiny a dveře z místnosti na pavlač jsou otvory ve
-stěnách patra (`upper.openings`).
-Terasa je jen na jižní straně neotočené stavby (strana dveří), rybářské sítě (`props.nets`, barvy jednou v `props.netColors`, sdílí je i houpací síť) visí na přední stěně přízemí
-a na přední stěně místnosti v patře (`on: upper`, `wall` = poloha stěny). Věci na pavlači stojí u stěn místnosti,
-aby podél zábradlí zůstal průchod.
-**Volně stojící nábytek je dekorace v mapě**, ne součást stavby (viz **Nábytek jako dekorace** níže).
-Rostliny kolem srubu a listí na terase jsou obyčejné dekorace v mapě (dají se upravit v editoru).
-Stáří (`age`): barva po bodech — mech dole, na horních plochách klád a u stěn na podlaze,
-špína u země; skvrny podle šumu. Klády (`walls.weather`) mají navíc oprýskaná vybledlá místa
-s ostrým okrajem a tmavé svislé šmouhy od deště, silnější nahoře.
-Liany visí z vršku vnějších stěn přízemí i místnosti v patře a ze štítů střechy (vždy přímo na dřevě;
-z přečnívajících došků ani ze zábradlí ne — visely by ve vzduchu)
-(`buildingSystem.vineAnchors` → `cliffVineSystem`, druh `walls`; každý bod nese vlastní šanci `chance`).
-Liany jsou čtyři modely, které se náhodně míchají po celé mapě: dvě původní z útesů a dvě nové z Meshy
-(`tools/prepareVines.mjs`, barva přiladěná k původním) — plochá popínavka (`vine_wall.glb`) a visící šlahoun
-(`vine_hang.glb`); nové si drží proporce (`keep`). Každý model patří do skupin (`pools`: `cliff`, `wall`,
-`hang`, `swag`), bod si skupinu volí přes `look`. Tvary: svislá (výchozí), vodorovná podél hrany (`shape: drape`, na útesech i stěnách srubu) a girlanda
-do U ze dvou šikmých kusů (`swag`, podél hrany útesu a přes vchod do jeskyně). Do U jdou jen listové liany
-(skupina `swag`); s bílými kvítky ne, tam tvar nedává smysl. Vodorovná i U se na útesu dají jen tam, kde hrana
-po celé délce pokračuje (`edgeContinues`: po metru se hledá bod hrany se stejným směrem a výškou), jinak
-by na rohu visely do vzduchu; místo nich se pověsí svislá liana.
-Délky se losují v širokém rozsahu (`KEEP_LENGTH`, `KEEP_THICK` v `cliffVineSystem.js`).
-**Porůstání** (`growth`, `buildingGrowth.js`): dírami v podlaze přízemí a terasy prorůstá tráva a kapradí
-a trsy obrůstají obvod srubu i kousek pod okraj podlahy; místa u schodů zůstanou volná (`plan.keepClear`).
-Mech je dekorace pro editor (štětec Mech, `moss_small`, `moss_mid`, `moss_wide`): shluky nízkých hrbolatých
-polštářů s roztřepeným okrajem zanořeným do podkladu (`utils/mossFactory.js`, tvar `pushMossPad`, vzhled
-v `catalogs/moss.js`, textura Moss004 z ambientCG). Model mechu z Meshy nevyšel (dělal i prkna pod mechem).
-Jsou to body pro systém trávy (`buildingSystem.grassSpots` → `floraSystem.addGrassSpots`, volá
-`GameScene.sowAnchoredGrass`), takže mají stejné modely a vítr jako ostatní tráva. Na střechu se tráva
-nedává: dohled postavy zahaluje oparem trávu výrazně výš než postava, střecha by byla černá.
-**Střecha** (`roof`, `buildingRoof.js`): došková sedlová střecha z modelu z Meshy
-(`public/assets/props/cabin_roof/`), položená na štíty z ubývajících klád nad místností v patře.
-Model připraví `tools/prepareRoof.mjs`: natáhne ho na `roof.length` × `roof.width` (hřeben podél X, vršek
-hřebene v nule), ztmaví světlé došky a zmenší textury. Model se načítá zvlášť a připojí se pod stavbu,
-až je načtený; jeho stín přidá `buildingSystem.onMesh`. Dřívější střecha z prken a snítek z kódu
-vypadala uměle, proto model.
-Na stěnách útesu, které míří do buňky stavby, se nestaví skalní obklad (`buildingCellKeys`
-v `GameScene.refreshCaveLighting`), jinak by kameny lezly dovnitř srubu.
-
-**Tajná chodba:** jeskyně v patře −3 („Tajná chodba", buňky −21,12 a −22,12, podlaha 6,5 m,
-strop 9,5 m) s průchodem z buňky −20,12 uvnitř srubu. Zadní stěna srubu má na tom místě
-otvor (`kind: 'cave'`). Kamenný rám vchodu, jehož buňka patří stavbě, je zasunutý o `SUNK_DEPTH`
-hlouběji do skály (`caveFrameSystem`, `GameScene.caveDoorsAround`) a liany nad ním nevisí.
-Před vchod se později postaví kus nábytku, který ho schová. Mapa drží seznam
-`buildings` (`key`, `cx`, `cz` = roh s nejmenšími souřadnicemi, `rotation` 0–3);
-nepovinný údaj, formát mapy zůstává verze 10. Stavbu staví `world/buildingSystem.js`.
-
-**Etapy (každou jde vyzkoušet zvlášť):**
-1. **Podlaha** (hotovo jako pokus): jednotlivá prkna z textury dřevěné cesty (každé
-   bere jedno prkno z textury), s mezerami, trochu zkroucená, některá chybí nebo jsou
-   ulomená; leží na trámech z kulatiny na křivých kůlech, pod podlahou žádná výplň (dírami je vidět zem); terasa a schody jsou taky jen z kulatiny a prken; kroky po ní zní jako dřevo.
-2. **Stěny z klád** (rozpracováno, čtyři stěny s otvory): každá kláda je křivý válec
-   s texturou dřeva Wood062 (vlákna podél klády) — prohnutá, zúžená, nestejně tlustá,
-   s jiným odstínem a přesahem konce; některé horní klády jsou ulomené. Otvory pro dveře
-   a okna jsou jen hrubě vyřezané klády (konce nestejně dlouhé), bez rámů. Klády sousedních stěn jsou posunuté o půl rozestupu a v rohu se
-   překříží; první kláda bočních stěn je napůl zapuštěná do podlahy. Čela mají letokruhy
-   kreslené v kódu (`utils/logEndTexture.js`). Klády jedné stavby jsou sloučené do
-   dvou těles (pláště a čela).
-   **Z Meshy jen vybavení**, kde na navazování nezáleží: dveře, stůl, sudy, síť. Okenice srub nemá (záměr: piráti na tropickém ostrově je neřešili).
-3. **Chůze dovnitř** po krocích:
-   1. Zdi zastaví postavu (hotovo jako pokus, viz **Zdi** výše).
-   2. Srub rozdělený na tři vrstvy (přízemí, patro, střecha); uvnitř plynule zmizí vše nad postavou
-      (v přízemí patro i střecha, v místnosti v patře jen střecha). Hotovo jako pokus.
-   3. Stěny mezi kamerou a postavou se uvnitř seříznou v pasu: horní klády každé stěny zvlášť a schovají se.
-      Hotovo jako pokus.
-   4. Tvorové chodí po podlaze srubu ve správné výšce, zastaví je zdi a do přízemí jdou jen dveřmi
-      (hledání cesty o dveřích ví). Hotovo jako pokus.
-   5. Tvorové po schodech a schůdcích z útesu do patra. Hotovo jako pokus.
-   Později: stěny vrhají stín a zastaví dohled (`metadata.volume`).
-4. **Dveře** (hotovo jako pokus, `buildingDoors.js`): každý otvor `kind: 'door'` v přízemí i v patře dostane
-   křídlo ze svislých prken se dvěma příčkami na vnitřní straně (vzhled `walls.door` v katalogu, vlastní
-   náhoda podle jména dveří, aby nepřeskládala zbytek srubu). Křídlo visí na pantu (`TransformNode` u kraje
-   otvoru, `hinge: 1` u otvoru = pant na druhé straně) a otáčí se dovnitř o `swing` za `seconds`.
-   Patří k vrstvě svého podlaží (schová se s patrem), ne k horní půlce stěny. Zavřené dveře jsou zeď
-   (`plan.blocks` s odkazem `door`; `wallGapAt` otevřené přeskočí), takže je hlídá postava, tvorové
-   i hledání cesty bez další úpravy. Pod myší (`doorAt`: zásah do křídla, jinak bod na zemi do 0,8 m
-   od středu otvoru) zlatý obrys; levým tlačítkem otevřít/zavřít do 2,2 m (`GameScene`, interakce `door`,
-   zvuk truhly). Které dveře jsou otevřené, drží `buildingSystem.openDoors` (přežije přestavbu srubu),
-   ukládá se jako `doors` (verze savu 10); na začátku jsou všechny zavřené. Postava si od verze savu 13 ukládá
-   i výšku (`y`); po načtení podle ní vybere podlahu (jinak by z patra spadla do přízemí).
-   Tvor a zavřené dveře: když je mezi tvorem a postavou zeď (`walledOff`), ověří si cestu i ve stejné výšce
-   (`canGetTo`). Bez cesty je zmatený (otazníky, `giveUpConfused`), vzdá to na 12 s navíc (`WALLED_GIVE_UP_SECONDS`)
-   a jde domů; když se dveře otevřou, cesta se najde a honička pokračuje. Později možná obléhání nebo vyražení dveří.
-   **Zabudovaný nábytek** (`buildingFurniture.js`, data `furniture` v katalogu staveb: `styles` vzhled podle druhu,
-   `items` druh, místo v neotočené stavbě, `yaw`, `on: 'upper'`): knihovna a v místnosti v patře síťová houpací
-   síť mezi stěnou a sloupkem (síť má materiál sítě na stěně). Každý kus má vlastní náhodu; knihovna je překážka
-   (`furnitureBlock`, obdélník jako blok zdi).
-   **Nábytek jako dekorace** (etapa 1 ze čtyř v `TODO.md`): stůl, židle (i převržená), okovaná truhla, sud (i povalený),
-   bedna (i otevřená a dvě na sobě), kotva, stočené lano, převrácená loďka a lavička z kulatiny. Vzhled a seznam kusů
-   jsou v `catalogs/furniture.js` (`FURNITURE_STYLES`, `FURNITURE_PIECES`), dekorace z nich dělá `catalogs/decorations.js`
-   (`furniture: kus`), tvar staví `utils/furnitureFactory.js` (jedna šablona na kus, materiál prken sdílí s volnými prkny).
-   Opotřebení je pevné (`FURNITURE_WEAR`, stejná barva po bodech jako stavby, `utils/agePaint.js`): mech a špína dole,
-   skvrny pečené do tvaru — stejné kusy mají stejné fleky (záměr: nábytek časem nahradí modely). V editoru štětec
-   Nábytek (Předměty → Tábor a poklady), kladený volně i na podlahy srubu (`deck`). Překážka je obdélník (`box`
-   = poloviny délky a hloubky, otočený s kusem; `decoSystem.boxContact` dá vzdálenost i směr odtlačení); převržená
-   židle překážka není. Kus na podlaze stavby (`deck`) i věc na zemi, nad kterou je podlaha (`decoSystem.underDeck`,
-   třeba sud pod ploškou u schodů), má spodek a vršek (`bottom`, `top`); postava či tvor ho nevidí,
-   když je celý pod chodidly nebo nad hlavou (`missesBody` v `utils/bodyClearance.js`, stejné pravidlo jako bloky
-   staveb) — stůl v přízemí tak nezastaví postavu v patře a truhla v patře postavu v přízemí. Kdo výšku chodidel
-   nepošle, vidí jen překážky bez spodku (na zemi). Původní kusy ze srubu převedl jednorázový skript na stejná místa v mapě.
-   **Drobnosti** (etapa 2): mapa pokladu s dýkou, láhev zelená, hnědá a rozbitá, cínový hrnek, dalekohled a kompas
-   (`TRINKET_PIECES` ve `furniture.js`, tvary v `utils/pirateTrinkets.js` — ty samé kreslí i police a knihovna ve srubu).
-   Nejsou překážka. Štětec Drobnosti klade volně; kus nábytku se `surface` (výška desky: stůl, truhla, sud, bedna)
-   je pod myší deska (`decoSystem.surfaceOnRay`, paprsek proti obdélníku `box` ve výšce desky, ne přes kus nesený
-   v návrhu) a dekorace dostane `raise` = zvednutí nad tím, na čem by jinak stála (`entryHeight` = `standHeight`
-   + `raise`). Podlahu pod myší hledá `deckOnRay` bez míst vyříznutých průhledem za myší (`seesThrough`), jinak by
-   v pohledu Celé chytila neviditelné patro nad stolem. Náhled je o 2 cm výš (`FREE_PREVIEW_LIFT`), aby nesplýval
-   s povrchem. Drobnost s nábytkem nesvázaná: posunutý stůl ji nechá viset ve vzduchu. Původní drobnosti ze srubu
-   převedl jednorázový skript.
-   **Pracovní místa** (etapa 3): dekorace s `use` v katalogu (`{ kind, hint }`) — ponk (`STATION_PIECES`, `kind:
-   crafting`, otevře okno výroby; deska `surface` 0,88 pro drobnosti) a lucerna (drobnost, `kind: lamp`). Drží je
-   `systems/world/stationSystem.js`: kus dostane z `onDecoPlaced` (`sceneWorld.js`), jeho meshe jsou klikací
-   (`metadata.station`), pod myší zlatý obrys, dosah a výběr jako u dveří (společná čísla `USE_…` v
-   `utils/outlineStyle.js`); klik zpracuje interakce `station` v `GameScene`. Použít jde jen ze stejné místnosti
-   (`buildingSystem.roomAt`: přízemí či patro stavby, jinak venku), aby lucerna nešla zapnout přes zeď. Po přestavbě mapy `sync()` zahodí kusy,
-   jejichž dekorace zmizela; kus se pozná podle buňky, patra, `deck` a posunu (`stationId`).
-   **Lucerna** (tvar `buildLantern` ve `furnitureFactory.js`): kovový rámeček, sklíčka, svíčka a plamínek; klik ji
-   rozsvítí/zhasne (zvuk zapálení). Sklíčka (`…_glass`) a plamínek (`…_flame`) dostane každá lucerna jako vlastní
-   kopii materiálu se září. Světlo je zdroj pro **světla ohně** (viz výše) se stínem povinným (`shadow: 'need'`),
-   takže nesvítí skrz stěny a podlahu patra; při rozsvícení a pohybu dveří či knihovny (`buildingSystem.doorsMoving`)
-   hlásí `dirty`. Ve dne slabě, v noci naplno, v jeskyni vždy naplno, lehce bliká (`light` ve stylu `lantern`).
-   Rozsvícené lucerny se ukládají jako `stations` (`lit`, verze savu 12). V editoru je ponk spolu s táborákem
-   ve štětci Výroba, lucerna ve štětci Drobnosti. Počet světel se stínem najednou je omezený (světla ohně) —
-   při víc rozsvícených lucernách projít.
-   **Pirátské věci napevno** (`buildingPirate.js`, položky v `furniture.items` s druhem z `PIRATE_KINDS`, vzhled
-   v `styles`): kormidelní kolo na východní stěně a police. Válce, kvádry a obruče pro ně (i pro nábytek a drobnosti)
-   jsou v `utils/buildingGeometry.js`; mapa pokladu má kreslenou texturu (`treasureMapTexture` v `utils/pirateCloth.js`).
-   Tři police na stěnách (`kind: shelf`, prkno na dvou konzolích; zadní stěna, levá nad ponkem, vnitřní u dveří)
-   nesou položky `items` s polohou podél police: láhve, hrnky, sklenice, svíčky, mince, truhličku, svitek.
-   V místnosti v patře: police na zadní stěně; druhá lucerna na okované truhle, rozbitá láhev a hrnek u houpací
-   sítě jsou dekorace.
-   **Uvolněná prkna** kolem srubu jsou obyčejné dekorace v mapě (`loose_plank_a…d`, tvar z kódu `utils/plankFactory.js`,
-   vzhled `LOOSE_PLANKS` v `decorations.js`), sbírají se rukou jako 1 dřevo; v editoru je štětec Prkna. Počet prken
-   v textuře prken je jednou v `PLANKS_TEXTURE_PLANKS` (`assetPaths.js`).
-   Kov a sklo jsou v buferu `painted` (materiál bez textury `paintMaterial`, každá část stavby ho má), dřevo
-   v prknech nebo kládách. `on: ground` = položka stojí na terénu; `block` ve stylu = je překážkou.
-   **Knihovna před tajným vchodem**: přihrádky (`rows` × `cols`), většina prázdných, v několika knihy, sklenice
-   a svitek (`decor`, barvy přes materiál bez textury `paintMaterial`). Je to posuvné „dveře“ (`kind: 'slide'`
-   v `buildingDoors.js`, `doorShift`): pod myší a na klik reaguje jen malá páka na boku (`secret` — bez hledání
-   podle bodu na zemi), knihovna odjede o `slide` podél stěny a odkryje otvor; zeď knihovny se posouvá s ní
-   (`wallGapAt`). Stav se ukládá stejně jako dveře.
-5. **Editor**:
-   1. Pohled do staveb (hotovo jako pokus): řádka Stavby v panelu editoru (Celé / Přízemí / Patro, klávesa B,
-      `BUILDING_VIEWS` v `editorSettings.js`). Zvolené podlaží dostane `updateInside` místo polohy postavy, takže
-      se schová totéž co ve hře, když tam postava stojí (patro, střecha, stěny ke kameře v pasu).
-      Průhled ke kameře v editoru míří na bod pod myší místo na postavu (`editorPeekPoint`, poloměr
-      `EDITOR_PEEK_RADIUS`); v pohledu do podzemního patra je vypnutý.
-   2. Volné pokládání dekorací (hotovo jako pokus, `editorFreePlace.js`): štětce dekorací pokládají volně, zaškrtnutím „Do buněk“ (`cells`) se vrátí k vyplňování buněk tažením.
-      Náhled (hologram) stojí přesně pod myší, klik přidá kus do návrhu (`freeDraft`) a políčko nemaže; s gumou (X)
-      klik dá do návrhu ke smazání nejbližší věc do `FREE_ERASE_REACH` (nebo ji vyřadí z návrhu). Návrh je vidět
-      jako zelené a červené hologramy (`showDraftModels`), pravé tlačítko odebere nejbližší kus z návrhu, Esc ho
-      zahodí a Enter / Aplikovat ho zapíše najednou (jeden krok Zpět, jedno přestavění dekorací). Zápis v mapě: políčko + přesný posun,
-      `exact: true` (bez náhodného posunu, otočení a velikosti z `decoJitter`) a `rotation` v čtvrtotáčkách
-      (štětce bez natočení dostanou náhodné, ale uložené). Náhodnou variantu a natočení si editor vylosuje předem
-      (`freeRoll`), náhled ukazuje přesně ten kus a po položení se losuje znovu. Bod pod myší: nejbližší podlaha stavby, kterou protne
-      paprsek z kamery (`deckOnRay`, v pohledu Přízemí bez patra), jinak terén. Na podlaze má dekorace
-      `deck: 'lower' | 'upper'` a výšku bere ze stavby (`deckAt`), ne z terénu; v patře neblokuje chůzi v přízemí
-      a schová se spolu s patrem (`showDeckDecorations`). Překážky dekorací už počítají s posunem v políčku.
-      Přenášení: štětec Přesun (`move`, mezi `COMMON_BRUSHES`) nebo Shift + klik zvedne nejbližší věc (`pickUpFree`);
-      originál jde do návrhu ke smazání, nesená kopie (`freeCarry`, otočení a velikost převzaté z `decoPlacement`)
-      se položí klikem jako nový kus s odkazem `movedFrom`, podle kterého panel vypisuje přesuny (`freeMoves`).
-      Návrh volného pokládání nezávisí na štětci: změna štětce ho nezahodí, jen Esc, Do buněk a zavření editoru.
-      Zatím ne: kokosy a listy kolem palem, vejce v hnízdě, jemnější otáčení než po 45°.
-   3. Stavění po dílech (rozhodnuto, cesta B): podlaha po buňkách, stěny po hranách, otvory, patro; zábradlí,
-      schody a střechu dopočítá stavba; nábytek jako volně položené dekorace.
-
-**Otevřené otázky:** zvednutá podlaha (dnes jen o pár centimetrů, výš potřebuje výšku
-chůze ze stavby a schod u dveří); tráva a dekorace pod podlahou (dnes se neschovávají,
-na místě srubu tráva není; věc na zemi, nad kterou je podlaha, nemá nápovědu, obrys, třpyt a nejde sebrat —
-`GameScene.coveredByFloor`, háček `covered` v `decoHighlightSystem` a `gatherSystem`; nápověda bere výšku
-viditelné podlahy pod myší — `pointedFloorY`, `deckOnRay` bez schovaných a vyříznutých pater — a ukáže jen věci
-do `STOREY_GAP` od ní, takže v patře neukáže ponk v přízemí); veranda.
+- Velikost rozhraní (`uiScale`) přes CSS `zoom` celé vrstvy `#hud-layer`; `hudFit.js` ji na
+  úzkém okně sníží. Věci umístěné podle bodu na obrazovce mají zoom vrácený, tažení oken ho přepočítá.
+- Esc nejdřív zavře okna, teprve pak pauzuje. Možnosti z pauzy pauzu schovají a vrátí.
+- Mapa ostrova (`sceneMap.js`, `mapPainter.js`): sever je +Z. Kreslí se z mřížky jen při její
+  změně; útes je jen tam, kde terén hranu nevyhlazuje (`hardEdgeAt`). Odkrytí drží
+  `explorationSystem.js` (base64 bajty v savu).
 
 ## Zveřejnění na GitHub Pages
 
-Hru zveřejní ručně spouštěný workflow `.github/workflows/pages.yml` (Actions → Zveřejnit na Pages →
-Run workflow); po pushnutí sám neběží. Stažení: Settings → Pages → Unpublish site. Hra se sestavuje
-s `base: './'` (Pages ji vystaví v podsložce `/Project-Greenfire/`), takže cesty k souborům musí být
-relativní. Mimo vývoj čte `sceneWorld.readMapFile` mapu z přibaleného `src/data/maps/<mapa>/map.json`
-místo z vývojového serveru; ukládání mapy z editoru online nefunguje.
+Ručně spouštěný workflow `.github/workflows/pages.yml`. Hra se sestavuje s `base: './'`,
+takže **cesty k souborům musí být relativní**. Mimo vývoj se mapa čte z přibaleného
+`map.json`; ukládání mapy z editoru online nefunguje.

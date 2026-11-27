@@ -31,7 +31,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ### Úklid a dokumentace
 - [ ] Prověřit zbytky starého schovávání střechy (`roofMeshes` v `terrainSystem.js` a `GameScene.js`, dnes se ještě používají); smazat jen po souhlasu.
-- [ ] Zapsat patra, rentgen, chodby, rám vchodu a tvory přes patra do `DEV.md` a `src/editor/README.md`.
+- [ ] Zapsat patra, chodby a rám vchodu do `src/editor/README.md` (v `DEV.md` už jsou).
 
 ### Až později
 - [ ] Vrátit ležení na začátku hry: `START_LYING` v `playerSystem.js` na `true`.
@@ -55,7 +55,7 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 
 ## Tvorové a boj
 
-### Zbraně a mířené rány (plán v `DEV.md`, sekce „Boj se zbraněmi — plán po etapách")
+### Zbraně a mířené rány (pravidla v `DEV.md`, sekce „Boj")
 
 - [ ] Etapa 3: vyzkoušet ve hře rozdělení rány mezi víc tvorů a sekundární ránu na pravé tlačítko, doladit čísla a animaci úderu klackem.
 - [ ] Šavli a kopí z truhly u spawnu po testu odebrat nebo přesunout (dnes jsou ve všech truhlách).
@@ -122,9 +122,10 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Vyzkoušet ve hře okno Vaření (klik na hořící táborák) a doladit léčení: maso 20 zdraví po 2 za sekundu, vejce 12 po 1,5.
 
 - [ ] Dekorace: léčivé byliny mohou být špatně umístěné ve skále (na strmých/útesových buňkách) — přeskočit nebo odsunout od stěny; dořešit s novým (objemovým) terénem.
-- [ ] Pirátský srub u útesu (−20…−18, 11…14): plán po etapách v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; chůze dovnitř, dveře, nábytek a knihovna na páku hotové (`DEV.md`, etapa 3). V editoru hotový pohled do staveb, volné pokládání dekorací i na podlahy srubu a štětec Přesun (Shift + klik). Později zvuk odsouvání knihovny a vybavení z Meshy (chodba −21,12 se dá v editoru prodloužit). Okenice ne (piráti na tropickém ostrově je neřešili).
+- [ ] Pirátský srub u útesu (−20…−18, 11…14): pravidla v `DEV.md`, sekce „Stavby". Přízemí, patro s pavlačí, schody, střecha a porůstání jsou hotové jako pokus; chůze dovnitř, dveře, nábytek a knihovna na páku hotové. V editoru hotový pohled do staveb, volné pokládání dekorací i na podlahy srubu a štětec Přesun (Shift + klik). Později zvuk odsouvání knihovny a vybavení z Meshy (chodba −21,12 se dá v editoru prodloužit). Okenice ne (piráti na tropickém ostrově je neřešili).
   - [ ] Nábytek srubu jako dekorace. Volně stojící kusy a drobnosti jsou hotové. Pracovní místa jsou hotová jako pokus (ponk ve štětci Výroba spolu s táborákem, lucerna v Drobnostech, `DEV.md`, „Pracovní místa“); vyzkoušet ve hře a v editoru. Další etapa:
-    4. Ve srubu zatím zůstává knihovna s pákou (tajné dveře), houpací síť, police, sítě a vlajka — vyřeší stavění po dílech (`DEV.md`, etapa 5.3).
+    4. Ve srubu zatím zůstává knihovna s pákou (tajné dveře), houpací síť, police, sítě a vlajka — vyřeší stavění po dílech v editoru (rozhodnuto: podlaha po buňkách, stěny po hranách, otvory, patro; zábradlí, schody a střechu dopočítá stavba, nábytek jako volně položené dekorace).
+  - [ ] Stavby, otevřené otázky: stěny srubu vrhají stín a zastaví dohled (`metadata.volume`); tvor u zavřených dveří (dnes je zmatený a vzdá to — obléhání nebo vyražení?); zvednutá podlaha (dnes jen pár cm, výš chce výšku chůze ze stavby a schod u dveří); tráva a dekorace pod podlahou se neschovávají; veranda.
   - [ ] Doplňky volného pokládání: jemnější otáčení než po 45°, drobnosti přenášet spolu se stolem, na kterém leží, kokosy a listy kolem palem a vejce v hnízdě i při volném pokládání.
 - [ ] Rozhodnout o šířce plynulého okraje pláže.
 - [ ] Světla znovu od základu: vymyslet praktičtější systém, ve kterém může svítit víc luceren, táboráků a pochodní najednou a světlo neprojde zdí. Dnes jsou jen dvě přidělovaná světla ohně (jedno se stínem pro nejbližší lucernu či táborák, jedno bez stínu pro pochodeň), takže druhá rozsvícená lucerna do okolí nesvítí. Druhé světlo se stínem zkoušeno 26. 11. 2026: materiály země pak mají 17 textur z 16 možných a nábytek, lucerny a tvorové (max 4 světla) by přišli o slunce. Podklady v `DEV.md`, „Světla ohně“.
