@@ -200,8 +200,14 @@ export function instantiateModel(scene, template, name) {
   for (const child of node.getChildMeshes()) {
     child.setEnabled(true);
     child.isPickable = false;
+    dropOwnPointCopy(child);
   }
   return node;
+}
+
+function dropOwnPointCopy(mesh) {
+  const info = mesh._internalAbstractMeshDataInfo;
+  if (info && !mesh.skeleton && !mesh.morphTargetManager) info._positions = null;
 }
 
 
