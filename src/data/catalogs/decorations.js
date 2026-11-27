@@ -1181,6 +1181,7 @@ export const DECORATION_TYPES = {
     kind: 'floor',
     surface: {
       label: 'Tráva',
+      mapColor: [104, 138, 70],
       texture: grassGroundUrl(),
       tile: GRASS_GROUND.tile,
       shade: GRASS_GROUND.shade,
@@ -1212,6 +1213,7 @@ export const DECORATION_TYPES = {
     kind: 'floor',
     surface: {
       label: 'Džungle',
+      mapColor: [52, 96, 48],
       texture: `${ASSET_DIRS.textures}Ground037_1K-JPG_Color.jpg`,
       tile: 3.2,
       ambient: [0.06, 0.08, 0.05],
@@ -1242,6 +1244,7 @@ export const DECORATION_TYPES = {
     blocks: false,
     kind: 'floor',
     surface: {
+      mapColor: [214, 196, 150],
       texture: `${ASSET_DIRS.textures}Ground052_1K-JPG_Color.jpg`,
       tile: 3,
       ambient: [0.09, 0.08, 0.07],
@@ -1274,6 +1277,7 @@ export const DECORATION_TYPES = {
     kind: 'floor',
     surface: {
       label: 'Hlína',
+      mapColor: [150, 112, 78],
       texture: `${ASSET_DIRS.textures}Ground076_1K-JPG_Color.jpg`,
       tile: 2.6,
       ambient: [0.09, 0.08, 0.07],
@@ -1305,6 +1309,7 @@ export const DECORATION_TYPES = {
     kind: 'floor',
     surface: {
       label: 'Štěrk',
+      mapColor: [138, 134, 124],
       texture: `${ASSET_DIRS.textures}Ground108_1K-JPG_Color.jpg`,
       tile: 1.8,
       ambient: [0.09, 0.09, 0.08],

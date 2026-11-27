@@ -143,7 +143,8 @@ export default {
   startPaint(cell) {
     this.lastPaintCell = { cx: cell.cx, cz: cell.cz };
     if (this.mode.mode === 'floors') {
-      if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
+      if (this.mode.undergroundFloor && this.mode.areaTool === 'name') this.askCaveName(cell);
+      else if (this.mode.undergroundFloor) this.mode.beginFloorDrag(cell.cx, cell.cz);
       else this.startCave(cell);
     } else if (this.mode.mode === 'area') this.mode.beginAreaDrag(cell.cx, cell.cz);
     else if (this.mode.mode === 'height') {

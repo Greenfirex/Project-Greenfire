@@ -50,7 +50,7 @@ export default {
     const spawn = this.spawnCell();
     const water = this.layout && Number.isFinite(this.layout.waterLevel) ? this.layout.waterLevel : null;
     const bodies = JSON.stringify([(this.layout && this.layout.lakes) || [], (this.layout && this.layout.rivers) || [], (this.layout && this.layout.connectors) || []]);
-    const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${bodies}|${this.layout ? this.layout.seed : ''}|${JSON.stringify((this.layout && this.layout.floorNames) || {})}`;
+    const head = `${count}|${sum}|${spawn ? `${spawn.cx},${spawn.cz}` : '-'}|${water}|${bodies}|${this.layout ? this.layout.seed : ''}|${JSON.stringify((this.layout && this.layout.floorNames) || {})}|${JSON.stringify((this.layout && this.layout.caveNames) || [])}`;
     return hashText(head);
   },
 

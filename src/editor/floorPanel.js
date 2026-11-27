@@ -51,6 +51,7 @@ export default class FloorPanel {
           <button type="button" data-tool="paint">Vykopat</button>
           <button type="button" data-tool="erase">Zasypat</button>
           <button type="button" data-tool="corridor">Chodba</button>
+          <button type="button" data-tool="name" title="Klikni na jeskyni a dej jí jméno">Pojmenovat</button>
         </div>
         <div class="area-panel__surfaces"></div>
         <div class="area-panel__height">
@@ -135,6 +136,7 @@ export default class FloorPanel {
     this.renderTarget(view.floors, view.caveTarget, !underground);
     const erasing = view.tool === 'erase';
     root.classList.toggle('is-erasing', erasing);
+    root.classList.toggle('is-naming', view.tool === 'name' && underground);
     for (const btn of root.querySelectorAll('[data-tool]')) btn.classList.toggle('is-active', btn.dataset.tool === view.tool);
     for (const btn of this.surfaceRow.querySelectorAll('[data-surface]')) btn.classList.toggle('is-active', btn.dataset.surface === view.surface);
     root.querySelector('.floor-panel__height').textContent = `podlaha ${formatMeters(view.height)}`;
@@ -143,7 +145,9 @@ export default class FloorPanel {
     root.querySelector('.area-panel__apply').disabled = view.count === 0;
     root.querySelector('.area-panel__clear').disabled = view.count === 0;
     root.querySelector('.area-panel__undo').disabled = !view.undoEnabled;
-    root.querySelector('.area-panel__note').textContent = view.tool === 'corridor' && underground
+    root.querySelector('.area-panel__note').textContent = view.tool === 'name' && underground
+      ? 'Klikni na vykopanou jeskyni a napiš jméno. Platí pro celou souvislou jeskyni v tomhle patře a ukáže se hráči na mapě i v oznámení Objeveno. Prázdné jméno ho smaže (pak se použije jméno patra).'
+      : view.tool === 'corridor' && underground
       ? 'Táhni od začátku ke konci chodby, pak Aplikovat. Chodba naváže na podlahu, u které začíná, a plynule klesne k nastavené výšce podlahy. Průchod do jiného patra vznikne sám, když se podlahy potkají do 0,6 m.'
       : underground
       ? 'Táhni myší — označí se obdélník a každé další tažení k výběru přidává. Pravým tlačítkem buňku z výběru odebereš, Esc zahodí vše. Pak Aplikovat. Průchod ven vznikne sám tam, kde podlaha navazuje na zem vedle (rozdíl do 0,6 m).'

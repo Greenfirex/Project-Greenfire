@@ -66,7 +66,7 @@ export default {
   },
 
   setAreaTool(tool) {
-    const next = tool === 'erase' || tool === 'corridor' ? tool : 'paint';
+    const next = tool === 'erase' || tool === 'corridor' || tool === 'name' ? tool : 'paint';
     if (this.areaTool === next) return;
     this.areaTool = next;
     this.areaDrag = null;

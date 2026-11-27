@@ -82,6 +82,9 @@ import CreaturePanel from '../ui/creaturePanel.js';
 import BestiaryWindow from '../ui/bestiaryWindow.js';
 import CraftingWindow from '../ui/craftingWindow.js';
 import JournalWindow from '../ui/journalWindow.js';
+import MapWindow from '../ui/mapWindow.js';
+import CompassBar from '../ui/compassBar.js';
+import ExplorationSystem from '../systems/world/explorationSystem.js';
 import BestiarySystem from '../systems/creatures/bestiarySystem.js';
 import { takeModelError, preloadModel, loadContainer, loadImported } from '../utils/assetLoader.js';
 import { WAVE_TIME_WRAP, SEA_DIRECTION } from '../utils/waterWaves.js';
@@ -110,6 +113,7 @@ import sceneProgressParts from './sceneProgress.js';
 import sceneSurvivalParts from './sceneSurvival.js';
 import sceneSaveParts from './sceneSave.js';
 import sceneReloadParts from './sceneReload.js';
+import sceneMapParts from './sceneMap.js';
 
 const LOADING_DRAW_MS = 500;
 
@@ -278,6 +282,12 @@ export default class GameScene {
     this.bestiaryWindow = new BestiaryWindow();
     this.journalButton = new DockButton({ icon: PANEL_ICONS.journal, label: 'Deník', key: 'J', slot: 'journal' });
     this.journalWindow = new JournalWindow();
+    this.mapButton = new DockButton({ icon: PANEL_ICONS.map, label: 'Mapa', key: 'M', slot: 'map' });
+    this.mapWindow = new MapWindow();
+    this.compassBar = new CompassBar();
+    this.exploration = new ExplorationSystem();
+    this.mapRevealedAt = null;
+    this.mapFogVersion = -1;
     this.craftButton = new DockButton({ icon: PANEL_ICONS.craft, label: 'Výroba', key: 'V', slot: 'craft' });
     this.craftingWindow = new CraftingWindow();
     this.cookingWindow = new CraftingWindow({ id: 'hud-cooking', closeTitle: 'Zavřít', look: 'station-window', ...RECIPE_STATIONS.fire });
@@ -462,6 +472,7 @@ export default class GameScene {
       this.refreshPlayerOverheadBars();
       this.refreshPinnedCreature();
       this.refreshMouseHint();
+      this.updateMapHud();
       this.portraitSystem.update(this.playerSystem.root, this.playerSystem.anims.idle, this.playerSystem.handSlot);
       this.updateReveal(dt);
       this.updateBuildingInside(dt);
@@ -554,7 +565,6 @@ export default class GameScene {
     this.saveSystem.dropLegacy();
     this.setupSave();
     if (this.pendingLoadSlot) this.loadSaveState(this.pendingLoadSlot);
-    this.gainXp(350);
     this.loader.beginFloat('Budím postavu…');
     await this.setupPlayer();
     this.loader.floatProgress(1, 1, 'Balím výbavu…');
@@ -586,6 +596,7 @@ export default class GameScene {
       this.dialog.tell(notice);
     }
     this.gatherSystem.syncFromDeco();
+    this.prepareMap();
     this.syncFelling();
     this.syncHarvest();
     this.gatherSystem.setPlayer(this.playerSystem);
@@ -1327,6 +1338,7 @@ export default class GameScene {
       this.creatureSystem.tick(tick, this.simSystem.time);
       this.playerStats.tick(tick, this.playerSystem.sprinting);
       this.tickSurvival(tick);
+      this.tickExploration();
     });
     this.refreshClock();
     this.hud.setClockSpeed(false, this.simSystem.speed);
@@ -1551,6 +1563,7 @@ export default class GameScene {
     this.bagButton.onClick = () => this.toggleCharacterPanel();
     this.bestiaryButton.onClick = () => this.toggleBestiaryWindow();
     this.journalButton.onClick = () => this.toggleJournalWindow();
+    this.mapButton.onClick = () => this.toggleMapWindow();
     this.craftButton.onClick = () => this.toggleCraftingWindow();
     this.craftingWindow.onCraft = (key) => this.craftRecipe(key);
     this.cookingWindow.onCraft = (key) => this.craftRecipe(key);
@@ -1558,7 +1571,14 @@ export default class GameScene {
     this.bagButton.mount();
     this.bestiaryButton.mount();
     this.journalButton.mount();
+    this.mapButton.mount();
     this.craftButton.mount();
+    this.compassBar.mount();
+    this.mapWindow.onPinClick = (cx, cz, reach) => this.clickMapPin(cx, cz, reach);
+    this.mapWindow.onClose = () => {
+      this.mapButton.setActive(false);
+      this.audioSystem.play('windowClose');
+    };
     this.journalWindow.onClose = () => {
       this.journalButton.setActive(false);
       this.audioSystem.play('windowClose');
@@ -1663,6 +1683,10 @@ export default class GameScene {
     }
     if (this.journalWindow.open) {
       this.journalWindow.close();
+      closed = true;
+    }
+    if (this.mapWindow.open) {
+      this.mapWindow.close();
       closed = true;
     }
     if (this.lootWindow.open) {
@@ -1799,6 +1823,7 @@ export default class GameScene {
     this.registerSavedState(this.harvestSystem, 'harvest', 15);
     this.registerSavedState(this.creatureSystem, 'creatures', 16);
     this.registerSavedState(this.bestiary, 'bestiary', 17);
+    this.registerSavedState(this.exploration, 'exploration', 18);
     this.registerSavedState(this.dayNightSystem, 'dayNight', 20);
     this.registerSavedState(this.simSystem, 'sim', 25);
     this.saveSystem.register('inventory', {
@@ -2001,6 +2026,12 @@ export default class GameScene {
       if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
       evt.preventDefault();
       this.toggleJournalWindow();
+      return;
+    }
+    if ((evt.key === 'm' || evt.key === 'M') && !typing) {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      evt.preventDefault();
+      this.toggleMapWindow();
       return;
     }
     if ((evt.key === 'v' || evt.key === 'V') && !typing) {
@@ -2282,4 +2313,4 @@ export default class GameScene {
   }
 }
 
-Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSurvivalParts, sceneSaveParts, sceneReloadParts);
+Object.assign(GameScene.prototype, sceneWorldParts, sceneCombatParts, sceneGatheringParts, sceneStepsParts, sceneEquipmentParts, sceneCraftingParts, sceneFoodParts, sceneProgressParts, sceneSurvivalParts, sceneSaveParts, sceneReloadParts, sceneMapParts);

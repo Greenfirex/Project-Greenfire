@@ -52,6 +52,7 @@ export default class Hud {
       <div class="hud-row"><span>Rychlé uložení</span><span class="hud-key">F5</span></div>
       <div class="hud-row"><span>Rychlé načtení</span><span class="hud-key">F9</span></div>
       <div class="hud-row"><span>Možnosti</span><span class="hud-key">O</span></div>
+      <div class="hud-row"><span>Mapa</span><span class="hud-key">M</span></div>
       <div class="hud-row"><span>Inventář / postava</span><span class="hud-key">I</span> <span class="hud-key">C</span></div>
       <div class="hud-row"><span>Pauza / pokračovat</span><span class="hud-key">P</span></div>
       <div class="hud-row"><span>Skrýt nápovědu</span><span class="hud-key">F1</span></div>

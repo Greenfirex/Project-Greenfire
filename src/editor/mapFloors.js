@@ -5,6 +5,7 @@ import { brushAboveGroundOnly } from '../data/catalogs/brushes.js';
 import { NO_FLOOR_PICK_HEIGHT } from '../scenes/sceneSettings.js';
 import { floorName } from './floorPanel.js';
 import { nextDoorFrame } from './editorFloors.js';
+import { CAVE_NAME_MAX } from '../data/maps/caveNames.js';
 import { SIDES, MARK_COLORS } from './editorSettings.js';
 import { ZONE } from './mapOverlays.js';
 
@@ -125,6 +126,29 @@ export default {
     });
   },
 
+  askCaveName(cell) {
+    const level = this.mode.floorLevel;
+    const dug = this.mode.floorEntries(level).some((entry) => entry.cx === cell.cx && entry.cz === cell.cz);
+    if (!dug) {
+      this.hud.setReadout('Klikni na vykopanou jeskyni v tomhle patře');
+      return;
+    }
+    this.s.dialog.ask({
+      title: 'Pojmenovat jeskyni',
+      text: 'Jméno platí pro celou souvislou jeskyni v tomhle patře. Hráč ho uvidí na mapě a v oznámení Objeveno. Prázdné pole jméno smaže.',
+      input: { value: this.mode.caveNameOf(level, cell.cx, cell.cz) || '', placeholder: this.caveFloorLabel(level), maxLength: CAVE_NAME_MAX },
+      confirmLabel: 'Uložit',
+      onConfirm: (name) => {
+        if (!this.mode.renameCave(level, cell.cx, cell.cz, name)) return;
+        this.refreshUndoButton();
+        this.refreshFloorPanel();
+        this.markDirty();
+        const text = String(name || '').trim();
+        this.hud.setReadout(text ? `Jeskyně se jmenuje „${text}“` : 'Jméno jeskyně smazáno');
+      },
+    });
+  },
+
   showCaveStart(plan) {
     if (!plan) {
       this.s.gridSystem.showEdges([]);
@@ -189,6 +213,13 @@ export default {
     this.hud.setCursorValue(null);
     if (!this.mode.undergroundView) {
       this.showCaveStart(this.mode.caveStartAt(cell));
+      return;
+    }
+    if (this.mode.mode !== 'zone' && this.mode.areaTool === 'name') {
+      const level = this.mode.floorLevel;
+      const dug = this.mode.floorEntries(level).some((entry) => entry.cx === cell.cx && entry.cz === cell.cz);
+      const name = dug ? this.mode.caveNameOf(level, cell.cx, cell.cz) : null;
+      this.s.tooltipPanel.show(dug ? (name || 'Jeskyně bez jména') : 'Tady jeskyně není', dug ? `Klikni a napiš jméno · bez jména se použije „${this.caveFloorLabel(level)}“` : `${cell.cx}, ${cell.cz}`);
       return;
     }
     const zone = this.mode.mode === 'zone';

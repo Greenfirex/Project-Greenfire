@@ -1220,3 +1220,10 @@
 .editor-height-label.is-flat {
   color: #cfd8d6;
 }
+
+.floor-panel.is-naming .area-panel__surfaces,
+.floor-panel.is-naming .area-panel__height,
+.floor-panel.is-naming .area-panel__count,
+.floor-panel.is-naming .area-panel__actions {
+  display: none;
+}

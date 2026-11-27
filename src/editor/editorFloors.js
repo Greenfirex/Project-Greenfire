@@ -5,6 +5,7 @@ import { HEIGHT_STEP } from '../data/maps/layoutStore.js';
 import { CELL_SIZE, cellKey } from '../utils/gridMath.js';
 import { CAVE_OPEN_STEP, DOOR_FRAME_STYLES, caveOpensInto, columnsByCell, doorFrameStyleOf, dropDecorationCell, dropLayerCell, floorCellAt, layerLiftAt, levelOfEntry, planeLevels } from '../data/maps/areaShape.js';
 import { SIDES, parseCell } from './editorSettings.js';
+import { CAVE_NAME_MAX, caveNameAt, caveNameIndex, caveRegion } from '../data/maps/caveNames.js';
 
 export const MIN_CLEARANCE = 3;
 export const MAX_CORRIDOR_STEP = 1;
@@ -88,6 +89,25 @@ export default {
     if (text) this.layout.floorNames[level] = text;
     else delete this.layout.floorNames[level];
     this.repaint([]);
+  },
+
+  caveNameOf(level, cx, cz) {
+    const found = caveNameAt(caveNameIndex(this.layout), level, cx, cz);
+    return found ? found.name : null;
+  },
+
+  renameCave(level, cx, cz, name) {
+    if (!this.layout || level === 0) return false;
+    const region = caveRegion(this.layout, level, cx, cz);
+    if (!region.size) return false;
+    const text = String(name || '').trim().slice(0, CAVE_NAME_MAX);
+    if ((this.caveNameOf(level, cx, cz) || '') === text) return true;
+    this.pushHistory([]);
+    const kept = (this.layout.caveNames || []).filter((item) => item.level !== level || !region.has(`${item.cx},${item.cz}`));
+    if (text) kept.push({ level, cx, cz, name: text });
+    this.layout.caveNames = kept;
+    this.repaint([]);
+    return true;
   },
 
   selectFloor(level) {

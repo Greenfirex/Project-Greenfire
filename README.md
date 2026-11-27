@@ -28,6 +28,7 @@ vstup je zamčený, dokud obrazovka nezmizí.
 | **1–9, 0** | Výběr předmětu v ruce z lišty dole, jídlo na liště sní; na lištu se věci přetahují z batohu, pravé tlačítko je z ní sundá |
 | **Pravý klik nebo dvojklik v batohu** | Chytré použití: výbavu nasadí (místo ní vrátí do batohu to, co bylo nasazené), nástroj dá na lištu dole, nebo z ní sundá, jídlo sní (u jídla je v detailu i tlačítko Použít); na nasazené věci ji sundá do batohu |
 | **I / C / B / J / V** | Postava a batoh (obojí I i C) / bestiář / deník / výroba — velká okna uprostřed obrazovky, jde s nimi tahat (také malými tlačítky vpravo od lišty); deník a výroba jsou zatím prázdné. Vlevo od lišty je nápověda, co teď udělá levé, pravé a prostřední tlačítko myši |
+| **M** | Mapa — ukazuje jen místa, kde už jsi byl. Kolečkem přiblížíš, tažením posuneš, pravým tlačítkem dáš nebo sebereš vlastní křížek. Nahoře uprostřed je kompas, který se točí s kamerou |
 | **Levé tlačítko u houby / kokosu / klacku** | Sebrání (podržet = opakovat) |
 | **Levé tlačítko u truhly / kostry / táboráku** | Otevřít / prohledat / zapálit (stačí stát u nich) |
 | **Mezerník** | Úskok směrem, kterým jdeš (bez pohybu dozadu od kurzoru); stojí energii a na chvilku tě nic nezraní. Tvor před kousnutím ukáže na zemi červenou výseč, z ní se dá utéct i uskočit |

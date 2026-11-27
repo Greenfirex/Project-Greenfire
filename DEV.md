@@ -167,6 +167,28 @@ a v logu) do Výroby nepatří a má vlastní okno. `fire` = Vaření (`cookingW
 `CraftingWindow`): otevře ho klik na hořící táborák na dosah (`campfireSystem.burning`) a zavře
 se, když hráč od ohně odejde (`updateCraftingStations` v `sceneCrafting.js`). Tak se peče maso
 a vejce Koa'tiki. Okno Deník (`journalWindow.js`, klávesa J) je zatím prázdný panel.
+Kompas a mapa (`sceneMap.js`): sever je +Z ve světě a na mapě nahoře, východ +X. Pruh kompasu
+(`compassBar.js`) bere směr z natočení kamery. Okno Mapa (`mapWindow.js`, klávesa M) kreslí povrch
+(patro 0) po buňkách barvou `surface.mapColor` z katalogu povrchů, útesy tmavší, vodu podle hloubky.
+Odkryté buňky a špendlíky drží `explorationSystem.js` (v uložené hře klíč `exploration`, odkrytí
+jako bajty v base64); odkrývá se v pevném ticku v kruhu kolem hráče, jen na povrchu.
+Objevená místa (`found`): vchod do jeskyně se zapíše na mapu, až když hráč dojde na 2,5 buňky k němu,
+stavba na 2 buňky; vchod uvnitř stavby (tajný) až po vstupu do patra, kam vede. Poprvé objevená jeskyně
+(jméno jeskyně, jinak jméno patra z `floorNames`, jinak „Jeskyně“) a stavba se ohlásí zlatým oznámením „Objeveno“.
+
+Jména jeskyní (`caveNames` v mapě, `src/data/maps/caveNames.js`): jméno patří souvislé jeskyni v patře
+(buňky patra spojené bokem), ne celému patru. Uloží se jen jméno a jedna buňka, zbytek se dopočítá, takže
+jméno roste s jeskyní. Když se dvě pojmenované jeskyně propojí, platí jméno zapsané dřív. Nastavuje se
+v editoru: Patra, vybrat podzemní patro, nástroj Pojmenovat, klik na jeskyni.
+Patro je kvůli výšce (plochy nad sebou), ne kvůli jménu; víc jeskyní, které pod sebou neleží, patří do jednoho patra.
+Vzhled mapy: papír, rámeček a ikony jsou obrázky z Gemini (zdroje v `_sources/`, upravené do
+`public/assets/ui/map/`, bílé pozadí převedené na průhlednost). Krajinu kreslí `mapPainter.js` z mřížky,
+kterou mu dá `prepareMap` (povrch, výška, hloubka vody po buňkách), do obrázku 8 bodů na buňku: povrch
+se v každém bodě vybírá podle váhy čtyř sousedních buněk s roztřesením šumem (oblé hranice), pobřeží
+a vlnky podle vzdálenosti od souše; vrstevnice nejsou, jen útesy jako čára nahoře a stín pod ní. Útes je
+tam, kde terén hranu nevyhlazuje (`terrainSystem.hardEdgeAt`: skok nad 2 m nebo buňka označená jako útes),
+takže strmý svah útesem na mapě není. Ikony se míchají s papírem násobením. Překresluje se jen při
+změně mřížky. Odkryté místo se ořízne rozmazanou maskou a na papír se míchá násobením.
 Rozpracované a plánované věci jsou v `TODO.md`.
 
 Dolní lišta (`src/ui/dock.js`, `dockArea`) má ukazatele zdraví a energie nad lištou nástrojů.

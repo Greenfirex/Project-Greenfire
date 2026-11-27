@@ -2,6 +2,7 @@
 import { getMap } from './maps.js';
 import { HEIGHT_STEP } from '../maps/layoutStore.js';
 import { PLANE_LAYERS } from '../maps/areaShape.js';
+import { caveNamesOf } from '../maps/caveNames.js';
 
 export const MAP_VERSION = 10;
 const GRID_025_VERSION = 10;
@@ -82,6 +83,7 @@ export function layoutFromMapFile(file, fallbackSeed = 1) {
     bridges: copy(world.bridges),
     connectors: copy(world.connectors),
     floorNames: { ...(world.floorNames || {}) },
+    caveNames: caveNamesOf(world.caveNames),
     buildings: copy(world.buildings),
   };
 }
@@ -138,6 +140,7 @@ export function mapFileFromLayout(mapKey, layout) {
     bridges: copy(layout.bridges),
     connectors: (layout.connectors || []).length ? layout.connectors.map((item) => ({ ...item })) : undefined,
     floorNames: Object.keys(layout.floorNames || {}).length ? { ...layout.floorNames } : undefined,
+    caveNames: caveNamesOf(layout.caveNames).length ? caveNamesOf(layout.caveNames) : undefined,
     buildings: (layout.buildings || []).length ? copy(layout.buildings) : undefined,
   };
 }

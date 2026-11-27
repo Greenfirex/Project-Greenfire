@@ -59,6 +59,8 @@ export default {
     if (JSON.stringify(wasRivers) !== JSON.stringify(this.layout.rivers || [])) patch.rivers = wasRivers;
     const wasNames = { ...(before.floorNames || {}) };
     if (JSON.stringify(wasNames) !== JSON.stringify(this.layout.floorNames || {})) patch.floorNames = wasNames;
+    const wasCaves = (before.caveNames || []).map((item) => ({ ...item }));
+    if (JSON.stringify(wasCaves) !== JSON.stringify(this.layout.caveNames || [])) patch.caveNames = wasCaves;
     return patch;
   },
 
@@ -101,6 +103,7 @@ export default {
     if ('lakes' in patch) this.layout.lakes = patch.lakes.map((lake) => ({ ...lake }));
     if ('rivers' in patch) this.layout.rivers = JSON.parse(JSON.stringify(patch.rivers));
     if ('floorNames' in patch) this.layout.floorNames = { ...patch.floorNames };
+    if ('caveNames' in patch) this.layout.caveNames = patch.caveNames.map((item) => ({ ...item }));
   },
 
   undo() {

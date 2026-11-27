@@ -3261,3 +3261,155 @@ body.has-custom-cursor * {
 }
 
 
+
+/* Kompas nahoře uprostřed — pás se světovými stranami, který jede pod pevnou ryskou. */
+#hud-layer > .hud-compass {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 300px;
+  height: 30px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(20, 15, 10, 0.55), rgba(20, 15, 10, 0.3));
+  border-top: 1px solid rgba(227, 194, 122, 0.45);
+  border-bottom: 1px solid rgba(227, 194, 122, 0.45);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  z-index: 11;
+}
+
+.hud-compass.is-hidden {
+  display: none;
+}
+
+.hud-compass__track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+}
+
+.hud-compass__point,
+.hud-compass__tick {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.hud-compass__point {
+  top: 7px;
+  font-family: var(--font-title);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-dim);
+  text-shadow: 0 1px 2px #000;
+}
+
+.hud-compass__point.is-main {
+  top: 5px;
+  font-size: 17px;
+  color: #f1dfb0;
+}
+
+.hud-compass__point.is-north {
+  color: #ff7a5c;
+}
+
+.hud-compass__tick {
+  top: 12px;
+  width: 1px;
+  height: 6px;
+  background: rgba(241, 223, 176, 0.45);
+}
+
+.hud-compass__needle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--title-gold);
+}
+
+/* Okno mapy — jen čtvercový list pergamenu bez kamenného rámu okna, křížek v rohu a pod listem řádek nápovědy. */
+.map-window.side-window {
+  --map-size: min(calc(100vh - 110px), 92vw, 820px);
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-image: none;
+  background: none;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.6));
+}
+
+.map-window.side-window::after,
+.map-window .side-window__title {
+  display: none;
+}
+
+.map-window .side-window__head {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  z-index: 3;
+}
+
+.map-window .side-window__close {
+  top: 8px;
+  right: 8px;
+}
+
+.map-window .side-window__body {
+  overflow: hidden;
+  gap: 6px;
+}
+
+.map-view {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--map-size);
+  height: var(--map-size);
+  overflow: hidden;
+}
+
+.map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 2px 7px;
+  font-size: 12px;
+  color: #f1dfb0;
+  white-space: nowrap;
+  background: rgba(20, 15, 10, 0.85);
+  border: 1px solid rgba(227, 194, 122, 0.4);
+  border-radius: 3px;
+  pointer-events: none;
+  display: none;
+}
+
+.map-label.is-shown {
+  display: block;
+}
+
+.map-hint {
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+}
