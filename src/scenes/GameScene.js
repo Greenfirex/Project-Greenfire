@@ -115,7 +115,7 @@ import sceneSaveParts from './sceneSave.js';
 import sceneReloadParts from './sceneReload.js';
 import sceneMapParts from './sceneMap.js';
 
-const LOADING_DRAW_MS = 500;
+const SPARSE_DRAW_MS = 500;
 
 const AUTOTUNE_WINDOW_MS = 2000;
 const AUTOTUNE_LOW_FPS = 45;
@@ -324,7 +324,7 @@ export default class GameScene {
     this.loader = new LoadingScreen();
     this.loader.onHiddenCallback = () => this.onLoadingHidden();
     this.isLoading = true;
-    this.loadingDrawnAt = 0;
+    this.sparseDrawnAt = 0;
     this.loaded = false;
     this.saveHintAfterLoad = null;
     this.autosaveTimer = 0;
@@ -552,10 +552,11 @@ export default class GameScene {
   }
 
   shouldDrawFrame() {
-    if (!this.isLoading || this.loader.allDone) return true;
+    const building = (this.isLoading && !this.loader.allDone) || this.rebuildRunning;
+    if (!building) return true;
     const now = performance.now();
-    if (now - this.loadingDrawnAt < LOADING_DRAW_MS) return false;
-    this.loadingDrawnAt = now;
+    if (now - this.sparseDrawnAt < SPARSE_DRAW_MS) return false;
+    this.sparseDrawnAt = now;
     return true;
   }
 

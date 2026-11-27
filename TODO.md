@@ -10,6 +10,24 @@ Krátký seznam aktuálních úkolů. Hotové položky se odsud mažou; historie
 - [ ] Ověřit, jestli se předměty hýbou s buňkou při změně výšky (tak nejspíš zapadly léčivé byliny).
 - [ ] Liana u nově vykopaného vchodu: objeví se hned, nebo až po znovunačtení?
 - [ ] Slabý obrys povrchu při kopání do prázdného patra, pokud bude chybět.
+- [ ] Rychlejší Aplikovat a větší ostrov (plán ~3× větší ostrov do tvaru U). Měřeno 27. 11. 2026 ve skrytém prohlížeči bez grafické karty, po opravě kreslení během přepočtu:
+
+  | | dnešní mapa (12 700 buněk) | zkušební U (50 000 buněk, 8 100 dekorací) |
+  |---|---|---|
+  | načtení | 16 s | 50 s |
+  | Aplikovat celkem | 9 s | 35 s |
+  | – terén | 5,7 s | 27 s |
+  | – dekorace | 2,8 s | 7 s |
+  | – voda | — | 6,8 s |
+  | paměť v klidu / špička | 0,7 / 1,1 GB | 2,0 / 2,8 GB (strop Opery ~4 GB) |
+
+  Postup po krocích, každý změřit zvlášť:
+  1. **Zrychlit výpočet tvaru terénu** (menší úprava). Ve profilu přepočtu na mapě U zabíraly funkce v `src/utils/terrainField.js` přes třetinu času: `hardMaskAt` 14 %, `sample` 8 %, `smoothed` 4 %, `acrossHard` 3 %, `trusted` 2 %, `patched` 2 %. Volají se milionkrát pro stejná místa; zkusit výsledky pro buňku zapamatovat (vyprázdnit při změně výšek). Dál `infoAt` a `weightsFor` v `createSurface` (`terrainSystem.js`): `weightsFor` počítá obrázek míchání povrchů přes celý obdélník mapy pro každý druh povrchu, u tvaru U je obdélník z velké části prázdné moře.
+  2. **Dekorace jen pro změněné buňky** (střední úprava). Dnes `rebuildDecorations` (`sceneWorld.js`) zavolá `decoSystem.beginStages`, smaže všechny kusy a postaví je znovu po etapách. Místo toho porovnat starý a nový seznam dekorací a jen přidat a odebrat rozdíly; potom znovu napojit sběr, táboráky, stanice, kořist a trávu (`finishRebuild`), ideálně i ty jen pro dotčené místo.
+  3. **Terén jen kolem změny** (velká úprava, víc sezení). Povrch už je rozdělený na čtverce (`SURFACE_CHUNK`, `surfaceChunks` v `terrainSystem.js`), ale skalní stěny (krok `mass`), mřížka a místa pro klik (krok `grid`), voda (`renderWater`), jeskyně, skalní ozdoby, liány a rámy vchodů (`refreshCaveLighting`) dnes počítají s celým ostrovem. Hlídat švy mezi přestavěným a starým kusem. Do kroku 3 jít až podle čísel po krocích 1–2.
+  - Další stopy z profilu načítání: `_markAllSubMeshesAsDirty` (7,5 %, knihovna Babylon; někdo opakovaně mění materiály během stavby) a `paintMap` v `src/ui/mapPainter.js` (5 %, kreslení mapy ostrova).
+  - Nevysvětleno: první měření mapy U viselo přes 10 minut, opakované už doběhlo. Nejspíš to způsobovalo kreslení celého světa mezi každými 30 dekoracemi (opraveno), jistota ale není; po krocích 1–2 pustit měření znovu.
+  - Měřicí skripty jsou v `tools/_temp/bigmap/` (`makeU.cjs` složí zkušební mapu, `measureMap.cjs` měří paměť a Aplikovat, `profileLoad.cjs` ukáže fáze a nejpomalejší funkce). Mapu podstrkují jen skrytému prohlížeči a ukládání na disk blokují. Složka `_temp` se do gitu neukládá, takže je při úklidu nesmazat.
 
 ### Úklid a dokumentace
 - [ ] Prověřit zbytky starého schovávání střechy (`roofMeshes` v `terrainSystem.js` a `GameScene.js`, dnes se ještě používají); smazat jen po souhlasu.
