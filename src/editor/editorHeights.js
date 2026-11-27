@@ -10,6 +10,7 @@ import { SIDES, AROUND, parseCell, clampLevel } from './editorSettings.js';
 const ROUGH_SKIP = 0.32;
 const HEIGHT_BRUSH_MAX = 3;
 const HEIGHT_JITTER_MAX = 2;
+const SLOPE_RINGS_MAX = 160;
 
 export default {
   setHeightLevel(level) {
@@ -94,9 +95,11 @@ export default {
   heightShape(brushKey, zone, mode = 'add') {
     const brush = BRUSHES[brushKey];
     const level = this.brushHeight(brushKey) * HEIGHT_STEP;
-    const zoneEntries = zone.map(({ cx, cz }) => ({ cx, cz, height: level, zone: true }));
-    if (!brush || !brush.falloff || !level) return { zone: zoneEntries, slope: [] };
     const sign = Math.sign(level);
+    const fromGround = Boolean(brush && brush.fromGround) && mode !== 'remove';
+    const target = fromGround ? clampLevel(Math.round((this.zoneGroundEdge(zone, sign) + level) / HEIGHT_STEP)) * HEIGHT_STEP : level;
+    const zoneEntries = zone.map(({ cx, cz }) => ({ cx, cz, height: target, zone: true }));
+    if (!brush || !brush.falloff || !level) return { zone: zoneEntries, slope: [] };
     const steep = this.brushOptionValue(brushKey, 'steep');
     const rough = this.brushOptionValue(brushKey, 'rough');
     const drop = HEIGHT_STEP * (steep ? 2 : 1);
@@ -104,8 +107,9 @@ export default {
     const affected = new Map();
     for (const entry of zoneEntries) affected.set(cellKey(entry.cx, entry.cz), entry);
     let frontier = new Map(zoneEntries.map((entry) => [cellKey(entry.cx, entry.cz), entry]));
-    let nextLevel = level - sign * drop;
-    while (Math.abs(nextLevel) > 1e-6) {
+    let nextLevel = target - sign * drop;
+    let rings = 0;
+    while (fromGround ? rings < SLOPE_RINGS_MAX : Math.abs(nextLevel) > 1e-6) {
       const next = new Map();
       for (const entry of frontier.values()) {
         for (const [dx, dz] of AROUND) {
@@ -116,12 +120,14 @@ export default {
           if (rough && valueNoise(cx / 2.6 + 17.3, cz / 2.3 - 9.1) < ROUGH_SKIP) continue;
           const ring = { cx, cz, height: nextLevel, zone: false };
           affected.set(key, ring);
+          if (fromGround && !this.slopeReshapes(ring, sign)) continue;
           next.set(key, ring);
         }
       }
       if (!next.size) break;
       frontier = next;
       nextLevel -= sign * drop;
+      rings += 1;
     }
     const slope = [];
     for (const entry of affected.values()) {
@@ -130,10 +136,20 @@ export default {
         slope.push(entry);
         continue;
       }
-      const current = this.cellHeightValue(entry.cx, entry.cz);
-      if (sign > 0 ? entry.height > current : entry.height < current) slope.push(entry);
+      if (this.slopeReshapes(entry, sign)) slope.push(entry);
     }
     return { zone: zoneEntries, slope };
+  },
+
+  zoneGroundEdge(zone, sign) {
+    const heights = zone.map(({ cx, cz }) => this.cellHeightValue(cx, cz));
+    if (!heights.length) return 0;
+    return sign > 0 ? Math.max(...heights) : Math.min(...heights);
+  },
+
+  slopeReshapes(entry, sign) {
+    const current = this.cellHeightValue(entry.cx, entry.cz);
+    return sign > 0 ? entry.height > current : entry.height < current;
   },
 
   heightDraftShape(draft) {

@@ -164,7 +164,10 @@ Hmota svítí i přes terén, takže je vidět i výkop. Na označených buňká
 nová výška — zeleně nahoru, červeně dolů, v závorce ta současná. U kurzoru je vidět
 výška buňky pod myší.
 
-- **Kopec** a **Prohlubeň** si svah staví samy po 0,25 m až do nuly.
+- **Kopec** a **Prohlubeň** měří od země pod tahem: Kopec dá rovný vrchol o zvolenou
+  výšku nad nejvyšší místo, Prohlubeň rovné dno o zvolenou hloubku (0,5–8 m) pod
+  nejnižší místo. Svah si staví samy po 0,25 m, dokud nenarazí na okolní terén.
+  Mazat dál vrací jejich buňky na výšku 0.
 - **Strmý svah** spadne o 0,5 m na řadu.
 - **Nepravidelný svah** část buněk vynechá, takže obrys není kruh.
 - **Útes** drží svislou stěnu a na hranici se výška nedopočítává. Hrany vyšší
