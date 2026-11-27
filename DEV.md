@@ -1430,3 +1430,11 @@ na místě srubu tráva není; věc na zemi, nad kterou je podlaha, nemá nápov
 `GameScene.coveredByFloor`, háček `covered` v `decoHighlightSystem` a `gatherSystem`; nápověda bere výšku
 viditelné podlahy pod myší — `pointedFloorY`, `deckOnRay` bez schovaných a vyříznutých pater — a ukáže jen věci
 do `STOREY_GAP` od ní, takže v patře neukáže ponk v přízemí); veranda.
+
+## Zveřejnění na GitHub Pages
+
+Hru zveřejní ručně spouštěný workflow `.github/workflows/pages.yml` (Actions → Zveřejnit na Pages →
+Run workflow); po pushnutí sám neběží. Stažení: Settings → Pages → Unpublish site. Hra se sestavuje
+s `base: './'` (Pages ji vystaví v podsložce `/Project-Greenfire/`), takže cesty k souborům musí být
+relativní. Mimo vývoj čte `sceneWorld.readMapFile` mapu z přibaleného `src/data/maps/<mapa>/map.json`
+místo z vývojového serveru; ukládání mapy z editoru online nefunguje.

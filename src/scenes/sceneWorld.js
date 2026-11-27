@@ -13,6 +13,7 @@ import { riverCells, riverFalls } from '../utils/riverPlan.js';
 import { cellKey, worldToCellCoords } from '../utils/gridMath.js';
 import { nestSpots } from '../utils/nestGuard.js';
 
+const BUNDLED_MAPS = import.meta.glob('../data/maps/*/map.json', { query: '?url', import: 'default', eager: true });
 const WORLD_BATCH = 30;
 const WORLD_BATCH_BULK = 1500;
 const STAGE_LEAD_FRAMES = 2;
@@ -529,16 +530,17 @@ export default {
   },
 
   readMapFile() {
-    return `/_map/${encodeURIComponent(this.mapKey)}`;
+    if (!import.meta.env.DEV) return fetch(BUNDLED_MAPS[`../data/maps/${this.mapKey}/map.json`]);
+    return fetch(`/_map/${encodeURIComponent(this.mapKey)}`, {
+      method: 'POST',
+      headers: { 'X-Map-Read': '1', 'Cache-Control': 'no-store' },
+      cache: 'no-store',
+    });
   },
 
   async loadMapFile() {
     try {
-      const response = await fetch(this.readMapFile(), {
-        method: 'POST',
-        headers: { 'X-Map-Read': '1', 'Cache-Control': 'no-store' },
-        cache: 'no-store',
-      });
+      const response = await this.readMapFile();
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const file = await response.json();
       if (!isMapFile(file)) throw new Error('neplatný tvar souboru');

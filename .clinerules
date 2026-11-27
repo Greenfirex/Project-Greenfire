@@ -77,7 +77,7 @@
 
 ## Soubory a dokumentace
 - Dočasné soubory jen do `tools/_temp/` (je v `.gitignore`).
-- V rootu jsou jen: `.clinerules`, `CLAUDE.md`, `.claude/`, `.gitignore`,
+- V rootu jsou jen: `.clinerules`, `CLAUDE.md`, `.claude/`, `.github/`, `.gitignore`,
   `README.md`, `DEV.md`, `TODO.md`, `index.html`, `package.json`,
   `package-lock.json`, `vite.config.js`, `vite.mapSaver.js` a složky `src/`,
   `public/`, `tools/` (plus negitované `node_modules/`, `dist/`, `_sources/`).
